@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Utensils, Plus, ShoppingCart, Check } from "lucide-react";
+import { Utensils, Plus, ShoppingCart, Check, Sparkles } from "lucide-react";
 import { AccessMode } from "./kiosk-header";
 
 interface MealDay {
@@ -66,17 +66,19 @@ export function MealsView({ accessMode }: MealsViewProps) {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 p-6 overflow-hidden">
-      <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+    <div className="flex-1 flex flex-col h-full bg-cosmos-void/90 p-6 overflow-hidden">
+      <div className="flex items-center justify-between pb-4 border-b border-cosmos-border">
         <div>
-          <h2 className="text-2xl font-black text-white">Weekly Meal Planner</h2>
+          <h2 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-starlight">
+            Weekly Meal Planner
+          </h2>
           <p className="text-xs text-slate-400">
             Plan dinners and send ingredients straight to the family grocery list.
           </p>
         </div>
 
         {accessMode === "admin" && (
-          <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-sm text-white shadow-lg shadow-blue-500/20 transition">
+          <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-lg shadow-purple-500/20 transition">
             <Plus className="w-4 h-4" />
             <span>Edit Schedule</span>
           </button>
@@ -90,34 +92,35 @@ export function MealsView({ accessMode }: MealsViewProps) {
           return (
             <div
               key={meal.day}
-              className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4"
+              className="p-4 rounded-2xl bg-cosmos-card/80 border border-cosmos-border flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg backdrop-blur-md"
             >
               <div className="w-36">
                 <span className="text-lg font-black text-white block">
                   {meal.day}
                 </span>
-                <span className="text-xs text-slate-400">{meal.date}</span>
+                <span className="text-xs text-starlight font-bold">{meal.date}</span>
               </div>
 
               <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                <div className="bg-cosmos-surface/80 p-2.5 rounded-xl border border-cosmos-border">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
                     Breakfast
                   </span>
-                  <span className="text-xs text-slate-300 font-medium">
+                  <span className="text-xs text-slate-200 font-medium">
                     {meal.breakfast}
                   </span>
                 </div>
-                <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                <div className="bg-cosmos-surface/80 p-2.5 rounded-xl border border-cosmos-border">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
                     Lunch
                   </span>
-                  <span className="text-xs text-slate-300 font-medium">
+                  <span className="text-xs text-slate-200 font-medium">
                     {meal.lunch}
                   </span>
                 </div>
-                <div className="bg-slate-950/80 p-2.5 rounded-xl border border-blue-500/30">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400 block">
+                <div className="bg-cosmos-surface/90 p-2.5 rounded-xl border border-purple-500/40 shadow-sm shadow-purple-500/20">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-300 block flex items-center gap-1">
+                    <Sparkles className="w-2.5 h-2.5 text-starlight" />
                     Dinner
                   </span>
                   <span className="text-xs text-white font-bold">
@@ -131,8 +134,8 @@ export function MealsView({ accessMode }: MealsViewProps) {
                   onClick={() => handleAddToGrocery(meal.dinner)}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition ${
                     isAdded
-                      ? "bg-emerald-600 text-white"
-                      : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
+                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
+                      : "bg-cosmos-surface border border-cosmos-border text-slate-300 hover:bg-cosmos-cardHover hover:text-white"
                   }`}
                 >
                   {isAdded ? (
@@ -142,7 +145,7 @@ export function MealsView({ accessMode }: MealsViewProps) {
                     </>
                   ) : (
                     <>
-                      <ShoppingCart className="w-4 h-4 text-slate-400" />
+                      <ShoppingCart className="w-4 h-4 text-starlight" />
                       <span>Add Ingredients</span>
                     </>
                   )}

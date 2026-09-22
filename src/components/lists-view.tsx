@@ -27,7 +27,6 @@ interface ListsViewProps {
 export function ListsView({ accessMode }: ListsViewProps) {
   const [items, setItems] = useState<ListItem[]>(INITIAL_GROCERIES);
   const [newTitle, setNewTitle] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string>("All");
 
   const toggleItem = (id: string) => {
     setItems((prev) =>
@@ -53,11 +52,13 @@ export function ListsView({ accessMode }: ListsViewProps) {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 p-6 overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-cosmos-void/90 p-6 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+      <div className="flex items-center justify-between pb-4 border-b border-cosmos-border">
         <div>
-          <h2 className="text-2xl font-black text-white">Shared Grocery List</h2>
+          <h2 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-starlight">
+            Shared Grocery List
+          </h2>
           <p className="text-xs text-slate-400">
             Real-time grocery sync between phone and wall display.
           </p>
@@ -66,7 +67,7 @@ export function ListsView({ accessMode }: ListsViewProps) {
         {items.some((i) => i.completed) && accessMode !== "kid" && (
           <button
             onClick={clearCompleted}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 border border-slate-850 text-xs font-bold text-slate-400 hover:text-rose-400 hover:border-rose-500/30 transition"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cosmos-surface border border-cosmos-border text-xs font-bold text-slate-400 hover:text-rose-400 hover:border-rose-500/30 transition"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Clear Completed</span>
@@ -74,7 +75,7 @@ export function ListsView({ accessMode }: ListsViewProps) {
         )}
       </div>
 
-      {/* Add Item Form (Disabled in Kid mode) */}
+      {/* Add Item Form */}
       {accessMode !== "kid" && (
         <form onSubmit={addItem} className="flex gap-2 py-4">
           <input
@@ -82,11 +83,11 @@ export function ListsView({ accessMode }: ListsViewProps) {
             placeholder="Add an item to the list (e.g. Eggs, Coffee, Apples)..."
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
-            className="flex-1 h-12 bg-slate-900 border border-slate-800 rounded-xl px-4 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition"
+            className="flex-1 h-12 bg-cosmos-surface border border-cosmos-border rounded-xl px-4 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-purple-500 transition"
           />
           <button
             type="submit"
-            className="h-12 px-5 bg-blue-600 hover:bg-blue-500 font-bold text-white rounded-xl text-sm flex items-center gap-2 shadow-lg shadow-blue-500/20 transition"
+            className="h-12 px-5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-white rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-purple-500/20 transition"
           >
             <Plus className="w-4 h-4" />
             <span>Add</span>
@@ -102,15 +103,15 @@ export function ListsView({ accessMode }: ListsViewProps) {
             onClick={() => toggleItem(item.id)}
             className={`cursor-pointer p-3.5 rounded-xl border transition flex items-center justify-between select-none ${
               item.completed
-                ? "bg-slate-900/40 border-slate-800/40 opacity-60"
-                : "bg-slate-900 border-slate-800 hover:border-slate-700"
+                ? "bg-cosmos-deep/40 border-cosmos-border/40 opacity-60"
+                : "bg-cosmos-card/80 border-cosmos-border hover:border-purple-500/40 shadow-md"
             }`}
           >
             <div className="flex items-center gap-3">
               {item.completed ? (
                 <CheckCircle className="w-6 h-6 text-emerald-400" />
               ) : (
-                <Circle className="w-6 h-6 text-slate-600 hover:text-slate-400" />
+                <Circle className="w-6 h-6 text-slate-500 hover:text-slate-300" />
               )}
               <span
                 className={`text-base font-medium ${
@@ -121,7 +122,7 @@ export function ListsView({ accessMode }: ListsViewProps) {
               </span>
             </div>
 
-            <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800 text-slate-400 font-semibold">
+            <span className="text-xs px-2.5 py-1 rounded-md bg-cosmos-surface border border-cosmos-border text-slate-300 font-semibold">
               {item.category}
             </span>
           </div>
