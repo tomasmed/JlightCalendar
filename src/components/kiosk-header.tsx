@@ -14,11 +14,25 @@ import {
   CloudSun,
   Sparkles,
   ChevronDown,
-  Home,
+  Globe2,
+  Plus,
+  Users,
+  LogIn,
+  LogOut,
 } from "lucide-react";
+import { signIn, signOut } from "next-auth/react";
 
 export type AccessMode = "admin" | "standard" | "kid";
 export type ActiveTab = "calendar" | "chores" | "meals" | "lists" | "photos";
+
+export interface GalaxyItem {
+  id: string;
+  name: string;
+  theme: string;
+  icon: string;
+  members?: { id: string; displayName: string; avatarIcon: string; role: string }[];
+  calendars?: { id: string; name: string; isPrimary: boolean }[];
+}
 
 interface KioskHeaderProps {
   activeTab: ActiveTab;
@@ -26,6 +40,16 @@ interface KioskHeaderProps {
   accessMode: AccessMode;
   onOpenModeModal: () => void;
   onToggleSleep: () => void;
+  galaxies?: GalaxyItem[];
+  activeGalaxyId?: string;
+  onSelectGalaxy?: (galaxyId: string) => void;
+  onOpenInhabitantsModal?: () => void;
+  onOpenCreateGalaxyModal?: () => void;
+  user?: {
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+  } | null;
 }
 
 export function KioskHeader({
@@ -34,11 +58,16 @@ export function KioskHeader({
   accessMode,
   onOpenModeModal,
   onToggleSleep,
+  galaxies = [],
+  activeGalaxyId,
+  onSelectGalaxy,
+  onOpenInhabitantsModal,
+  onOpenCreateGalaxyModal,
+  user,
 }: KioskHeaderProps) {
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
-  const [household, setHousehold] = useState("The Family");
-  const [showHouseholdMenu, setShowHouseholdMenu] = useState(false);
+  const [showGalaxyMenu, setShowGalaxyMenu] = useState(false);
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -60,6 +89,15 @@ export function KioskHeader({
     return () => clearInterval(interval);
   }, []);
 
+  const activeGalaxy =
+    galaxies.find((g) => g.id === activeGalaxyId) ||
+    galaxies[0] || {
+      id: "default",
+      name: "The Sol Family Galaxy",
+      theme: "milky-way",
+      icon: "sparkles",
+    };
+
   const tabs: { id: ActiveTab; label: string; icon: React.ElementType }[] = [
     { id: "calendar", label: "Calendar", icon: Calendar },
     { id: "chores", label: "Chores", icon: CheckSquare },
@@ -70,8 +108,8 @@ export function KioskHeader({
 
   return (
     <header className="h-20 bg-cosmos-deep/95 border-b border-cosmos-border px-6 flex items-center justify-between select-none backdrop-blur-xl relative z-40">
-      {/* Left: Clock, Date & Weather with Starlight Glow */}
-      <div className="flex items-center gap-6">
+      {/* Left: Clock, Date & Calendar Galaxy Switcher */}
+      <div className="flex items-center gap-5">
         <div className="flex flex-col">
           <span className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-100 to-starlight tabular-nums drop-shadow-sm">
             {time || "--:--"}
@@ -81,60 +119,105 @@ export function KioskHeader({
           </span>
         </div>
 
-        {/* Multi-Household Switcher (FEAT-101 / FEAT-102) */}
+        {/* Multi-Galaxy Switcher Dropdown (Epic 1 / FEAT-101 / FEAT-102) */}
         <div className="relative">
           <button
-            onClick={() => setShowHouseholdMenu(!showHouseholdMenu)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-cosmos-surface border border-cosmos-border hover:border-purple-500/50 transition text-xs font-bold text-slate-200"
+            onClick={() => setShowGalaxyMenu(!showGalaxyMenu)}
+            className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-cosmos-surface border border-cosmos-border hover:border-purple-500/50 transition font-bold text-xs text-slate-200 shadow-md min-h-[44px]"
+            title="Switch Calendar Galaxy"
           >
-            <Home className="w-3.5 h-3.5 text-starlight" />
-            <span>{household}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            <div className="p-1 rounded-lg bg-purple-600/30 text-starlight">
+              <Sparkles className="w-3.5 h-3.5" />
+            </div>
+            <div className="flex flex-col text-left">
+              <span className="text-[9px] font-black uppercase tracking-widest text-starlight leading-none mb-0.5">
+                Galaxy
+              </span>
+              <span className="truncate max-w-[140px] text-white">
+                {activeGalaxy.name}
+              </span>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-1" />
           </button>
 
-          {showHouseholdMenu && (
-            <div className="absolute top-12 left-0 w-56 bg-cosmos-card border border-cosmos-borderLight rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider px-3 py-1 block">
-                Switch Household
-              </span>
-              <button
-                onClick={() => {
-                  setHousehold("The Family");
-                  setShowHouseholdMenu(false);
-                }}
-                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between ${
-                  household === "The Family"
-                    ? "bg-purple-600/30 text-white border border-purple-500/40"
-                    : "text-slate-300 hover:bg-cosmos-surface"
-                }`}
-              >
-                <span>The Family (Home)</span>
-                {household === "The Family" && (
-                  <Sparkles className="w-3.5 h-3.5 text-starlight" />
+          {showGalaxyMenu && (
+            <div className="absolute top-12 left-0 w-72 bg-cosmos-card border border-cosmos-borderLight rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95">
+              <div className="px-3 py-2 border-b border-cosmos-border/60 flex items-center justify-between">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                  Select Calendar Galaxy
+                </span>
+                <span className="text-[10px] text-starlight font-bold">
+                  {galaxies.length} Galaxies
+                </span>
+              </div>
+
+              <div className="py-1 max-h-60 overflow-y-auto space-y-1">
+                {galaxies.map((g) => {
+                  const isSelected = g.id === activeGalaxy.id;
+                  return (
+                    <button
+                      key={g.id}
+                      onClick={() => {
+                        onSelectGalaxy?.(g.id);
+                        setShowGalaxyMenu(false);
+                      }}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition ${
+                        isSelected
+                          ? "bg-purple-600/30 text-white border border-purple-500/40 shadow-sm"
+                          : "text-slate-300 hover:bg-cosmos-surface"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 truncate">
+                        <Globe2 className="w-4 h-4 text-starlight flex-shrink-0" />
+                        <div className="truncate">
+                          <span className="block truncate">{g.name}</span>
+                          <span className="text-[10px] text-slate-400 font-normal">
+                            {g.members ? `${g.members.length} Inhabitants` : "Active Group"}
+                          </span>
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <Sparkles className="w-3.5 h-3.5 text-starlight flex-shrink-0 ml-2" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Action Buttons in Dropdown */}
+              <div className="pt-2 mt-1 border-t border-cosmos-border/60 space-y-1">
+                {accessMode !== "kid" && onOpenInhabitantsModal && (
+                  <button
+                    onClick={() => {
+                      setShowGalaxyMenu(false);
+                      onOpenInhabitantsModal();
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-cosmos-surface flex items-center gap-2 transition"
+                  >
+                    <Users className="w-3.5 h-3.5 text-starlight" />
+                    <span>Manage Inhabitants & Pets</span>
+                  </button>
                 )}
-              </button>
-              <button
-                onClick={() => {
-                  setHousehold("Grandparents & Co.");
-                  setShowHouseholdMenu(false);
-                }}
-                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between mt-1 ${
-                  household === "Grandparents & Co."
-                    ? "bg-purple-600/30 text-white border border-purple-500/40"
-                    : "text-slate-300 hover:bg-cosmos-surface"
-                }`}
-              >
-                <span>Grandparents & Co.</span>
-                {household === "Grandparents & Co." && (
-                  <Sparkles className="w-3.5 h-3.5 text-starlight" />
+
+                {accessMode === "admin" && onOpenCreateGalaxyModal && (
+                  <button
+                    onClick={() => {
+                      setShowGalaxyMenu(false);
+                      onOpenCreateGalaxyModal();
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-starlight hover:bg-purple-600/20 flex items-center gap-2 transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Orbit New Galaxy</span>
+                  </button>
                 )}
-              </button>
+              </div>
             </div>
           )}
         </div>
 
         {/* Ambient Weather */}
-        <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-cosmos-surface/80 border border-cosmos-border text-slate-300 text-sm">
+        <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-full bg-cosmos-surface/80 border border-cosmos-border text-slate-300 text-sm">
           <CloudSun className="w-4 h-4 text-starlight" />
           <span className="font-bold text-white text-xs">72°F</span>
           <span className="text-[11px] text-slate-400">Clear Night</span>
@@ -155,7 +238,7 @@ export function KioskHeader({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 min-h-[44px] ${
                 isActive
                   ? "bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white shadow-lg shadow-purple-500/30"
                   : "text-slate-400 hover:text-slate-200 hover:bg-cosmos-surface/80"
@@ -168,13 +251,48 @@ export function KioskHeader({
         })}
       </nav>
 
-      {/* Right: Mode Badge & Sleep Mode Button */}
+      {/* Right: User OAuth Profile, Mode Badge & Sleep Mode Button */}
       <div className="flex items-center gap-3">
+        {/* Google OAuth Profile / Sign In */}
+        {user ? (
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-cosmos-surface border border-cosmos-border">
+            {user.image ? (
+              <img
+                src={user.image}
+                alt={user.name || "User"}
+                className="w-6 h-6 rounded-full border border-purple-400"
+              />
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-[10px] font-bold text-white">
+                {user.name?.[0]?.toUpperCase() || "U"}
+              </div>
+            )}
+            <span className="text-xs font-bold text-slate-200 truncate max-w-[100px]">
+              {user.name || user.email?.split("@")[0]}
+            </span>
+            <button
+              onClick={() => signOut()}
+              title="Sign Out"
+              className="p-1 text-slate-400 hover:text-rose-400 transition"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => signIn("google")}
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border hover:border-purple-500/40 text-xs font-bold text-slate-200 transition min-h-[44px]"
+          >
+            <LogIn className="w-3.5 h-3.5 text-starlight" />
+            <span>Google Login</span>
+          </button>
+        )}
+
         {/* Night Sleep Button */}
         <button
           onClick={onToggleSleep}
           title="Night Sleep Mode (OLED Protection)"
-          className="p-3 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover text-slate-400 hover:text-starlight border border-cosmos-border transition"
+          className="p-3 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover text-slate-400 hover:text-starlight border border-cosmos-border transition min-w-[48px] min-h-[48px] flex items-center justify-center"
         >
           <Moon className="w-4 h-4" />
         </button>
@@ -182,7 +300,7 @@ export function KioskHeader({
         {/* 3-Tier Access Mode Trigger */}
         <button
           onClick={onOpenModeModal}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider border transition-all ${
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider border transition-all min-h-[48px] ${
             accessMode === "admin"
               ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/20 shadow-sm shadow-emerald-500/20"
               : accessMode === "kid"
@@ -190,9 +308,15 @@ export function KioskHeader({
               : "bg-blue-500/10 text-starlight-cyan border-cyan-500/40 hover:bg-cyan-500/20 shadow-sm shadow-cyan-500/20"
           }`}
         >
-          {accessMode === "admin" && <Shield className="w-3.5 h-3.5 text-emerald-400" />}
-          {accessMode === "standard" && <User className="w-3.5 h-3.5 text-starlight-cyan" />}
-          {accessMode === "kid" && <Baby className="w-3.5 h-3.5 text-purple-400" />}
+          {accessMode === "admin" && (
+            <Shield className="w-3.5 h-3.5 text-emerald-400" />
+          )}
+          {accessMode === "standard" && (
+            <User className="w-3.5 h-3.5 text-starlight-cyan" />
+          )}
+          {accessMode === "kid" && (
+            <Baby className="w-3.5 h-3.5 text-purple-400" />
+          )}
           <span>{accessMode} Mode</span>
         </button>
       </div>

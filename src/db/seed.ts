@@ -1,7 +1,10 @@
 import { db } from "./index";
 import {
-  households,
-  familyMembers,
+  users,
+  galaxies,
+  galaxyMembers,
+  calendars,
+  events,
   displayDevices,
   chores,
   listItems,
@@ -9,70 +12,269 @@ import {
 } from "./schema";
 
 async function main() {
-  console.log("🌱 Seeding database...");
+  console.log("🌱 Seeding database with Galaxies, Inhabitants, Calendars & Events...");
 
-  // 1. Create Default Household
-  const householdId = "household_default";
+  // 1. Primary Demo User
+  const demoUserId = "usr_demo_parent";
   await db
-    .insert(households)
+    .insert(users)
     .values({
-      id: householdId,
-      name: "The Family",
-      parentPin: "1234",
-      timezone: "America/New_York",
+      id: demoUserId,
+      name: "Demo Parent",
+      email: "demo@jlightcalendar.internal",
+      defaultGalaxyId: "galaxy_sol_family",
     })
     .onConflictDoNothing();
 
-  // 2. Create Family Members
+  // 2. Galaxies
+  const solGalaxyId = "galaxy_sol_family";
+  const grandparentsGalaxyId = "galaxy_grandparents";
+  const kidsGalaxyId = "galaxy_kids_orbit";
+
   await db
-    .insert(familyMembers)
+    .insert(galaxies)
     .values([
       {
-        id: "mem_mom",
-        householdId,
-        name: "Mom",
-        color: "#ec4899",
-        avatarIcon: "user",
-        role: "parent",
-        starBalance: 0,
+        id: solGalaxyId,
+        name: "The Sol Family Galaxy",
+        slug: "sol-family",
+        theme: "milky-way",
+        icon: "sparkles",
+        parentPin: "1234",
+        timezone: "America/New_York",
+        ownerId: demoUserId,
       },
       {
-        id: "mem_dad",
-        householdId,
-        name: "Dad",
-        color: "#10b981",
-        avatarIcon: "user",
-        role: "parent",
-        starBalance: 0,
+        id: grandparentsGalaxyId,
+        name: "Grandparents & Co.",
+        slug: "grandparents",
+        theme: "andromeda",
+        icon: "heart",
+        parentPin: "1234",
+        timezone: "America/New_York",
+        ownerId: demoUserId,
       },
       {
-        id: "mem_leo",
-        householdId,
-        name: "Leo",
-        color: "#8b5cf6",
-        avatarIcon: "baby",
-        role: "child",
-        starBalance: 18,
-      },
-      {
-        id: "mem_mia",
-        householdId,
-        name: "Mia",
-        color: "#f59e0b",
-        avatarIcon: "baby",
-        role: "child",
-        starBalance: 24,
+        id: kidsGalaxyId,
+        name: "Kids Adventure Orbit",
+        slug: "kids-orbit",
+        theme: "supernova",
+        icon: "rocket",
+        parentPin: "1234",
+        timezone: "America/New_York",
+        ownerId: demoUserId,
       },
     ])
     .onConflictDoNothing();
 
-  // 3. Create Default Wall Display Device
+  // 3. Inhabitants / Members
+  // Family Galaxy Inhabitants: Mom, Dad, Leo, Mia, and Java (the Dog!)
+  await db
+    .insert(galaxyMembers)
+    .values([
+      {
+        id: "mem_mom",
+        galaxyId: solGalaxyId,
+        userId: demoUserId,
+        displayName: "Mom",
+        role: "admin",
+        color: "#ec4899",
+        avatarIcon: "user",
+        starBalance: 0,
+      },
+      {
+        id: "mem_dad",
+        galaxyId: solGalaxyId,
+        displayName: "Dad",
+        role: "admin",
+        color: "#10b981",
+        avatarIcon: "user",
+        starBalance: 0,
+      },
+      {
+        id: "mem_leo",
+        galaxyId: solGalaxyId,
+        displayName: "Leo",
+        role: "kid",
+        color: "#8b5cf6",
+        avatarIcon: "baby",
+        starBalance: 18,
+      },
+      {
+        id: "mem_mia",
+        galaxyId: solGalaxyId,
+        displayName: "Mia",
+        role: "kid",
+        color: "#f59e0b",
+        avatarIcon: "baby",
+        starBalance: 24,
+      },
+      {
+        id: "mem_java",
+        galaxyId: solGalaxyId,
+        displayName: "Java 🐕",
+        role: "pet",
+        color: "#06b6d4",
+        avatarIcon: "dog",
+        starBalance: 0,
+      },
+      // Grandparents Galaxy Inhabitants
+      {
+        id: "mem_grandma",
+        galaxyId: grandparentsGalaxyId,
+        displayName: "Grandma Sue",
+        role: "admin",
+        color: "#ec4899",
+        avatarIcon: "user",
+        starBalance: 0,
+      },
+      {
+        id: "mem_grandpa",
+        galaxyId: grandparentsGalaxyId,
+        displayName: "Grandpa Joe",
+        role: "admin",
+        color: "#3b82f6",
+        avatarIcon: "user",
+        starBalance: 0,
+      },
+      {
+        id: "mem_gp_mom",
+        galaxyId: grandparentsGalaxyId,
+        userId: demoUserId,
+        displayName: "Mom",
+        role: "member",
+        color: "#a855f7",
+        avatarIcon: "user",
+        starBalance: 0,
+      },
+    ])
+    .onConflictDoNothing();
+
+  // 4. Calendars
+  const calPrimarySol = "cal_sol_primary";
+  const calVetSol = "cal_sol_pet";
+  const calGpPrimary = "cal_gp_primary";
+
+  await db
+    .insert(calendars)
+    .values([
+      {
+        id: calPrimarySol,
+        galaxyId: solGalaxyId,
+        name: "Primary Family Orbit",
+        color: "#8b5cf6",
+        isPrimary: true,
+        description: "Main household calendar for all family events",
+      },
+      {
+        id: calVetSol,
+        galaxyId: solGalaxyId,
+        name: "Java's Pet Care & Vet",
+        color: "#06b6d4",
+        isPrimary: false,
+        description: "Vet checkups, medication, grooming for Java",
+      },
+      {
+        id: calGpPrimary,
+        galaxyId: grandparentsGalaxyId,
+        name: "Grandparents Family Circle",
+        color: "#3b82f6",
+        isPrimary: true,
+        description: "Shared gatherings, Sunday roasts, doctor visits",
+      },
+    ])
+    .onConflictDoNothing();
+
+  // 5. Events
+  await db
+    .insert(events)
+    .values([
+      {
+        id: "evt_java_vet",
+        galaxyId: solGalaxyId,
+        calendarId: calVetSol,
+        memberId: "mem_java",
+        title: "Java Annual Vet Checkup & Vaccines 🐾",
+        description: "Bring vaccination passport to Healthy Paws Veterinary",
+        location: "Healthy Paws Clinic, Suite 4",
+        startTime: "2026-09-24T14:30:00",
+        endTime: "2026-09-24T15:30:00",
+        isAllDay: false,
+        colorOverride: "#06b6d4",
+      },
+      {
+        id: "evt_leo_soccer",
+        galaxyId: solGalaxyId,
+        calendarId: calPrimarySol,
+        memberId: "mem_leo",
+        title: "Leo Soccer Practice ⚽",
+        description: "Bring cleats, shin guards, and water bottle",
+        location: "Community Field 2",
+        startTime: "2026-09-21T16:30:00",
+        endTime: "2026-09-21T17:30:00",
+        isAllDay: false,
+        colorOverride: "#8b5cf6",
+      },
+      {
+        id: "evt_family_taco",
+        galaxyId: solGalaxyId,
+        calendarId: calPrimarySol,
+        memberId: null,
+        title: "Family Taco Night 🌮",
+        description: "Homemade beef tacos and guacamole with the whole crew",
+        location: "Home Kitchen",
+        startTime: "2026-09-21T18:30:00",
+        endTime: "2026-09-21T19:30:00",
+        isAllDay: false,
+        colorOverride: "#ffd166",
+      },
+      {
+        id: "evt_mia_gym",
+        galaxyId: solGalaxyId,
+        calendarId: calPrimarySol,
+        memberId: "mem_mia",
+        title: "Mia Gymnastics 🤸‍♀️",
+        location: "YMCA Gym A",
+        startTime: "2026-09-22T17:15:00",
+        endTime: "2026-09-22T18:00:00",
+        isAllDay: false,
+        colorOverride: "#f59e0b",
+      },
+      {
+        id: "evt_gp_dinner",
+        galaxyId: grandparentsGalaxyId,
+        calendarId: calGpPrimary,
+        memberId: "mem_grandma",
+        title: "Sunday Family Roast at Grandma's 🍗",
+        description: "Bring dessert! Kids love Grandma's mashed potatoes",
+        location: "Grandma & Grandpa's House",
+        startTime: "2026-09-27T17:00:00",
+        endTime: "2026-09-27T19:30:00",
+        isAllDay: false,
+        colorOverride: "#ec4899",
+      },
+      {
+        id: "evt_gp_garden",
+        galaxyId: grandparentsGalaxyId,
+        calendarId: calGpPrimary,
+        memberId: "mem_grandpa",
+        title: "Tomato Harvesting with Grandpa 🍅",
+        location: "Backyard Garden",
+        startTime: "2026-09-26T10:00:00",
+        endTime: "2026-09-26T12:00:00",
+        isAllDay: false,
+        colorOverride: "#3b82f6",
+      },
+    ])
+    .onConflictDoNothing();
+
+  // 6. Wall Display Device
   await db
     .insert(displayDevices)
     .values({
       id: "dev_wall_kitchen",
-      householdId,
-      deviceName: "Kitchen Wall Tablet",
+      galaxyId: solGalaxyId,
+      deviceName: "Kitchen Wall Display",
       currentMode: "standard",
       nightSleepEnabled: true,
       sleepStart: "23:00",
@@ -80,118 +282,53 @@ async function main() {
     })
     .onConflictDoNothing();
 
-  // 4. Create Initial Chores
+  // 7. Chores
   await db
     .insert(chores)
     .values([
       {
         id: "chore_1",
-        householdId,
+        galaxyId: solGalaxyId,
         memberId: "mem_leo",
-        title: "Make Bed & Tidy Room",
+        title: "Walk Java the Dog 🐕",
         points: 2,
-        recurrenceType: "daily",
-      },
-      {
-        id: "chore_2",
-        householdId,
-        memberId: "mem_leo",
-        title: "Feed the Dog",
-        points: 1,
         recurrenceType: "daily",
         dueTime: "17:00",
       },
       {
-        id: "chore_3",
-        householdId,
-        memberId: "mem_leo",
-        title: "Take Out Recycling Bin",
-        points: 3,
-        recurrenceType: "weekly",
-      },
-      {
-        id: "chore_4",
-        householdId,
+        id: "chore_2",
+        galaxyId: solGalaxyId,
         memberId: "mem_mia",
-        title: "Put Away Backpack & Shoes",
+        title: "Feed Java & Refill Water Bowl",
         points: 1,
         recurrenceType: "daily",
-      },
-      {
-        id: "chore_5",
-        householdId,
-        memberId: "mem_mia",
-        title: "Brush Teeth (2 mins)",
-        points: 1,
-        recurrenceType: "daily",
+        dueTime: "08:00",
       },
     ])
     .onConflictDoNothing();
 
-  // 5. Create Initial Grocery Items
+  // 8. Grocery Items
   await db
     .insert(listItems)
     .values([
       {
         id: "list_1",
-        householdId,
+        galaxyId: solGalaxyId,
         listType: "grocery",
-        title: "Whole Milk (1 Gallon)",
+        title: "Java's Dog Food (Salmon & Sweet Potato)",
         isCompleted: false,
       },
       {
         id: "list_2",
-        householdId,
+        galaxyId: solGalaxyId,
         listType: "grocery",
-        title: "Avocados (4-pack)",
-        isCompleted: false,
-      },
-      {
-        id: "list_3",
-        householdId,
-        listType: "grocery",
-        title: "Corn Tortillas",
+        title: "Avocados for Taco Night",
         isCompleted: true,
       },
-      {
-        id: "list_4",
-        householdId,
-        listType: "grocery",
-        title: "Ground Turkey (2 lbs)",
-        isCompleted: false,
-      },
     ])
     .onConflictDoNothing();
 
-  // 6. Create Initial Meal Plans
-  await db
-    .insert(mealPlans)
-    .values([
-      {
-        id: "meal_mon",
-        householdId,
-        planDate: "2026-09-21",
-        mealType: "dinner",
-        title: "Homemade Beef Tacos & Guacamole",
-      },
-      {
-        id: "meal_tue",
-        householdId,
-        planDate: "2026-09-22",
-        mealType: "dinner",
-        title: "Grilled Salmon & Asparagus",
-      },
-      {
-        id: "meal_wed",
-        householdId,
-        planDate: "2026-09-23",
-        mealType: "dinner",
-        title: "Spaghetti Bolognese with Garlic Bread",
-      },
-    ])
-    .onConflictDoNothing();
-
-  console.log("✅ Seed completed successfully!");
+  console.log("✅ Database seeded with Galaxies, Inhabitants, Calendars & Events!");
 }
 
 main().catch((err) => {
