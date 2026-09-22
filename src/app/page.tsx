@@ -17,7 +17,7 @@ export default function HomePage() {
   const [isSleeping, setIsSleeping] = useState(false);
 
   return (
-    <main className="h-screen w-screen flex flex-col overflow-hidden bg-slate-950 text-slate-100 select-none">
+    <main className="h-screen w-screen flex flex-col overflow-hidden bg-cosmos-void text-slate-100 select-none">
       {/* 24/7 Night Sleep Mode Overlay */}
       <NightSleepOverlay
         isSleeping={isSleeping}

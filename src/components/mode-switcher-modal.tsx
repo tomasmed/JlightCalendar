@@ -43,7 +43,6 @@ export function ModeSwitcherModal({
   };
 
   const handleApply = (modeToApply: AccessMode) => {
-    // If switching to Admin or exiting Kid Mode, PIN is required
     const requiresPin = modeToApply === "admin" || (currentMode === "kid" && modeToApply !== "kid");
 
     if (requiresPin) {
@@ -60,10 +59,10 @@ export function ModeSwitcherModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95">
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="bg-cosmos-card border border-cosmos-borderLight rounded-3xl p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div className="flex items-center justify-between pb-4 border-b border-cosmos-border">
           <div>
             <h2 className="text-xl font-bold text-white">Access Control Mode</h2>
             <p className="text-xs text-slate-400">
@@ -72,7 +71,7 @@ export function ModeSwitcherModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-cosmos-surface"
           >
             <X className="w-5 h-5" />
           </button>
@@ -88,8 +87,8 @@ export function ModeSwitcherModal({
             }}
             className={`p-4 rounded-2xl flex flex-col items-center gap-2 border transition ${
               targetMode === "standard"
-                ? "bg-blue-600/20 border-blue-500 text-blue-400"
-                : "bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800"
+                ? "bg-blue-600/20 border-cyan-500 text-starlight-cyan shadow-md shadow-cyan-500/20"
+                : "bg-cosmos-surface border-cosmos-border text-slate-300 hover:bg-cosmos-cardHover"
             }`}
           >
             <User className="w-6 h-6" />
@@ -104,8 +103,8 @@ export function ModeSwitcherModal({
             }}
             className={`p-4 rounded-2xl flex flex-col items-center gap-2 border transition ${
               targetMode === "kid"
-                ? "bg-purple-600/20 border-purple-500 text-purple-400"
-                : "bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800"
+                ? "bg-purple-600/20 border-purple-500 text-purple-300 shadow-md shadow-purple-500/20"
+                : "bg-cosmos-surface border-cosmos-border text-slate-300 hover:bg-cosmos-cardHover"
             }`}
           >
             <Baby className="w-6 h-6" />
@@ -120,8 +119,8 @@ export function ModeSwitcherModal({
             }}
             className={`p-4 rounded-2xl flex flex-col items-center gap-2 border transition ${
               targetMode === "admin"
-                ? "bg-emerald-600/20 border-emerald-500 text-emerald-400"
-                : "bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800"
+                ? "bg-emerald-600/20 border-emerald-500 text-emerald-300 shadow-md shadow-emerald-500/20"
+                : "bg-cosmos-surface border-cosmos-border text-slate-300 hover:bg-cosmos-cardHover"
             }`}
           >
             <Shield className="w-6 h-6" />
@@ -130,32 +129,32 @@ export function ModeSwitcherModal({
         </div>
 
         {/* Mode Details Description */}
-        <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 mb-4">
+        <div className="bg-cosmos-void/80 p-3 rounded-xl border border-cosmos-border text-xs text-slate-300 mb-4">
           {targetMode === "standard" && (
             <span>
-              <strong>Standard Mode:</strong> Everyday family view. Allows viewing schedules, checking chores, and adding grocery items.
+              <strong className="text-starlight-cyan">Standard Mode:</strong> Everyday family view. Allows viewing schedules, checking chores, and adding grocery items.
             </span>
           )}
           {targetMode === "kid" && (
             <span>
-              <strong>Kid Mode:</strong> Kiosk-safe mode. Kids can check off their own chores and view schedules. All editing and settings are locked.
+              <strong className="text-purple-300">Kid Mode:</strong> Kiosk-safe mode. Kids can check off their own chores and view schedules. All editing and settings are locked.
             </span>
           )}
           {targetMode === "admin" && (
             <span>
-              <strong>Admin Mode:</strong> Unlocks calendar sync settings, member profiles, and meal planning configurations.
+              <strong className="text-emerald-300">Admin Mode:</strong> Unlocks calendar sync settings, member profiles, and meal planning configurations.
             </span>
           )}
         </div>
 
-        {/* PIN Entry (required when switching to admin or unlocking kid mode) */}
+        {/* PIN Entry */}
         {(targetMode === "admin" || (currentMode === "kid" && targetMode !== "kid")) && (
           <div className="space-y-3 mb-5">
             <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="flex items-center gap-1.5 text-amber-400">
+              <span className="flex items-center gap-1.5 text-starlight">
                 <Lock className="w-3.5 h-3.5" /> Enter 4-Digit Parent PIN
               </span>
-              <span className="font-mono text-slate-500">Hint: 1234</span>
+              <span className="font-mono text-slate-500">Default: 1234</span>
             </div>
 
             {/* PIN Display Dots */}
@@ -165,8 +164,8 @@ export function ModeSwitcherModal({
                   key={idx}
                   className={`w-4 h-4 rounded-full border-2 transition-all ${
                     pin.length > idx
-                      ? "bg-blue-500 border-blue-400 scale-110 shadow-md shadow-blue-500/50"
-                      : "border-slate-700 bg-slate-800/50"
+                      ? "bg-starlight border-amber-300 scale-110 shadow-lg shadow-starlight/50"
+                      : "border-slate-700 bg-cosmos-surface"
                   }`}
                 />
               ))}
@@ -179,13 +178,13 @@ export function ModeSwitcherModal({
               </div>
             )}
 
-            {/* Large Touch Keypad for Wall Screens */}
+            {/* Large Touch Keypad */}
             <div className="grid grid-cols-3 gap-2">
               {["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "⌫"].map((key) => (
                 <button
                   key={key}
                   onClick={() => handleKeypadPress(key)}
-                  className="h-12 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold text-lg text-white active:bg-slate-600 transition"
+                  className="h-12 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border font-bold text-lg text-white active:scale-95 transition"
                 >
                   {key}
                 </button>
@@ -198,13 +197,13 @@ export function ModeSwitcherModal({
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-3 rounded-xl border border-slate-700 font-medium text-slate-300 hover:bg-slate-800 transition text-sm"
+            className="flex-1 py-3 rounded-xl border border-cosmos-border font-medium text-slate-300 hover:bg-cosmos-surface transition text-sm"
           >
             Cancel
           </button>
           <button
             onClick={() => handleApply(targetMode)}
-            className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-white shadow-lg shadow-blue-600/30 transition text-sm flex items-center justify-center gap-2"
+            className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 font-bold text-white shadow-lg shadow-purple-500/25 transition text-sm flex items-center justify-center gap-2"
           >
             <CheckCircle2 className="w-4 h-4" />
             Apply Mode
