@@ -1,0 +1,105 @@
+# AGENTS.md — Autonomous Agent Operating Manual
+
+Welcome to **JlightCalendar**. This repository is engineered to be primarily developed and maintained by AI agents collaborating with human-in-the-loop (HITL) maintainers.
+
+All autonomous agents working on this codebase **must strictly adhere** to the guidelines in this document.
+
+---
+
+## 1. Core Operating Principles
+
+1. **Human-in-the-Loop First**: Every non-trivial change requires human review. Write code, documentation, and PRs so that a human maintainer without AI tools can easily read, test, and understand what was done.
+2. **Never Commit Directly to `main`**: The `main` branch is production-ready at all times.
+3. **Always Work in a Git Worktree**: All feature, bugfix, or refactor work must take place in an isolated git worktree on a dedicated branch (`feat/*`, `fix/*`, `chore/*`).
+4. **Document Every Architecture Decision**: Any new architectural pattern, external dependency, or protocol shift must have a corresponding Architecture Decision Record in `docs/adr/`.
+5. **Human-Operable Staging Tests**: Every Pull Request must include a clear, step-by-step test plan that a human can execute in staging with zero guesswork.
+
+---
+
+## 2. Git Worktree & Branching Workflow
+
+### **Step 1: Check out a new branch in an isolated worktree**
+Never modify the root working tree directly for feature work. Always create a git worktree in `.worktrees/`:
+
+```powershell
+# From the repository root (e:\JlightCalendar):
+git worktree add .worktrees/feat-<feature-name> -b feat/<feature-name>
+```
+
+### **Step 2: Do work inside the worktree**
+Work exclusively within `.worktrees/feat-<feature-name>/`.
+Run tests and type checks within that directory:
+
+```powershell
+npm run test
+npm run build
+```
+
+### **Step 3: Commit with clear Conventional Commits**
+Follow the Conventional Commits specification:
+- `feat: add 3-tier access mode toggle (admin, standard, kid)`
+- `fix: resolve rrule expansion for weekly events with exdates`
+- `docs: add ADR 0005 for real-time SSE sync`
+- `test: add unit tests for chore completion state machine`
+
+### **Step 4: Prepare the "Show and Tell" PR**
+Push the branch and generate a Pull Request following the format in `docs/workflow/pr-template.md`.
+
+### **Step 5: Clean up the worktree after merge**
+```powershell
+git worktree remove .worktrees/feat-<feature-name>
+git branch -d feat/<feature-name>
+```
+
+---
+
+## 3. Pull Request "Show & Tell" Standard
+
+All PR descriptions must be structured like a **proud classroom show-and-tell presentation**. Avoid dense, robotic changelogs. Use the following template:
+
+```markdown
+# 🌟 [Show & Tell]: <Feature Name or Title>
+
+### 🎯 What did we build?
+[A plain-English, welcoming explanation of what this feature does and how the family or user experiences it.]
+
+### 💡 Why was it built this way?
+[Brief discussion of the architectural choices, trade-offs, and key file additions.]
+
+### 📸 Visual Preview / Walkthrough
+[Screenshots, component structure, or mock diagram showing the visual experience.]
+
+### 🧪 Human-Operable Staging Test Plan (Step-by-Step)
+Follow these steps in your staging environment to verify this change:
+1. Navigate to: `http://localhost:3000/...`
+2. Perform action: `...`
+3. Expected result: `...`
+4. Edge-case test: `...`
+
+### ⚠️ Caveats & Follow-ups
+[Any known follow-up tasks, deferred features, or environment variable requirements.]
+```
+
+---
+
+## 4. Coding Standards & Tech Stack
+
+- **Framework**: Next.js 15 (App Router, React 19, TypeScript).
+- **Styling**: Tailwind CSS with Radix UI / Lucide icons.
+- **Touch Ergonomics**: All clickable elements must have a minimum hit target of `48px x 48px` to support wall touchscreen kiosks.
+- **Database**: Drizzle ORM with SQLite (local embedded) and Turso (cloud libSQL).
+  - Schema files live in `src/db/schema/`.
+  - Migrations live in `drizzle/`.
+- **Sync**: Server-Sent Events (SSE) for low-power, lightweight updates to displays.
+- **Access Modes**:
+  - Always respect the active access mode: `admin`, `standard`, or `kid`.
+  - When in `kid` mode, suppress edit controls, settings, and deletion actions.
+
+---
+
+## 5. In-Repo Documentation Maintenance
+
+When adding or modifying features:
+1. Update `docs/specs/<feature>.md` with the latest behavioral specifications.
+2. If changing database schemas or fundamental protocols, create a new ADR in `docs/adr/`.
+3. If new setup instructions, scripts, or environment variables are introduced, update `README.md` immediately.
