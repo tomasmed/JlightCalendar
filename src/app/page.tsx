@@ -9,6 +9,7 @@ import { ListsView } from "@/components/lists-view";
 import { ScreensaverView } from "@/components/screensaver-view";
 import { ModeSwitcherModal } from "@/components/mode-switcher-modal";
 import { NightSleepOverlay } from "@/components/night-sleep-overlay";
+import { MobileNavBar } from "@/components/mobile-nav-bar";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("calendar");
@@ -47,7 +48,7 @@ export default function HomePage() {
           />
 
           {/* Active View */}
-          <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex overflow-hidden pb-16 md:pb-0">
             {activeTab === "calendar" && (
               <CalendarView accessMode={accessMode} />
             )}
@@ -55,6 +56,13 @@ export default function HomePage() {
             {activeTab === "meals" && <MealsView accessMode={accessMode} />}
             {activeTab === "lists" && <ListsView accessMode={accessMode} />}
           </div>
+
+          {/* Mobile Bottom Navigation Bar */}
+          <MobileNavBar
+            activeTab={activeTab}
+            onTabChange={(tab) => setActiveTab(tab)}
+            accessMode={accessMode}
+          />
         </>
       )}
     </main>
