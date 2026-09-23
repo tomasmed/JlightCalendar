@@ -138,6 +138,7 @@ async function main() {
         listType: "grocery",
         title: "Whole Milk (1 Gallon)",
         isCompleted: false,
+        addedByMemberId: "mem_mom",
       },
       {
         id: "list_2",
@@ -145,6 +146,7 @@ async function main() {
         listType: "grocery",
         title: "Avocados (4-pack)",
         isCompleted: false,
+        addedByMemberId: "mem_dad",
       },
       {
         id: "list_3",
@@ -152,6 +154,7 @@ async function main() {
         listType: "grocery",
         title: "Corn Tortillas",
         isCompleted: true,
+        addedByMemberId: "mem_mom",
       },
       {
         id: "list_4",
@@ -159,6 +162,23 @@ async function main() {
         listType: "grocery",
         title: "Ground Turkey (2 lbs)",
         isCompleted: false,
+        addedByMemberId: "mem_dad",
+      },
+      {
+        id: "list_5",
+        householdId,
+        listType: "grocery",
+        title: "Cheddar Cheese Block",
+        isCompleted: false,
+        addedByMemberId: "mem_leo",
+      },
+      {
+        id: "list_6",
+        householdId,
+        listType: "grocery",
+        title: "Bananas",
+        isCompleted: true,
+        addedByMemberId: "mem_mia",
       },
     ])
     .onConflictDoNothing();
@@ -170,6 +190,7 @@ async function main() {
       {
         id: "meal_mon",
         householdId,
+        memberId: "mem_mom",
         planDate: "2026-09-21",
         mealType: "dinner",
         title: "Homemade Beef Tacos & Guacamole",
@@ -177,6 +198,7 @@ async function main() {
       {
         id: "meal_tue",
         householdId,
+        memberId: "mem_dad",
         planDate: "2026-09-22",
         mealType: "dinner",
         title: "Grilled Salmon & Asparagus",
@@ -184,9 +206,26 @@ async function main() {
       {
         id: "meal_wed",
         householdId,
+        memberId: "mem_mom",
         planDate: "2026-09-23",
         mealType: "dinner",
         title: "Spaghetti Bolognese with Garlic Bread",
+      },
+      {
+        id: "meal_thu",
+        householdId,
+        memberId: "mem_dad",
+        planDate: "2026-09-24",
+        mealType: "dinner",
+        title: "Slow-Cooker Pulled Pork Sandwiches",
+      },
+      {
+        id: "meal_fri",
+        householdId,
+        memberId: "mem_leo",
+        planDate: "2026-09-25",
+        mealType: "dinner",
+        title: "Family Pizza Night (Build Your Own)",
       },
     ])
     .onConflictDoNothing();

@@ -152,6 +152,9 @@ export const mealPlans = sqliteTable("meal_plans", {
   householdId: text("household_id")
     .notNull()
     .references(() => households.id, { onDelete: "cascade" }),
+  memberId: text("member_id").references(() => familyMembers.id, {
+    onDelete: "set null",
+  }),
   planDate: text("plan_date").notNull(), // YYYY-MM-DD
   mealType: text("meal_type", {
     enum: ["breakfast", "lunch", "dinner", "snack"],
