@@ -14,6 +14,11 @@ import {
 import { eq } from "drizzle-orm";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
+  secret:
+    process.env.AUTH_SECRET ||
+    process.env.NEXTAUTH_SECRET ||
+    "jlight-calendar-secret-default-key-change-in-production",
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,
@@ -22,8 +27,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   }),
   providers: [
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID || "mock-client-id",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "mock-client-secret",
+      clientId:
+        process.env.GOOGLE_CLIENT_ID ||
+        process.env.AUTH_GOOGLE_ID ||
+        "",
+      clientSecret:
+        process.env.GOOGLE_CLIENT_SECRET ||
+        process.env.AUTH_GOOGLE_SECRET ||
+        "",
       allowDangerousEmailAccountLinking: true,
     }),
   ],

@@ -17,8 +17,11 @@ import { NightSleepOverlay } from "@/components/night-sleep-overlay";
 import { Inhabitant, InhabitantsModal } from "@/components/inhabitants-modal";
 import { CreateGalaxyModal } from "@/components/create-galaxy-modal";
 import { CalendarEventData } from "@/components/event-modal";
+import { useSession } from "next-auth/react";
 
 export default function HomePage() {
+  const { data: session } = useSession();
+  const user = session?.user;
   const [activeTab, setActiveTab] = useState<ActiveTab>("calendar");
   const [accessMode, setAccessMode] = useState<AccessMode>("standard");
   const [isModeModalOpen, setIsModeModalOpen] = useState(false);
@@ -108,7 +111,7 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchGalaxies();
-  }, []);
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (activeGalaxyId) {
@@ -261,6 +264,7 @@ export default function HomePage() {
             onSelectGalaxy={(id) => setActiveGalaxyId(id)}
             onOpenInhabitantsModal={() => setIsInhabitantsModalOpen(true)}
             onOpenCreateGalaxyModal={() => setIsCreateGalaxyModalOpen(true)}
+            user={user}
           />
 
           {/* Active View */}
