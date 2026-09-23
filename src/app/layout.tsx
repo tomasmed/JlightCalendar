@@ -19,6 +19,8 @@ export const viewport: Viewport = {
   themeColor: "#090d16",
 };
 
+import { Providers } from "@/components/providers";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -27,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark h-full">
       <body className="h-full antialiased bg-[#090d16] text-slate-100 selection:bg-blue-600 selection:text-white">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

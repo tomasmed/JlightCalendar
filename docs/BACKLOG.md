@@ -7,12 +7,12 @@ This backlog tracks prioritized epics, features, and engineering tasks for **Jli
 ## 🌌 Epic 1: Multi-Household & Account Switcher (Family & Grandparents)
 **Goal**: Allow a single authenticated user to belong to multiple household calendars (e.g. "Our Immediate Family", "Grandparents & Extended Family", "Co-Parenting Schedule") and effortlessly switch between them on both web and wall displays.
 
-- [ ] **FEAT-101: Household Membership Domain Model**
-  - **Description**: Add `household_memberships` table linking `accounts` to `households` with roles: `admin`, `member`, `viewer` (read-only for kids or distant relatives).
-  - **Acceptance Criteria**: A user query returns all households they have access to; permissions enforced by role.
-- [ ] **FEAT-102: Kiosk & Mobile Household Switcher Component**
-  - **Description**: Add a dropdown / modal in the Kiosk Header to switch active household context with smooth transitions.
-  - **Acceptance Criteria**: Switching household updates events, chores, lists, and meals immediately without full page reload.
+- [x] **FEAT-101: Household & Galaxy Membership Domain Model**
+  - **Description**: Add `users`, `accounts`, `galaxies`, and `galaxy_members` tables linking authenticated Google accounts and unlinked profiles (kids, pets like Java) to collaborative Galaxy calendars.
+  - **Acceptance Criteria**: Queries return user's accessible Galaxies; permissions enforced by role (`admin`, `member`, `kid`, `pet`).
+- [x] **FEAT-102: Kiosk & Mobile Calendar Galaxy Switcher Component**
+  - **Description**: Add celestial dropdown in the Kiosk Header to switch active Galaxy context with smooth transitions, plus on-click event management and inhabitant management modal.
+  - **Acceptance Criteria**: Switching Galaxy updates calendar instances, events, and member filters dynamically without full page reload.
 
 ---
 
