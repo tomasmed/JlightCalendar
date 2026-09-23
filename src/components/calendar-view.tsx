@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -9,11 +9,9 @@ import {
   MapPin,
   Calendar as CalendarIcon,
   X,
-  ExternalLink,
   Sparkles,
   LayoutGrid,
   Columns,
-  List,
 } from "lucide-react";
 import { AccessMode } from "./kiosk-header";
 
@@ -42,130 +40,162 @@ export interface CalendarEvent {
   color: string;
 }
 
-export const INITIAL_MONTH_EVENTS: CalendarEvent[] = [
-  {
-    id: "e1",
-    memberId: "m_leo",
-    title: "Leo Soccer Practice",
-    date: "2026-09-21",
-    time: "4:30 PM",
-    duration: "1 hr",
-    location: "Community Field 2",
-    color: "#8b5cf6",
-  },
-  {
-    id: "e2",
-    memberId: "m_mom",
-    title: "Parent-Teacher Conference",
-    date: "2026-09-21",
-    time: "2:00 PM",
-    duration: "30 min",
-    location: "Lincoln Elementary",
-    color: "#ec4899",
-  },
-  {
-    id: "e3",
-    memberId: "all",
-    title: "Family Taco Night",
-    date: "2026-09-21",
-    time: "6:30 PM",
-    duration: "1 hr",
-    location: "Home",
-    color: "#ffd166",
-  },
-  {
-    id: "e4",
-    memberId: "m_mia",
-    title: "Mia Gymnastics",
-    date: "2026-09-22",
-    time: "5:15 PM",
-    duration: "45 min",
-    location: "YMCA Gym A",
-    color: "#f59e0b",
-  },
-  {
-    id: "e5",
-    memberId: "m_dad",
-    title: "Dentist Cleaning",
-    date: "2026-09-23",
-    time: "10:00 AM",
-    duration: "1 hr",
-    location: "Downtown Dental",
-    color: "#10b981",
-  },
-  {
-    id: "e6",
-    memberId: "m_leo",
-    title: "Soccer Match vs Hawks",
-    date: "2026-09-26",
-    time: "10:00 AM",
-    duration: "1.5 hr",
-    location: "West Field 4",
-    color: "#8b5cf6",
-  },
-  {
-    id: "e7",
-    memberId: "all",
-    title: "Grandparents Sunday Dinner",
-    date: "2026-09-27",
-    time: "4:00 PM",
-    duration: "3 hr",
-    location: "Grandma & Grandpa's House",
-    color: "#ffd166",
-  },
-  {
-    id: "e8",
-    memberId: "m_mia",
-    title: "Mia Ballet Class",
-    date: "2026-09-17",
-    time: "4:00 PM",
-    duration: "1 hr",
-    location: "Studio B",
-    color: "#f59e0b",
-  },
-  {
-    id: "e9",
-    memberId: "m_mom",
-    title: "Book Club Meeting",
-    date: "2026-09-15",
-    time: "7:00 PM",
-    duration: "2 hr",
-    location: "Sarah's Place",
-    color: "#ec4899",
-  },
-  {
-    id: "e10",
-    memberId: "all",
-    title: "Labor Day Family BBQ",
-    date: "2026-09-07",
-    time: "1:00 PM",
-    duration: "4 hr",
-    location: "Backyard",
-    color: "#ffd166",
-  },
-  {
-    id: "e11",
-    memberId: "m_leo",
-    title: "School Science Fair",
-    date: "2026-09-30",
-    time: "6:00 PM",
-    duration: "2 hr",
-    location: "School Auditorium",
-    color: "#8b5cf6",
-  },
-];
+// Generate dynamic sample events centered on current date
+function generateDynamicEvents(baseDate: Date): CalendarEvent[] {
+  const y = baseDate.getFullYear();
+  const m = baseDate.getMonth();
+  const d = baseDate.getDate();
+
+  const toStr = (year: number, month: number, day: number) => {
+    const dt = new Date(year, month, day);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+  };
+
+  return [
+    {
+      id: "e1",
+      memberId: "m_leo",
+      title: "Leo Soccer Practice",
+      date: toStr(y, m, d),
+      time: "4:30 PM",
+      duration: "1 hr",
+      location: "Community Field 2",
+      color: "#8b5cf6",
+    },
+    {
+      id: "e2",
+      memberId: "m_mom",
+      title: "Parent-Teacher Conference",
+      date: toStr(y, m, d),
+      time: "2:00 PM",
+      duration: "30 min",
+      location: "Lincoln Elementary",
+      color: "#ec4899",
+    },
+    {
+      id: "e3",
+      memberId: "all",
+      title: "Family Taco Night",
+      date: toStr(y, m, d),
+      time: "6:30 PM",
+      duration: "1 hr",
+      location: "Home",
+      color: "#ffd166",
+    },
+    {
+      id: "e4",
+      memberId: "m_mia",
+      title: "Mia Gymnastics",
+      date: toStr(y, m, d + 1),
+      time: "5:15 PM",
+      duration: "45 min",
+      location: "YMCA Gym A",
+      color: "#f59e0b",
+    },
+    {
+      id: "e5",
+      memberId: "m_dad",
+      title: "Dentist Cleaning",
+      date: toStr(y, m, d + 2),
+      time: "10:00 AM",
+      duration: "1 hr",
+      location: "Downtown Dental",
+      color: "#10b981",
+    },
+    {
+      id: "e6",
+      memberId: "m_leo",
+      title: "Soccer Match vs Hawks",
+      date: toStr(y, m, d + 3),
+      time: "10:00 AM",
+      duration: "1.5 hr",
+      location: "West Field 4",
+      color: "#8b5cf6",
+    },
+    {
+      id: "e7",
+      memberId: "all",
+      title: "Grandparents Sunday Dinner",
+      date: toStr(y, m, d + 4),
+      time: "4:00 PM",
+      duration: "3 hr",
+      location: "Grandma & Grandpa's House",
+      color: "#ffd166",
+    },
+    {
+      id: "e8",
+      memberId: "m_mia",
+      title: "Mia Ballet Class",
+      date: toStr(y, m, d - 2),
+      time: "4:00 PM",
+      duration: "1 hr",
+      location: "Studio B",
+      color: "#f59e0b",
+    },
+    {
+      id: "e9",
+      memberId: "m_mom",
+      title: "Book Club Meeting",
+      date: toStr(y, m, d - 4),
+      time: "7:00 PM",
+      duration: "2 hr",
+      location: "Sarah's Place",
+      color: "#ec4899",
+    },
+    {
+      id: "e10",
+      memberId: "all",
+      title: "Labor Day Family BBQ",
+      date: toStr(y, m, d - 7),
+      time: "1:00 PM",
+      duration: "4 hr",
+      location: "Backyard",
+      color: "#ffd166",
+    },
+    {
+      id: "e11",
+      memberId: "m_leo",
+      title: "School Science Fair",
+      date: toStr(y, m, d + 7),
+      time: "6:00 PM",
+      duration: "2 hr",
+      location: "School Auditorium",
+      color: "#8b5cf6",
+    },
+  ];
+}
 
 interface CalendarViewProps {
   accessMode: AccessMode;
 }
 
 export function CalendarView({ accessMode }: CalendarViewProps) {
-  // Default view is "month" as requested!
   const [viewType, setViewType] = useState<"month" | "week" | "day" | "schedule">("month");
   const [selectedMemberId, setSelectedMemberId] = useState<string>("all");
-  const [currentYear, setCurrentYear] = useState(2026);
-  const [currentMonth, setCurrentMonth] = useState(8); // 8 is September (0-indexed)
+  
+  // Real live date state
+  const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
+  const [todayDate, setTodayDate] = useState<Date>(() => new Date());
   const [selectedDayModal, setSelectedDayModal] = useState<string | null>(null);
+
+  // Touch gesture state
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+
+  // Sync date on mount
+  useEffect(() => {
+    const now = new Date();
+    setCurrentDate(now);
+    setTodayDate(now);
+  }, []);
+
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth();
+
+  const toDateStr = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+  const todayStr = toDateStr(todayDate);
 
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -173,37 +203,73 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
   ];
   const dayLabels = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
+  // Dynamic sample events centered on today
+  const allEvents = generateDynamicEvents(todayDate);
+
   // Filter events by member
   const filteredEvents =
     selectedMemberId === "all"
-      ? INITIAL_MONTH_EVENTS
-      : INITIAL_MONTH_EVENTS.filter((e) => e.memberId === selectedMemberId);
+      ? allEvents
+      : allEvents.filter((e) => e.memberId === selectedMemberId);
 
-  // Month navigation
-  const prevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear((y) => y - 1);
-    } else {
-      setCurrentMonth((m) => m - 1);
-    }
+  // Unified lateral navigation
+  const prevPeriod = () => {
+    setCurrentDate((prev) => {
+      if (viewType === "week") {
+        return new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() - 7);
+      } else if (viewType === "day") {
+        return new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() - 1);
+      } else {
+        return new Date(prev.getFullYear(), prev.getMonth() - 1, 1);
+      }
+    });
   };
 
-  const nextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear((y) => y + 1);
-    } else {
-      setCurrentMonth((m) => m + 1);
-    }
+  const nextPeriod = () => {
+    setCurrentDate((prev) => {
+      if (viewType === "week") {
+        return new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + 7);
+      } else if (viewType === "day") {
+        return new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + 1);
+      } else {
+        return new Date(prev.getFullYear(), prev.getMonth() + 1, 1);
+      }
+    });
   };
 
   const goToToday = () => {
-    setCurrentYear(2026);
-    setCurrentMonth(8); // September 2026
+    const now = new Date();
+    setCurrentDate(now);
+    setTodayDate(now);
   };
 
-  // Build physical calendar grid days
+  // Touch Swipe Gesture Handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null || touchStartY === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX;
+    const deltaY = e.changedTouches[0].clientY - touchStartY;
+
+    // Minimum 50px horizontal swipe threshold, ensuring horizontal > vertical
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      if (deltaX > 0) {
+        // Swiping right: as requested, triggers next month / week navigation
+        nextPeriod();
+      } else {
+        // Swiping left: triggers previous month / week navigation
+        prevPeriod();
+      }
+    }
+
+    setTouchStartX(null);
+    setTouchStartY(null);
+  };
+
+  // Build physical calendar grid days for month view
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
   const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
@@ -225,24 +291,24 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
       dayNum,
       dateStr,
       isCurrentMonth: false,
-      isToday: false,
+      isToday: dateStr === todayStr,
     });
   }
 
   // Current month days
   for (let d = 1; d <= daysInCurrentMonth; d++) {
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    const isToday = currentYear === 2026 && currentMonth === 8 && d === 21;
     calendarCells.push({
       dayNum: d,
       dateStr,
       isCurrentMonth: true,
-      isToday,
+      isToday: dateStr === todayStr,
     });
   }
 
   // Next month leading days to complete 35 or 42 grid cells
-  const remainingCells = 35 - calendarCells.length > 0 ? 35 - calendarCells.length : 42 - calendarCells.length;
+  const remainingCells =
+    calendarCells.length <= 35 ? 35 - calendarCells.length : 42 - calendarCells.length;
   for (let n = 1; n <= remainingCells; n++) {
     const nextMonthIdx = currentMonth === 11 ? 0 : currentMonth + 1;
     const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
@@ -251,9 +317,34 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
       dayNum: n,
       dateStr,
       isCurrentMonth: false,
-      isToday: false,
+      isToday: dateStr === todayStr,
     });
   }
+
+  // Calculate dynamic 7-day week days for week view
+  const currentDayOfWeek = currentDate.getDay(); // 0 is Sunday
+  const weekStart = new Date(
+    currentYear,
+    currentMonth,
+    currentDate.getDate() - currentDayOfWeek
+  );
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(
+      weekStart.getFullYear(),
+      weekStart.getMonth(),
+      weekStart.getDate() + i
+    );
+    const dateStr = toDateStr(d);
+    return {
+      date: d,
+      dateStr,
+      dayLabel: dayLabels[i],
+      shortStr: d.toLocaleDateString([], { month: "short", day: "numeric" }),
+      isToday: dateStr === todayStr,
+    };
+  });
+
+  const weekRangeTitle = `Week of ${weekDays[0].shortStr} – ${weekDays[6].shortStr}, ${weekDays[6].date.getFullYear()}`;
 
   // Events for selected modal date
   const selectedDateEvents = selectedDayModal
@@ -276,18 +367,22 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-cosmos-void/90 p-4 md:p-6 overflow-hidden">
+    <div
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="flex-1 flex flex-col h-full bg-cosmos-void/90 p-2 sm:p-4 md:p-6 overflow-hidden"
+    >
       {/* Top Filter Bar: Family Members & Cosmic View Switcher */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-cosmos-border">
+      <div className="flex flex-wrap items-center justify-between gap-2 md:gap-4 pb-2 md:pb-4 border-b border-cosmos-border">
         {/* Family Member Constellation Filter */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
+        <div className="flex items-center gap-1.5 md:gap-2 overflow-x-auto pb-1 max-w-full">
           {SAMPLE_MEMBERS.map((member) => {
             const isSelected = selectedMemberId === member.id;
             return (
               <button
                 key={member.id}
                 onClick={() => setSelectedMemberId(member.id)}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-2xl font-bold text-xs tracking-wide transition-all ${
+                className={`flex items-center gap-1.5 md:gap-2 px-3 py-1.5 rounded-2xl font-bold text-xs tracking-wide transition-all min-h-[44px] shrink-0 ${
                   isSelected
                     ? "bg-cosmos-card text-white border-2 shadow-lg shadow-purple-500/20"
                     : "bg-cosmos-surface/80 text-slate-400 border border-cosmos-border hover:bg-cosmos-cardHover hover:text-slate-200"
@@ -297,26 +392,26 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
                 }}
               >
                 <div
-                  className="w-2.5 h-2.5 rounded-full shadow-sm"
+                  className="w-2.5 h-2.5 rounded-full shadow-sm shrink-0"
                   style={{
                     backgroundColor: member.color,
                     boxShadow: isSelected ? `0 0 8px ${member.color}` : "none",
                   }}
                 />
-                <span>{member.name}</span>
+                <span className="whitespace-nowrap">{member.name}</span>
               </button>
             );
           })}
         </div>
 
         {/* View Switcher & Add Event */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3 flex-wrap">
           <div className="flex bg-cosmos-surface p-1 rounded-xl border border-cosmos-border text-xs font-bold">
             {(["month", "week", "day", "schedule"] as const).map((vt) => (
               <button
                 key={vt}
                 onClick={() => setViewType(vt)}
-                className={`px-3 py-1.5 rounded-lg capitalize transition ${
+                className={`px-2.5 md:px-3 py-1.5 rounded-lg capitalize transition min-h-[40px] flex items-center justify-center ${
                   viewType === vt
                     ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/30"
                     : "text-slate-400 hover:text-slate-200"
@@ -328,44 +423,54 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
           </div>
 
           {accessMode !== "kid" && (
-            <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-lg shadow-purple-500/25 transition">
+            <button className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-lg shadow-purple-500/25 transition min-h-[44px]">
               <Plus className="w-4 h-4" />
-              <span>Add Event</span>
+              <span className="hidden sm:inline">Add Event</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Month Navigator Header */}
-      <div className="flex items-center justify-between py-3">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-purple-200 to-starlight">
-            {monthNames[currentMonth]} {currentYear}
+      {/* Dynamic Navigator Header */}
+      <div className="flex items-center justify-between py-2 md:py-3">
+        <div className="flex items-center gap-2 md:gap-3">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-purple-200 to-starlight">
+            {viewType === "week"
+              ? weekRangeTitle
+              : viewType === "day"
+              ? currentDate.toLocaleDateString([], {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : `${monthNames[currentMonth]} ${currentYear}`}
           </h2>
-          <span className="text-xs px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-300 font-bold border border-purple-500/30 flex items-center gap-1">
+          <span className="hidden sm:flex text-xs px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-300 font-bold border border-purple-500/30 items-center gap-1">
             <Sparkles className="w-3 h-3 text-starlight" />
             {filteredEvents.length} Events
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        {/* Lateral Navigation Controls (with 48px touch targets) */}
+        <div className="flex items-center gap-1 md:gap-1.5">
           <button
-            onClick={prevMonth}
-            className="p-2 rounded-xl bg-cosmos-surface border border-cosmos-border text-slate-300 hover:text-white hover:bg-cosmos-cardHover transition"
-            title="Previous Month"
+            onClick={prevPeriod}
+            className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl bg-cosmos-surface border border-cosmos-border text-slate-300 hover:text-white hover:bg-cosmos-cardHover transition cursor-pointer"
+            title="Previous (or Swipe Left)"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
             onClick={goToToday}
-            className="px-3 py-2 rounded-xl bg-cosmos-surface border border-cosmos-border text-xs font-bold text-starlight hover:text-white hover:bg-cosmos-cardHover transition"
+            className="min-h-[48px] px-3.5 rounded-xl bg-cosmos-surface border border-cosmos-border text-xs font-bold text-starlight hover:text-white hover:bg-cosmos-cardHover transition cursor-pointer"
           >
             Today
           </button>
           <button
-            onClick={nextMonth}
-            className="p-2 rounded-xl bg-cosmos-surface border border-cosmos-border text-slate-300 hover:text-white hover:bg-cosmos-cardHover transition"
-            title="Next Month"
+            onClick={nextPeriod}
+            className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl bg-cosmos-surface border border-cosmos-border text-slate-300 hover:text-white hover:bg-cosmos-cardHover transition cursor-pointer"
+            title="Next (or Swipe Right)"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
@@ -376,7 +481,7 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
       {viewType === "month" && (
         <div className="flex-1 flex flex-col min-h-0 border border-cosmos-border rounded-2xl overflow-hidden bg-cosmos-deep/70 backdrop-blur-md">
           {/* Day of week headers */}
-          <div className="grid grid-cols-7 border-b border-cosmos-border bg-cosmos-surface/90 text-center text-xs font-black text-slate-400 py-2.5 tracking-wider">
+          <div className="grid grid-cols-7 border-b border-cosmos-border bg-cosmos-surface/90 text-center text-[10px] sm:text-xs font-black text-slate-400 py-1.5 sm:py-2.5 tracking-wider">
             {dayLabels.map((day) => (
               <div key={day} className="truncate">
                 {day}
@@ -395,18 +500,18 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
                 <div
                   key={cell.dateStr}
                   onClick={() => setSelectedDayModal(cell.dateStr)}
-                  className={`cursor-pointer p-1.5 flex flex-col justify-start overflow-hidden transition-all select-none relative group ${
+                  className={`cursor-pointer p-1 sm:p-1.5 flex flex-col justify-start overflow-hidden transition-all select-none relative group ${
                     cell.isCurrentMonth
                       ? "bg-cosmos-deep hover:bg-cosmos-card/80"
                       : "bg-cosmos-void/60 text-slate-600 hover:bg-cosmos-deep/50"
                   }`}
                 >
                   {/* Top Bar: Date Number */}
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between mb-0.5 sm:mb-1">
                     <span
-                      className={`text-xs font-black px-1.5 py-0.5 rounded-md ${
+                      className={`text-xs font-black px-1 sm:px-1.5 py-0.5 rounded-md ${
                         cell.isToday
-                          ? "bg-starlight text-cosmos-void font-extrabold shadow-md shadow-starlight/40 scale-105"
+                          ? "bg-purple-600 text-white font-extrabold shadow-md shadow-purple-500/50 ring-2 ring-starlight scale-105"
                           : cell.isCurrentMonth
                           ? "text-slate-300 group-hover:text-white"
                           : "text-slate-600"
@@ -416,25 +521,25 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
                     </span>
 
                     {cell.isToday && (
-                      <span className="text-[10px] font-bold text-starlight uppercase tracking-tight hidden sm:inline">
+                      <span className="text-[9px] font-bold text-starlight uppercase tracking-tight hidden md:inline">
                         Today
                       </span>
                     )}
                   </div>
 
-                  {/* Event Pills inside Day Cell */}
-                  <div className="flex-1 flex flex-col gap-1 overflow-hidden">
+                  {/* Tablet & Desktop: Event Pills */}
+                  <div className="hidden sm:flex flex-1 flex-col gap-1 overflow-hidden">
                     {dayEvents.slice(0, 3).map((evt) => (
                       <div
                         key={evt.id}
-                        className="truncate text-[11px] font-bold px-1.5 py-0.5 rounded-md border text-white transition hover:scale-[1.02]"
+                        className="truncate text-[10px] md:text-[11px] font-bold px-1.5 py-0.5 rounded-md border text-white transition hover:scale-[1.02]"
                         style={{
                           backgroundColor: `${evt.color}25`,
                           borderColor: `${evt.color}60`,
                           color: evt.color,
                         }}
                       >
-                        <span className="opacity-70 font-mono text-[10px] mr-1">
+                        <span className="opacity-70 font-mono text-[9px] mr-1">
                           {evt.time.replace(":00", "").toLowerCase()}
                         </span>
                         <span>{evt.title}</span>
@@ -444,6 +549,25 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
                     {dayEvents.length > 3 && (
                       <span className="text-[10px] font-extrabold text-starlight-cyan px-1">
                         +{dayEvents.length - 3} more
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Mobile (~Galaxy S26): Constellation Event Indicator Dots */}
+                  <div className="sm:hidden flex flex-wrap gap-1 mt-auto items-center">
+                    {dayEvents.slice(0, 3).map((evt) => (
+                      <div
+                        key={evt.id}
+                        className="w-2 h-2 rounded-full shrink-0 shadow-sm"
+                        style={{
+                          backgroundColor: evt.color,
+                          boxShadow: `0 0 4px ${evt.color}`,
+                        }}
+                      />
+                    ))}
+                    {dayEvents.length > 3 && (
+                      <span className="text-[8px] font-extrabold text-starlight leading-none">
+                        +{dayEvents.length - 3}
                       </span>
                     )}
                   </div>
@@ -458,88 +582,130 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
       {viewType === "day" && (
         <div className="flex-1 flex flex-col overflow-y-auto space-y-3 pr-2">
           <div className="flex items-center justify-between pb-2">
-            <h3 className="text-xl font-bold text-white">Monday, Sep 21 — Family Schedule</h3>
+            <h3 className="text-lg md:text-xl font-bold text-white">
+              {currentDate.toLocaleDateString([], {
+                weekday: "long",
+                month: "short",
+                day: "numeric",
+              })}{" "}
+              — Schedule
+            </h3>
             <button
               onClick={() => setViewType("month")}
-              className="text-xs font-bold text-starlight hover:underline flex items-center gap-1"
+              className="text-xs font-bold text-starlight hover:underline flex items-center gap-1 min-h-[44px]"
             >
               <LayoutGrid className="w-3.5 h-3.5" /> Back to Month View
             </button>
           </div>
-          {filteredEvents.map((evt) => (
-            <div
-              key={evt.id}
-              className="p-4 rounded-2xl bg-cosmos-card border border-cosmos-border flex items-center justify-between shadow-lg"
-              style={{ borderLeftWidth: "6px", borderLeftColor: evt.color }}
-            >
-              <div>
-                <span className="text-lg font-bold text-white block">{evt.title}</span>
-                <div className="flex items-center gap-4 mt-1 text-xs text-slate-400">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-slate-500" />
-                    {evt.time} ({evt.duration})
-                  </span>
-                  {evt.location && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                      {evt.location}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <span
-                className="text-xs px-3 py-1 rounded-full font-bold"
-                style={{ backgroundColor: `${evt.color}22`, color: evt.color }}
-              >
-                {SAMPLE_MEMBERS.find((m) => m.id === evt.memberId)?.name}
-              </span>
+          {filteredEvents.filter((e) => e.date === toDateStr(currentDate)).length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
+              <CalendarIcon className="w-10 h-10 mx-auto mb-2 opacity-40 text-purple-400" />
+              <p className="text-sm font-semibold">No events scheduled for this date.</p>
             </div>
-          ))}
+          ) : (
+            filteredEvents
+              .filter((e) => e.date === toDateStr(currentDate))
+              .map((evt) => (
+                <div
+                  key={evt.id}
+                  className="p-4 rounded-2xl bg-cosmos-card border border-cosmos-border flex items-center justify-between shadow-lg"
+                  style={{ borderLeftWidth: "6px", borderLeftColor: evt.color }}
+                >
+                  <div>
+                    <span className="text-base md:text-lg font-bold text-white block">
+                      {evt.title}
+                    </span>
+                    <div className="flex items-center gap-4 mt-1 text-xs text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-slate-500" />
+                        {evt.time} ({evt.duration})
+                      </span>
+                      {evt.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5 text-slate-500" />
+                          {evt.location}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <span
+                    className="text-xs px-3 py-1 rounded-full font-bold"
+                    style={{ backgroundColor: `${evt.color}22`, color: evt.color }}
+                  >
+                    {SAMPLE_MEMBERS.find((m) => m.id === evt.memberId)?.name}
+                  </span>
+                </div>
+              ))
+          )}
         </div>
       )}
 
-      {/* VIEW 3: Week View */}
+      {/* VIEW 3: Dynamic Week View */}
       {viewType === "week" && (
         <div className="flex-1 flex flex-col overflow-y-auto space-y-3">
-          <div className="flex items-center justify-between pb-2">
-            <h3 className="text-xl font-bold text-white">Week of Sep 21 - Sep 27</h3>
+          <div className="flex items-center justify-between pb-1">
+            <h3 className="text-base sm:text-lg md:text-xl font-bold text-white">
+              {weekRangeTitle}
+            </h3>
             <button
               onClick={() => setViewType("month")}
-              className="text-xs font-bold text-starlight hover:underline flex items-center gap-1"
+              className="text-xs font-bold text-starlight hover:underline flex items-center gap-1 min-h-[44px]"
             >
               <LayoutGrid className="w-3.5 h-3.5" /> Back to Month View
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-            {["Sep 21", "Sep 22", "Sep 23", "Sep 24", "Sep 25", "Sep 26", "Sep 27"].map(
-              (dayStr, idx) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-3">
+            {weekDays.map((day) => {
+              const dayEvts = filteredEvents.filter((e) => e.date === day.dateStr);
+
+              return (
                 <div
-                  key={dayStr}
-                  className="p-3 rounded-2xl bg-cosmos-card border border-cosmos-border flex flex-col gap-2"
+                  key={day.dateStr}
+                  onClick={() => setSelectedDayModal(day.dateStr)}
+                  className={`p-3 rounded-2xl bg-cosmos-card border flex flex-col gap-2 cursor-pointer transition hover:bg-cosmos-cardHover ${
+                    day.isToday
+                      ? "border-purple-500/80 shadow-lg shadow-purple-500/20 ring-1 ring-starlight"
+                      : "border-cosmos-border"
+                  }`}
                 >
-                  <span className="text-xs font-bold text-starlight uppercase">
-                    {dayLabels[(idx + 1) % 7]} — {dayStr}
-                  </span>
-                  <div className="space-y-1.5">
-                    {filteredEvents
-                      .filter((e) => e.date === `2026-09-${21 + idx}`)
-                      .map((evt) => (
+                  <div className="flex items-center justify-between border-b border-cosmos-border/50 pb-1.5">
+                    <span
+                      className={`text-xs font-black uppercase ${
+                        day.isToday ? "text-starlight font-extrabold" : "text-slate-300"
+                      }`}
+                    >
+                      {day.dayLabel} — {day.shortStr}
+                    </span>
+                    {day.isToday && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-200">
+                        Today
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1.5 min-h-[40px]">
+                    {dayEvts.length === 0 ? (
+                      <span className="text-[11px] text-slate-500 italic block py-1">
+                        No events
+                      </span>
+                    ) : (
+                      dayEvts.map((evt) => (
                         <div
                           key={evt.id}
-                          className="text-xs p-1.5 rounded-lg border font-medium text-white"
+                          className="text-xs p-1.5 rounded-lg border font-medium text-white transition hover:scale-[1.01]"
                           style={{
                             backgroundColor: `${evt.color}20`,
                             borderColor: `${evt.color}50`,
                           }}
                         >
-                          <span className="font-bold block">{evt.title}</span>
+                          <span className="font-bold block truncate">{evt.title}</span>
                           <span className="text-[10px] text-slate-300">{evt.time}</span>
                         </div>
-                      ))}
+                      ))
+                    )}
                   </div>
                 </div>
-              )
-            )}
+              );
+            })}
           </div>
         </div>
       )}
@@ -575,23 +741,23 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
         </div>
       )}
 
-      {/* DAY DETAIL MODAL: Opened when clicking any day in Month View */}
+      {/* DAY DETAIL MODAL: Opened when clicking any day in Month View or Week View */}
       {selectedDayModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-cosmos-card border border-cosmos-borderLight rounded-3xl p-6 max-w-lg w-full shadow-2xl animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-cosmos-card border border-cosmos-borderLight rounded-3xl p-4 sm:p-6 max-w-lg w-full shadow-2xl animate-in fade-in zoom-in-95">
             {/* Header */}
             <div className="flex items-start justify-between pb-4 border-b border-cosmos-border">
               <div>
                 <span className="text-xs font-extrabold uppercase tracking-wider text-starlight">
                   Day Overview
                 </span>
-                <h3 className="text-xl md:text-2xl font-black text-white">
+                <h3 className="text-lg sm:text-2xl font-black text-white">
                   {formatModalHeaderDate(selectedDayModal)}
                 </h3>
               </div>
               <button
                 onClick={() => setSelectedDayModal(null)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-cosmos-surface"
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-cosmos-surface min-h-[44px] min-w-[44px] flex items-center justify-center"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -645,20 +811,24 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
               <div className="flex gap-2">
                 <button
                   onClick={() => {
+                    const [y, m, d] = selectedDayModal.split("-").map(Number);
+                    setCurrentDate(new Date(y, m - 1, d));
                     setViewType("day");
                     setSelectedDayModal(null);
                   }}
-                  className="px-3.5 py-2 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-xs font-bold text-slate-200 transition flex items-center gap-1.5"
+                  className="px-3.5 py-2 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-xs font-bold text-slate-200 transition flex items-center gap-1.5 min-h-[44px]"
                 >
                   <Columns className="w-3.5 h-3.5 text-starlight-cyan" />
                   <span>View as Day</span>
                 </button>
                 <button
                   onClick={() => {
+                    const [y, m, d] = selectedDayModal.split("-").map(Number);
+                    setCurrentDate(new Date(y, m - 1, d));
                     setViewType("week");
                     setSelectedDayModal(null);
                   }}
-                  className="px-3.5 py-2 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-xs font-bold text-slate-200 transition flex items-center gap-1.5"
+                  className="px-3.5 py-2 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-xs font-bold text-slate-200 transition flex items-center gap-1.5 min-h-[44px]"
                 >
                   <LayoutGrid className="w-3.5 h-3.5 text-starlight-purple" />
                   <span>View as Week</span>
@@ -666,7 +836,7 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
               </div>
 
               {accessMode !== "kid" && (
-                <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-md shadow-purple-500/20 transition flex items-center gap-1.5">
+                <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-md shadow-purple-500/20 transition flex items-center gap-1.5 min-h-[44px]">
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Event</span>
                 </button>
