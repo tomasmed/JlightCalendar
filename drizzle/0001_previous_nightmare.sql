@@ -1,0 +1,1 @@
+ALTER TABLE `meal_plans` ADD `member_id` text REFERENCES galaxy_members(id);

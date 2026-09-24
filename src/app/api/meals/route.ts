@@ -23,12 +23,18 @@ export async function GET() {
         notes: meal.notes,
         recipeUrl: meal.recipeUrl,
         memberId: meal.memberId,
-        memberName: member?.name,
+        memberName: member?.displayName,
         memberColor: member?.color,
       };
     });
 
-    return NextResponse.json({ meals: enrichedMeals, members });
+    const mappedMembers = members.map((m) => ({
+      id: m.id,
+      name: m.displayName,
+      color: m.color,
+    }));
+
+    return NextResponse.json({ meals: enrichedMeals, members: mappedMembers });
   } catch (error) {
     console.error("Failed to fetch meals:", error);
     return NextResponse.json({ error: "Failed to fetch meals" }, { status: 500 });
@@ -38,7 +44,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { action, title, planDate, mealType = "dinner", memberId, notes } = body;
+    const { action, title, planDate, mealType = "dinner", memberId, notes, galaxyId } = body;
 
     // Direct action: Add ingredients to grocery list
     if (action === "add-to-grocery") {
@@ -49,7 +55,7 @@ export async function POST(request: Request) {
       const listItemId = `list_${Date.now()}`;
       await db.insert(listItems).values({
         id: listItemId,
-        householdId: "household_default",
+        galaxyId: galaxyId || "galaxy_sol_family",
         listType: "grocery",
         title: `Ingredients: ${title}`,
         isCompleted: false,
@@ -69,7 +75,7 @@ export async function POST(request: Request) {
     const mealId = `meal_${Date.now()}`;
     await db.insert(mealPlans).values({
       id: mealId,
-      householdId: "household_default",
+      galaxyId: galaxyId || "galaxy_sol_family",
       planDate,
       mealType,
       title: title.trim(),

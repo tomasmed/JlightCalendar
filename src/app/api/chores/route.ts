@@ -32,7 +32,7 @@ export async function GET(request: Request) {
       return {
         id: chore.id,
         memberId: chore.memberId,
-        memberName: member?.name || "Unknown",
+        memberName: member?.displayName || "Unknown",
         memberColor: member?.color || "#8b5cf6",
         title: chore.title,
         points: chore.points,
@@ -43,11 +43,18 @@ export async function GET(request: Request) {
     });
 
     const starBalances = members.reduce<Record<string, number>>((acc, m) => {
-      acc[m.name] = m.starBalance;
+      acc[m.displayName] = m.starBalance;
       return acc;
     }, {});
 
-    return NextResponse.json({ chores: choreItems, starBalances, members });
+    const mappedMembers = members.map((m) => ({
+      id: m.id,
+      name: m.displayName,
+      color: m.color,
+      starBalance: m.starBalance,
+    }));
+
+    return NextResponse.json({ chores: choreItems, starBalances, members: mappedMembers });
   } catch (error) {
     console.error("Failed to fetch chores:", error);
     return NextResponse.json({ error: "Failed to fetch chores" }, { status: 500 });
@@ -57,7 +64,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { memberId, title, points = 1, recurrenceType = "daily", dueTime } = body;
+    const { memberId, title, points = 1, recurrenceType = "daily", dueTime, galaxyId } = body;
 
     if (!memberId || !title) {
       return NextResponse.json(
@@ -69,7 +76,7 @@ export async function POST(request: Request) {
     const choreId = `chore_${Date.now()}`;
     await db.insert(chores).values({
       id: choreId,
-      householdId: "household_default",
+      galaxyId: galaxyId || "galaxy_sol_family",
       memberId,
       title: title.trim(),
       points: Number(points) || 1,
@@ -153,7 +160,7 @@ export async function PATCH(request: Request) {
     // Return updated member star balances
     const members = await db.select().from(familyMembers);
     const starBalances = members.reduce<Record<string, number>>((acc, m) => {
-      acc[m.name] = m.starBalance;
+      acc[m.displayName] = m.starBalance;
       return acc;
     }, {});
 

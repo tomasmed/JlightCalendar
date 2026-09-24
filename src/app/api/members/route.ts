@@ -10,7 +10,17 @@ export async function GET() {
       .from(familyMembers)
       .orderBy(asc(familyMembers.createdAt));
 
-    return NextResponse.json({ members });
+    const mapped = members.map((m) => ({
+      id: m.id,
+      name: m.displayName,
+      displayName: m.displayName,
+      color: m.color,
+      avatarIcon: m.avatarIcon,
+      role: m.role,
+      starBalance: m.starBalance,
+    }));
+
+    return NextResponse.json({ members: mapped });
   } catch (error) {
     console.error("Failed to fetch family members:", error);
     return NextResponse.json(

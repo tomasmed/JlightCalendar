@@ -1,21 +1,21 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e6681900-8e6f-473e-922c-3335abd43b7b",
+  "id": "4f0678e1-1eb7-4f9f-8b1d-666ab3f7738b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "calendar_connections": {
-      "name": "calendar_connections",
+    "accounts": {
+      "name": "accounts",
       "columns": {
-        "id": {
-          "name": "id",
+        "user_id": {
+          "name": "user_id",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "household_id": {
-          "name": "household_id",
+        "type": {
+          "name": "type",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -28,8 +28,148 @@
           "notNull": true,
           "autoincrement": false
         },
-        "account_email": {
-          "name": "account_email",
+        "provider_account_id": {
+          "name": "provider_account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "refresh_token": {
+          "name": "refresh_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "access_token": {
+          "name": "access_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "token_type": {
+          "name": "token_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id_token": {
+          "name": "id_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "session_state": {
+          "name": "session_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "accounts_user_id_users_id_fk": {
+          "name": "accounts_user_id_users_id_fk",
+          "tableFrom": "accounts",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "accounts_provider_provider_account_id_pk": {
+          "columns": [
+            "provider",
+            "provider_account_id"
+          ],
+          "name": "accounts_provider_provider_account_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "calendars": {
+      "name": "calendars",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "galaxy_id": {
+          "name": "galaxy_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "color": {
+          "name": "color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'#8b5cf6'"
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_primary": {
+          "name": "is_primary",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "external_provider": {
+          "name": "external_provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'local'"
+        },
+        "external_calendar_id": {
+          "name": "external_calendar_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -60,12 +200,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "calendar_connections_household_id_households_id_fk": {
-          "name": "calendar_connections_household_id_households_id_fk",
-          "tableFrom": "calendar_connections",
-          "tableTo": "households",
+        "calendars_galaxy_id_galaxies_id_fk": {
+          "name": "calendars_galaxy_id_galaxies_id_fk",
+          "tableFrom": "calendars",
+          "tableTo": "galaxies",
           "columnsFrom": [
-            "household_id"
+            "galaxy_id"
           ],
           "columnsTo": [
             "id"
@@ -141,10 +281,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "chore_completions_member_id_family_members_id_fk": {
-          "name": "chore_completions_member_id_family_members_id_fk",
+        "chore_completions_member_id_galaxy_members_id_fk": {
+          "name": "chore_completions_member_id_galaxy_members_id_fk",
           "tableFrom": "chore_completions",
-          "tableTo": "family_members",
+          "tableTo": "galaxy_members",
           "columnsFrom": [
             "member_id"
           ],
@@ -169,8 +309,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "household_id": {
-          "name": "household_id",
+        "galaxy_id": {
+          "name": "galaxy_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -240,12 +380,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "chores_household_id_households_id_fk": {
-          "name": "chores_household_id_households_id_fk",
+        "chores_galaxy_id_galaxies_id_fk": {
+          "name": "chores_galaxy_id_galaxies_id_fk",
           "tableFrom": "chores",
-          "tableTo": "households",
+          "tableTo": "galaxies",
           "columnsFrom": [
-            "household_id"
+            "galaxy_id"
           ],
           "columnsTo": [
             "id"
@@ -253,10 +393,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "chores_member_id_family_members_id_fk": {
-          "name": "chores_member_id_family_members_id_fk",
+        "chores_member_id_galaxy_members_id_fk": {
+          "name": "chores_member_id_galaxy_members_id_fk",
           "tableFrom": "chores",
-          "tableTo": "family_members",
+          "tableTo": "galaxy_members",
           "columnsFrom": [
             "member_id"
           ],
@@ -281,8 +421,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "household_id": {
-          "name": "household_id",
+        "galaxy_id": {
+          "name": "galaxy_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -354,12 +494,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "display_devices_household_id_households_id_fk": {
-          "name": "display_devices_household_id_households_id_fk",
+        "display_devices_galaxy_id_galaxies_id_fk": {
+          "name": "display_devices_galaxy_id_galaxies_id_fk",
           "tableFrom": "display_devices",
-          "tableTo": "households",
+          "tableTo": "galaxies",
           "columnsFrom": [
-            "household_id"
+            "galaxy_id"
           ],
           "columnsTo": [
             "id"
@@ -382,8 +522,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "household_id": {
-          "name": "household_id",
+        "galaxy_id": {
+          "name": "galaxy_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -478,12 +618,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "events_household_id_households_id_fk": {
-          "name": "events_household_id_households_id_fk",
+        "events_galaxy_id_galaxies_id_fk": {
+          "name": "events_galaxy_id_galaxies_id_fk",
           "tableFrom": "events",
-          "tableTo": "households",
+          "tableTo": "galaxies",
           "columnsFrom": [
-            "household_id"
+            "galaxy_id"
           ],
           "columnsTo": [
             "id"
@@ -491,23 +631,23 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "events_calendar_id_calendar_connections_id_fk": {
-          "name": "events_calendar_id_calendar_connections_id_fk",
+        "events_calendar_id_calendars_id_fk": {
+          "name": "events_calendar_id_calendars_id_fk",
           "tableFrom": "events",
-          "tableTo": "calendar_connections",
+          "tableTo": "calendars",
           "columnsFrom": [
             "calendar_id"
           ],
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "events_member_id_family_members_id_fk": {
-          "name": "events_member_id_family_members_id_fk",
+        "events_member_id_galaxy_members_id_fk": {
+          "name": "events_member_id_galaxy_members_id_fk",
           "tableFrom": "events",
-          "tableTo": "family_members",
+          "tableTo": "galaxy_members",
           "columnsFrom": [
             "member_id"
           ],
@@ -522,8 +662,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "family_members": {
-      "name": "family_members",
+    "galaxy_members": {
+      "name": "galaxy_members",
       "columns": {
         "id": {
           "name": "id",
@@ -532,19 +672,34 @@
           "notNull": true,
           "autoincrement": false
         },
-        "household_id": {
-          "name": "household_id",
+        "galaxy_id": {
+          "name": "galaxy_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "name": {
-          "name": "name",
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "display_name": {
+          "name": "display_name",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'member'"
         },
         "color": {
           "name": "color",
@@ -552,7 +707,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'#3b82f6'"
+          "default": "'#8b5cf6'"
         },
         "avatar_icon": {
           "name": "avatar_icon",
@@ -562,14 +717,6 @@
           "autoincrement": false,
           "default": "'user'"
         },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'child'"
-        },
         "star_balance": {
           "name": "star_balance",
           "type": "integer",
@@ -577,6 +724,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": 0
+        },
+        "is_kiosk_profile": {
+          "name": "is_kiosk_profile",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         },
         "created_at": {
           "name": "created_at",
@@ -589,12 +744,25 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "family_members_household_id_households_id_fk": {
-          "name": "family_members_household_id_households_id_fk",
-          "tableFrom": "family_members",
-          "tableTo": "households",
+        "galaxy_members_galaxy_id_galaxies_id_fk": {
+          "name": "galaxy_members_galaxy_id_galaxies_id_fk",
+          "tableFrom": "galaxy_members",
+          "tableTo": "galaxies",
           "columnsFrom": [
-            "household_id"
+            "galaxy_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "galaxy_members_user_id_users_id_fk": {
+          "name": "galaxy_members_user_id_users_id_fk",
+          "tableFrom": "galaxy_members",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
           ],
           "columnsTo": [
             "id"
@@ -607,8 +775,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "households": {
-      "name": "households",
+    "galaxies": {
+      "name": "galaxies",
       "columns": {
         "id": {
           "name": "id",
@@ -623,6 +791,29 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "theme": {
+          "name": "theme",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'milky-way'"
+        },
+        "icon": {
+          "name": "icon",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'sparkles'"
         },
         "parent_pin": {
           "name": "parent_pin",
@@ -640,6 +831,13 @@
           "autoincrement": false,
           "default": "'America/New_York'"
         },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "text",
@@ -650,7 +848,21 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "galaxies_owner_id_users_id_fk": {
+          "name": "galaxies_owner_id_users_id_fk",
+          "tableFrom": "galaxies",
+          "tableTo": "users",
+          "columnsFrom": [
+            "owner_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -665,8 +877,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "household_id": {
-          "name": "household_id",
+        "galaxy_id": {
+          "name": "galaxy_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -713,12 +925,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "list_items_household_id_households_id_fk": {
-          "name": "list_items_household_id_households_id_fk",
+        "list_items_galaxy_id_galaxies_id_fk": {
+          "name": "list_items_galaxy_id_galaxies_id_fk",
           "tableFrom": "list_items",
-          "tableTo": "households",
+          "tableTo": "galaxies",
           "columnsFrom": [
-            "household_id"
+            "galaxy_id"
           ],
           "columnsTo": [
             "id"
@@ -726,10 +938,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "list_items_added_by_member_id_family_members_id_fk": {
-          "name": "list_items_added_by_member_id_family_members_id_fk",
+        "list_items_added_by_member_id_galaxy_members_id_fk": {
+          "name": "list_items_added_by_member_id_galaxy_members_id_fk",
           "tableFrom": "list_items",
-          "tableTo": "family_members",
+          "tableTo": "galaxy_members",
           "columnsFrom": [
             "added_by_member_id"
           ],
@@ -754,8 +966,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "household_id": {
-          "name": "household_id",
+        "galaxy_id": {
+          "name": "galaxy_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -808,12 +1020,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "meal_plans_household_id_households_id_fk": {
-          "name": "meal_plans_household_id_households_id_fk",
+        "meal_plans_galaxy_id_galaxies_id_fk": {
+          "name": "meal_plans_galaxy_id_galaxies_id_fk",
           "tableFrom": "meal_plans",
-          "tableTo": "households",
+          "tableTo": "galaxies",
           "columnsFrom": [
-            "household_id"
+            "galaxy_id"
           ],
           "columnsTo": [
             "id"
@@ -823,6 +1035,158 @@
         }
       },
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "sessions": {
+      "name": "sessions",
+      "columns": {
+        "session_token": {
+          "name": "session_token",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires": {
+          "name": "expires",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sessions_user_id_users_id_fk": {
+          "name": "sessions_user_id_users_id_fk",
+          "tableFrom": "sessions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email_verified": {
+          "name": "email_verified",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "default_galaxy_id": {
+          "name": "default_galaxy_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "columns": [
+            "email"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "verification_tokens": {
+      "name": "verification_tokens",
+      "columns": {
+        "identifier": {
+          "name": "identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires": {
+          "name": "expires",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "verification_tokens_identifier_token_pk": {
+          "columns": [
+            "identifier",
+            "token"
+          ],
+          "name": "verification_tokens_identifier_token_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     }

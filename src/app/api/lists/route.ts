@@ -30,12 +30,18 @@ export async function GET(request: Request) {
         completed: item.isCompleted,
         category: "General",
         addedByMemberId: item.addedByMemberId,
-        addedByName: member?.name,
+        addedByName: member?.displayName,
         addedByColor: member?.color,
       };
     });
 
-    return NextResponse.json({ items, members });
+    const mappedMembers = members.map((m) => ({
+      id: m.id,
+      name: m.displayName,
+      color: m.color,
+    }));
+
+    return NextResponse.json({ items, members: mappedMembers });
   } catch (error) {
     console.error("Failed to fetch list items:", error);
     return NextResponse.json({ error: "Failed to fetch list items" }, { status: 500 });
@@ -45,7 +51,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, addedByMemberId, listType = "grocery" } = body;
+    const { title, addedByMemberId, listType = "grocery", galaxyId } = body;
 
     if (!title || !title.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -54,7 +60,7 @@ export async function POST(request: Request) {
     const id = `list_${Date.now()}`;
     await db.insert(listItems).values({
       id,
-      householdId: "household_default",
+      galaxyId: galaxyId || "galaxy_sol_family",
       listType,
       title: title.trim(),
       isCompleted: false,

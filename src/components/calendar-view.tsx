@@ -12,31 +12,45 @@ import {
   Sparkles,
   LayoutGrid,
   Columns,
+  List,
+  User,
+  Baby,
+  Dog,
+  Cat,
+  Users,
 } from "lucide-react";
 import { AccessMode } from "./kiosk-header";
+import { Inhabitant, InhabitantsModal } from "./inhabitants-modal";
+import { EventModal, CalendarEventData } from "./event-modal";
 
 export interface Member {
   id: string;
   name: string;
   color: string;
+  role?: string;
+  avatarIcon?: string;
 }
 
 export const SAMPLE_MEMBERS: Member[] = [
-  { id: "all", name: "All Family", color: "#ffd166" },
-  { id: "m_mom", name: "Mom", color: "#ec4899" },
-  { id: "m_dad", name: "Dad", color: "#10b981" },
-  { id: "m_leo", name: "Leo", color: "#8b5cf6" },
-  { id: "m_mia", name: "Mia", color: "#f59e0b" },
+  { id: "all", name: "All Family", color: "#ffd166", avatarIcon: "sparkles" },
+  { id: "mem_mom", name: "Mom", color: "#ec4899", avatarIcon: "user" },
+  { id: "mem_dad", name: "Dad", color: "#10b981", avatarIcon: "user" },
+  { id: "mem_leo", name: "Leo", color: "#8b5cf6", avatarIcon: "baby" },
+  { id: "mem_mia", name: "Mia", color: "#f59e0b", avatarIcon: "baby" },
+  { id: "mem_java", name: "Java 🐕", color: "#06b6d4", avatarIcon: "dog" },
 ];
 
 export interface CalendarEvent {
   id: string;
-  memberId: string;
+  galaxyId?: string;
+  calendarId?: string;
+  memberId: string | null;
   title: string;
   date: string; // YYYY-MM-DD
   time: string;
   duration: string;
-  location?: string;
+  location?: string | null;
+  description?: string | null;
   color: string;
 }
 
@@ -54,7 +68,7 @@ function generateDynamicEvents(baseDate: Date): CalendarEvent[] {
   return [
     {
       id: "e1",
-      memberId: "m_leo",
+      memberId: "mem_leo",
       title: "Leo Soccer Practice",
       date: toStr(y, m, d),
       time: "4:30 PM",
@@ -64,7 +78,7 @@ function generateDynamicEvents(baseDate: Date): CalendarEvent[] {
     },
     {
       id: "e2",
-      memberId: "m_mom",
+      memberId: "mem_mom",
       title: "Parent-Teacher Conference",
       date: toStr(y, m, d),
       time: "2:00 PM",
@@ -75,7 +89,7 @@ function generateDynamicEvents(baseDate: Date): CalendarEvent[] {
     {
       id: "e3",
       memberId: "all",
-      title: "Family Taco Night",
+      title: "Family Taco Night 🌮",
       date: toStr(y, m, d),
       time: "6:30 PM",
       duration: "1 hr",
@@ -84,7 +98,7 @@ function generateDynamicEvents(baseDate: Date): CalendarEvent[] {
     },
     {
       id: "e4",
-      memberId: "m_mia",
+      memberId: "mem_mia",
       title: "Mia Gymnastics",
       date: toStr(y, m, d + 1),
       time: "5:15 PM",
@@ -94,7 +108,7 @@ function generateDynamicEvents(baseDate: Date): CalendarEvent[] {
     },
     {
       id: "e5",
-      memberId: "m_dad",
+      memberId: "mem_dad",
       title: "Dentist Cleaning",
       date: toStr(y, m, d + 2),
       time: "10:00 AM",
@@ -104,27 +118,37 @@ function generateDynamicEvents(baseDate: Date): CalendarEvent[] {
     },
     {
       id: "e6",
-      memberId: "m_leo",
-      title: "Soccer Match vs Hawks",
+      memberId: "mem_java",
+      title: "Java Annual Vet Checkup 🐾",
       date: toStr(y, m, d + 3),
+      time: "2:30 PM",
+      duration: "1 hr",
+      location: "Healthy Paws Veterinary",
+      color: "#06b6d4",
+    },
+    {
+      id: "e7",
+      memberId: "mem_leo",
+      title: "Soccer Match vs Hawks",
+      date: toStr(y, m, d + 4),
       time: "10:00 AM",
       duration: "1.5 hr",
       location: "West Field 4",
       color: "#8b5cf6",
     },
     {
-      id: "e7",
+      id: "e8",
       memberId: "all",
       title: "Grandparents Sunday Dinner",
-      date: toStr(y, m, d + 4),
+      date: toStr(y, m, d + 5),
       time: "4:00 PM",
       duration: "3 hr",
       location: "Grandma & Grandpa's House",
       color: "#ffd166",
     },
     {
-      id: "e8",
-      memberId: "m_mia",
+      id: "e9",
+      memberId: "mem_mia",
       title: "Mia Ballet Class",
       date: toStr(y, m, d - 2),
       time: "4:00 PM",
@@ -133,8 +157,8 @@ function generateDynamicEvents(baseDate: Date): CalendarEvent[] {
       color: "#f59e0b",
     },
     {
-      id: "e9",
-      memberId: "m_mom",
+      id: "e10",
+      memberId: "mem_mom",
       title: "Book Club Meeting",
       date: toStr(y, m, d - 4),
       time: "7:00 PM",
@@ -142,37 +166,38 @@ function generateDynamicEvents(baseDate: Date): CalendarEvent[] {
       location: "Sarah's Place",
       color: "#ec4899",
     },
-    {
-      id: "e10",
-      memberId: "all",
-      title: "Labor Day Family BBQ",
-      date: toStr(y, m, d - 7),
-      time: "1:00 PM",
-      duration: "4 hr",
-      location: "Backyard",
-      color: "#ffd166",
-    },
-    {
-      id: "e11",
-      memberId: "m_leo",
-      title: "School Science Fair",
-      date: toStr(y, m, d + 7),
-      time: "6:00 PM",
-      duration: "2 hr",
-      location: "School Auditorium",
-      color: "#8b5cf6",
-    },
   ];
 }
 
 interface CalendarViewProps {
   accessMode: AccessMode;
+  activeGalaxyId?: string;
+  activeGalaxyName?: string;
+  inhabitants?: Inhabitant[];
+  events?: CalendarEventData[];
+  onSaveEvent?: (event: CalendarEventData) => Promise<void>;
+  onDeleteEvent?: (id: string) => Promise<void>;
+  onAddInhabitant?: (inhabitant: {
+    displayName: string;
+    role: "admin" | "member" | "kid" | "pet";
+    color: string;
+    avatarIcon: string;
+  }) => Promise<void>;
 }
 
-export function CalendarView({ accessMode }: CalendarViewProps) {
+export function CalendarView({
+  accessMode,
+  activeGalaxyId = "galaxy_sol_family",
+  activeGalaxyName = "The Sol Family Galaxy",
+  inhabitants = [],
+  events: propEvents,
+  onSaveEvent,
+  onDeleteEvent,
+  onAddInhabitant,
+}: CalendarViewProps) {
   const [viewType, setViewType] = useState<"month" | "week" | "day" | "schedule">("month");
   const [selectedMemberId, setSelectedMemberId] = useState<string>("all");
-  
+
   // Real live date state
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
   const [todayDate, setTodayDate] = useState<Date>(() => new Date());
@@ -181,6 +206,12 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
   // Touch gesture state
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
+
+  // Modals from PR #3
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [eventToEdit, setEventToEdit] = useState<CalendarEventData | null>(null);
+  const [targetDateForNewEvent, setTargetDateForNewEvent] = useState<string>("");
+  const [isInhabitantsModalOpen, setIsInhabitantsModalOpen] = useState(false);
 
   // Sync date on mount
   useEffect(() => {
@@ -199,18 +230,68 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
 
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
+    "July", "August", "September", "October", "November", "December",
   ];
   const dayLabels = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
-  // Dynamic sample events centered on today
-  const allEvents = generateDynamicEvents(todayDate);
+  // Normalize Inhabitants: If DB provided, map to member items; else fallback to SAMPLE_MEMBERS
+  const memberList: Member[] = [
+    { id: "all", name: "All Family", color: "#ffd166", avatarIcon: "sparkles" },
+    ...(inhabitants.length > 0
+      ? inhabitants.map((inh) => ({
+          id: inh.id,
+          name: inh.displayName,
+          color: inh.color,
+          role: inh.role,
+          avatarIcon: inh.avatarIcon,
+        }))
+      : SAMPLE_MEMBERS.filter((m) => m.id !== "all")),
+  ];
+
+  // Inhabitants state for modals
+  const modalInhabitants: Inhabitant[] =
+    inhabitants.length > 0
+      ? inhabitants
+      : [
+          { id: "mem_mom", galaxyId: activeGalaxyId, displayName: "Mom", role: "admin", color: "#ec4899", avatarIcon: "user", starBalance: 0 },
+          { id: "mem_dad", galaxyId: activeGalaxyId, displayName: "Dad", role: "admin", color: "#10b981", avatarIcon: "user", starBalance: 0 },
+          { id: "mem_leo", galaxyId: activeGalaxyId, displayName: "Leo", role: "kid", color: "#8b5cf6", avatarIcon: "baby", starBalance: 18 },
+          { id: "mem_mia", galaxyId: activeGalaxyId, displayName: "Mia", role: "kid", color: "#f59e0b", avatarIcon: "baby", starBalance: 24 },
+          { id: "mem_java", galaxyId: activeGalaxyId, displayName: "Java 🐕", role: "pet", color: "#06b6d4", avatarIcon: "dog", starBalance: 0 },
+        ];
+
+  // Events: If propEvents provided with items, map them; otherwise use dynamic events centered on today
+  const calendarEvents: CalendarEvent[] =
+    propEvents && propEvents.length > 0
+      ? propEvents.map((pe) => {
+          const dateStr = pe.startTime.split("T")[0] || todayStr;
+          const timeStr = pe.startTime.includes("T")
+            ? pe.startTime.split("T")[1]?.slice(0, 5) || "09:00"
+            : "09:00";
+          return {
+            id: pe.id || crypto.randomUUID(),
+            galaxyId: pe.galaxyId,
+            calendarId: pe.calendarId,
+            memberId: pe.memberId || null,
+            title: pe.title,
+            date: dateStr,
+            time: timeStr,
+            duration: "1 hr",
+            location: pe.location,
+            description: pe.description,
+            color:
+              pe.colorOverride ||
+              inhabitants.find((i) => i.id === pe.memberId)?.color ||
+              "#8b5cf6",
+          };
+        })
+      : generateDynamicEvents(todayDate);
 
   // Filter events by member
   const filteredEvents =
     selectedMemberId === "all"
-      ? allEvents
-      : allEvents.filter((e) => e.memberId === selectedMemberId);
+      ? calendarEvents
+      : calendarEvents.filter((e) => e.memberId === selectedMemberId || e.memberId === null);
 
   // Unified lateral navigation
   const prevPeriod = () => {
@@ -254,13 +335,10 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
     const deltaX = e.changedTouches[0].clientX - touchStartX;
     const deltaY = e.changedTouches[0].clientY - touchStartY;
 
-    // Minimum 50px horizontal swipe threshold, ensuring horizontal > vertical
     if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
       if (deltaX > 0) {
-        // Swiping right: as requested, triggers next month / week navigation
         nextPeriod();
       } else {
-        // Swiping left: triggers previous month / week navigation
         prevPeriod();
       }
     }
@@ -348,7 +426,7 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
 
   // Events for selected modal date
   const selectedDateEvents = selectedDayModal
-    ? filteredEvents.filter((e) => e.date === selectedDayModal)
+    ? calendarEvents.filter((e) => e.date === selectedDayModal)
     : [];
 
   const formatModalHeaderDate = (dateStr: string) => {
@@ -366,18 +444,90 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
     }
   };
 
+  const getInhabitantIcon = (iconName?: string) => {
+    switch (iconName) {
+      case "dog":
+        return Dog;
+      case "cat":
+        return Cat;
+      case "baby":
+        return Baby;
+      case "sparkles":
+        return Sparkles;
+      default:
+        return User;
+    }
+  };
+
+  // Open Event Modal to create new event on date
+  const handleOpenAddEventOnDate = (dateStr: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (accessMode === "kid") {
+      setSelectedDayModal(dateStr);
+      return;
+    }
+    setEventToEdit(null);
+    setTargetDateForNewEvent(dateStr);
+    setIsEventModalOpen(true);
+  };
+
+  // Open Event Modal to edit event
+  const handleOpenEditEvent = (evt: CalendarEvent, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEventToEdit({
+      id: evt.id,
+      galaxyId: evt.galaxyId || activeGalaxyId,
+      calendarId: evt.calendarId,
+      memberId: evt.memberId,
+      title: evt.title,
+      description: evt.description,
+      location: evt.location,
+      startTime: `${evt.date}T${evt.time.includes(":") ? evt.time : "09:00"}:00`,
+      endTime: `${evt.date}T10:00:00`,
+      colorOverride: evt.color,
+    });
+    setIsEventModalOpen(true);
+  };
+
   return (
     <div
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       className="flex-1 flex flex-col h-full bg-cosmos-void/90 p-2 sm:p-4 md:p-6 overflow-hidden"
     >
+      {/* Event Add/Modify Modal */}
+      <EventModal
+        isOpen={isEventModalOpen}
+        onClose={() => {
+          setIsEventModalOpen(false);
+          setEventToEdit(null);
+        }}
+        activeGalaxyId={activeGalaxyId}
+        selectedDate={targetDateForNewEvent}
+        eventToEdit={eventToEdit}
+        inhabitants={modalInhabitants}
+        accessMode={accessMode}
+        onSaveEvent={onSaveEvent || (async () => {})}
+        onDeleteEvent={onDeleteEvent}
+      />
+
+      {/* Inhabitants & Pets Modal */}
+      <InhabitantsModal
+        isOpen={isInhabitantsModalOpen}
+        onClose={() => setIsInhabitantsModalOpen(false)}
+        galaxyName={activeGalaxyName}
+        inhabitants={modalInhabitants}
+        onAddInhabitant={onAddInhabitant || (async () => {})}
+      />
+
       {/* Top Filter Bar: Family Members & Cosmic View Switcher */}
       <div className="flex flex-wrap items-center justify-between gap-2 md:gap-4 pb-2 md:pb-4 border-b border-cosmos-border">
         {/* Family Member Constellation Filter */}
         <div className="flex items-center gap-1.5 md:gap-2 overflow-x-auto pb-1 max-w-full">
-          {SAMPLE_MEMBERS.map((member) => {
+          {memberList.map((member) => {
             const isSelected = selectedMemberId === member.id;
+            const Icon = getInhabitantIcon(member.avatarIcon);
+
             return (
               <button
                 key={member.id}
@@ -392,16 +542,29 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
                 }}
               >
                 <div
-                  className="w-2.5 h-2.5 rounded-full shadow-sm shrink-0"
+                  className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0"
                   style={{
                     backgroundColor: member.color,
                     boxShadow: isSelected ? `0 0 8px ${member.color}` : "none",
                   }}
-                />
+                >
+                  <Icon className="w-2.5 h-2.5 text-cosmos-void" />
+                </div>
                 <span className="whitespace-nowrap">{member.name}</span>
               </button>
             );
           })}
+
+          {accessMode !== "kid" && (
+            <button
+              onClick={() => setIsInhabitantsModalOpen(true)}
+              title="Manage Galaxy Inhabitants"
+              className="px-2.5 py-1.5 rounded-2xl border border-dashed border-cosmos-border text-slate-400 hover:text-starlight hover:border-purple-400 transition text-xs font-bold flex items-center gap-1 min-h-[44px] shrink-0"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Manage</span>
+            </button>
+          )}
         </div>
 
         {/* View Switcher & Add Event */}
@@ -423,7 +586,10 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
           </div>
 
           {accessMode !== "kid" && (
-            <button className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-lg shadow-purple-500/25 transition min-h-[44px]">
+            <button
+              onClick={() => handleOpenAddEventOnDate(todayStr)}
+              className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-lg shadow-purple-500/25 transition min-h-[44px]"
+            >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Add Event</span>
             </button>
@@ -532,6 +698,7 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
                     {dayEvents.slice(0, 3).map((evt) => (
                       <div
                         key={evt.id}
+                        onClick={(e) => handleOpenEditEvent(evt, e)}
                         className="truncate text-[10px] md:text-[11px] font-bold px-1.5 py-0.5 rounded-md border text-white transition hover:scale-[1.02]"
                         style={{
                           backgroundColor: `${evt.color}25`,
@@ -608,7 +775,8 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
               .map((evt) => (
                 <div
                   key={evt.id}
-                  className="p-4 rounded-2xl bg-cosmos-card border border-cosmos-border flex items-center justify-between shadow-lg"
+                  onClick={(e) => handleOpenEditEvent(evt, e)}
+                  className="p-4 rounded-2xl bg-cosmos-card border border-cosmos-border flex items-center justify-between shadow-lg cursor-pointer hover:bg-cosmos-cardHover transition"
                   style={{ borderLeftWidth: "6px", borderLeftColor: evt.color }}
                 >
                   <div>
@@ -632,7 +800,7 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
                     className="text-xs px-3 py-1 rounded-full font-bold"
                     style={{ backgroundColor: `${evt.color}22`, color: evt.color }}
                   >
-                    {SAMPLE_MEMBERS.find((m) => m.id === evt.memberId)?.name}
+                    {memberList.find((m) => m.id === evt.memberId)?.name || "Family"}
                   </span>
                 </div>
               ))
@@ -691,6 +859,7 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
                       dayEvts.map((evt) => (
                         <div
                           key={evt.id}
+                          onClick={(e) => handleOpenEditEvent(evt, e)}
                           className="text-xs p-1.5 rounded-lg border font-medium text-white transition hover:scale-[1.01]"
                           style={{
                             backgroundColor: `${evt.color}20`,
@@ -716,7 +885,8 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
           {filteredEvents.map((evt) => (
             <div
               key={evt.id}
-              className="p-4 rounded-2xl bg-cosmos-card border border-cosmos-border flex items-center justify-between"
+              onClick={(e) => handleOpenEditEvent(evt, e)}
+              className="p-4 rounded-2xl bg-cosmos-card border border-cosmos-border flex items-center justify-between cursor-pointer hover:bg-cosmos-cardHover transition"
             >
               <div className="flex items-center gap-4">
                 <div
@@ -734,14 +904,14 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
                 className="text-xs px-3 py-1 rounded-full font-bold"
                 style={{ backgroundColor: `${evt.color}22`, color: evt.color }}
               >
-                {SAMPLE_MEMBERS.find((m) => m.id === evt.memberId)?.name}
+                {memberList.find((m) => m.id === evt.memberId)?.name || "Family"}
               </span>
             </div>
           ))}
         </div>
       )}
 
-      {/* DAY DETAIL MODAL: Opened when clicking any day in Month View or Week View */}
+      {/* DAY DETAIL MODAL */}
       {selectedDayModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
           <div className="bg-cosmos-card border border-cosmos-borderLight rounded-3xl p-4 sm:p-6 max-w-lg w-full shadow-2xl animate-in fade-in zoom-in-95">
@@ -777,7 +947,11 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
                 selectedDateEvents.map((evt) => (
                   <div
                     key={evt.id}
-                    className="p-3.5 rounded-2xl bg-cosmos-surface border border-cosmos-border flex items-center justify-between"
+                    onClick={(e) => {
+                      setSelectedDayModal(null);
+                      handleOpenEditEvent(evt, e);
+                    }}
+                    className="p-3.5 rounded-2xl bg-cosmos-surface border border-cosmos-border flex items-center justify-between cursor-pointer hover:bg-cosmos-cardHover transition"
                     style={{ borderLeftWidth: "5px", borderLeftColor: evt.color }}
                   >
                     <div>
@@ -799,14 +973,14 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
                       className="text-xs px-2.5 py-1 rounded-full font-bold"
                       style={{ backgroundColor: `${evt.color}20`, color: evt.color }}
                     >
-                      {SAMPLE_MEMBERS.find((m) => m.id === evt.memberId)?.name}
+                      {memberList.find((m) => m.id === evt.memberId)?.name || "Family"}
                     </span>
                   </div>
                 ))
               )}
             </div>
 
-            {/* Modal Actions: Jump into Day View or Week View */}
+            {/* Modal Actions */}
             <div className="pt-3 border-t border-cosmos-border flex flex-wrap gap-2 justify-between">
               <div className="flex gap-2">
                 <button
@@ -836,7 +1010,14 @@ export function CalendarView({ accessMode }: CalendarViewProps) {
               </div>
 
               {accessMode !== "kid" && (
-                <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-md shadow-purple-500/20 transition flex items-center gap-1.5 min-h-[44px]">
+                <button
+                  onClick={(e) => {
+                    const date = selectedDayModal;
+                    setSelectedDayModal(null);
+                    handleOpenAddEventOnDate(date, e);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-md shadow-purple-500/20 transition flex items-center gap-1.5 min-h-[44px]"
+                >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Event</span>
                 </button>

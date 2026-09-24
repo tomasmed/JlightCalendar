@@ -6,7 +6,7 @@ dotenv.config({ path: ".env.local" });
 dotenv.config();
 
 const url = process.env.DATABASE_URL || "file:./local.db";
-const isTurso = url.startsWith("libsql:");
+const isTurso = url.startsWith("libsql:") || url.startsWith("https:");
 
 export default defineConfig({
   schema: "./src/db/schema.ts",
