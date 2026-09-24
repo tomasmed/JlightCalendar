@@ -317,6 +317,7 @@ async function main() {
         listType: "grocery",
         title: "Java's Dog Food (Salmon & Sweet Potato)",
         isCompleted: false,
+        addedByMemberId: "mem_mom",
       },
       {
         id: "list_2",
@@ -324,11 +325,83 @@ async function main() {
         listType: "grocery",
         title: "Avocados for Taco Night",
         isCompleted: true,
+        addedByMemberId: "mem_mom",
+      },
+      {
+        id: "list_3",
+        galaxyId: solGalaxyId,
+        listType: "grocery",
+        title: "Ground Turkey (2 lbs)",
+        isCompleted: false,
+        addedByMemberId: "mem_dad",
+      },
+      {
+        id: "list_4",
+        galaxyId: solGalaxyId,
+        listType: "grocery",
+        title: "Cheddar Cheese Block",
+        isCompleted: false,
+        addedByMemberId: "mem_leo",
+      },
+      {
+        id: "list_5",
+        galaxyId: solGalaxyId,
+        listType: "grocery",
+        title: "Bananas & Blueberries",
+        isCompleted: true,
+        addedByMemberId: "mem_mia",
       },
     ])
     .onConflictDoNothing();
 
-  console.log("✅ Database seeded with Galaxies, Inhabitants, Calendars & Events!");
+  // 9. Initial Meal Plans
+  await db
+    .insert(mealPlans)
+    .values([
+      {
+        id: "meal_mon",
+        galaxyId: solGalaxyId,
+        memberId: "mem_mom",
+        planDate: "2026-09-21",
+        mealType: "dinner",
+        title: "Homemade Beef Tacos & Guacamole",
+      },
+      {
+        id: "meal_tue",
+        galaxyId: solGalaxyId,
+        memberId: "mem_dad",
+        planDate: "2026-09-22",
+        mealType: "dinner",
+        title: "Grilled Salmon & Asparagus",
+      },
+      {
+        id: "meal_wed",
+        galaxyId: solGalaxyId,
+        memberId: "mem_mom",
+        planDate: "2026-09-23",
+        mealType: "dinner",
+        title: "Spaghetti Bolognese with Garlic Bread",
+      },
+      {
+        id: "meal_thu",
+        galaxyId: solGalaxyId,
+        memberId: "mem_dad",
+        planDate: "2026-09-24",
+        mealType: "dinner",
+        title: "Slow-Cooker Pulled Pork Sandwiches",
+      },
+      {
+        id: "meal_fri",
+        galaxyId: solGalaxyId,
+        memberId: "mem_leo",
+        planDate: "2026-09-25",
+        mealType: "dinner",
+        title: "Family Pizza Night (Build Your Own)",
+      },
+    ])
+    .onConflictDoNothing();
+
+  console.log("✅ Database seeded with Galaxies, Inhabitants, Calendars, Events, Chores & Meals!");
 }
 
 main().catch((err) => {

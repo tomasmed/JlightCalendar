@@ -248,6 +248,9 @@ export const mealPlans = sqliteTable("meal_plans", {
   galaxyId: text("galaxy_id")
     .notNull()
     .references(() => galaxies.id, { onDelete: "cascade" }),
+  memberId: text("member_id").references(() => galaxyMembers.id, {
+    onDelete: "set null",
+  }),
   planDate: text("plan_date").notNull(), // YYYY-MM-DD
   mealType: text("meal_type", {
     enum: ["breakfast", "lunch", "dinner", "snack"],
@@ -292,3 +295,4 @@ export const displayDevices = sqliteTable("display_devices", {
 // ==========================================
 export const households = galaxies;
 export const familyMembers = galaxyMembers;
+export const calendarConnections = calendars;

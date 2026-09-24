@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Star, CheckCircle, Circle, Plus, Sparkles } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Star, CheckCircle, Circle, Plus, Sparkles, X, User } from "lucide-react";
 import { AccessMode } from "./kiosk-header";
 
 interface ChoreItem {
@@ -13,184 +13,370 @@ interface ChoreItem {
   points: number;
   completed: boolean;
   frequency: string;
+  dueTime?: string;
 }
 
-const INITIAL_CHORES: ChoreItem[] = [
-  {
-    id: "c1",
-    memberId: "m_leo",
-    memberName: "Leo",
-    memberColor: "#8b5cf6",
-    title: "Make Bed & Tidy Room",
-    points: 2,
-    completed: true,
-    frequency: "Daily Morning",
-  },
-  {
-    id: "c2",
-    memberId: "m_leo",
-    memberName: "Leo",
-    memberColor: "#8b5cf6",
-    title: "Feed the Dog",
-    points: 1,
-    completed: false,
-    frequency: "Daily 5:00 PM",
-  },
-  {
-    id: "c3",
-    memberId: "m_mia",
-    memberName: "Mia",
-    memberColor: "#f59e0b",
-    title: "Put Away Backpack & Shoes",
-    points: 1,
-    completed: true,
-    frequency: "After School",
-  },
-  {
-    id: "c4",
-    memberId: "m_mia",
-    memberName: "Mia",
-    memberColor: "#f59e0b",
-    title: "Brush Teeth (2 mins)",
-    points: 1,
-    completed: false,
-    frequency: "Nightly",
-  },
-  {
-    id: "c5",
-    memberId: "m_leo",
-    memberName: "Leo",
-    memberColor: "#8b5cf6",
-    title: "Take Out Recycling Bin",
-    points: 3,
-    completed: false,
-    frequency: "Every Monday",
-  },
-];
+interface FamilyMember {
+  id: string;
+  name: string;
+  color: string;
+  starBalance: number;
+}
 
 interface ChoresViewProps {
   accessMode: AccessMode;
 }
 
 export function ChoresView({ accessMode }: ChoresViewProps) {
-  const [chores, setChores] = useState<ChoreItem[]>(INITIAL_CHORES);
-  const [starBalances, setStarBalances] = useState({
-    Leo: 18,
-    Mia: 24,
-  });
+  const [chores, setChores] = useState<ChoreItem[]>([]);
+  const [members, setMembers] = useState<FamilyMember[]>([]);
+  const [starBalances, setStarBalances] = useState<Record<string, number>>({});
+  const [selectedMemberId, setSelectedMemberId] = useState<string>("all");
+  const [loading, setLoading] = useState(true);
 
-  const toggleChore = (choreId: string) => {
+  // Add Chore Modal state
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newMemberId, setNewMemberId] = useState("");
+  const [newPoints, setNewPoints] = useState(1);
+  const [newRecurrence, setNewRecurrence] = useState("daily");
+
+  const fetchChores = async () => {
+    try {
+      const res = await fetch("/api/chores");
+      if (res.ok) {
+        const data = await res.json();
+        setChores(data.chores || []);
+        setStarBalances(data.starBalances || {});
+        if (data.members) {
+          setMembers(data.members);
+          if (!newMemberId && data.members.length > 0) {
+            setNewMemberId(data.members[0].id);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load chores from DB:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchChores();
+  }, []);
+
+  const toggleChore = async (choreId: string) => {
+    // Optimistic UI update
     setChores((prev) =>
       prev.map((c) => {
         if (c.id === choreId) {
           const nextCompleted = !c.completed;
           setStarBalances((stars) => ({
             ...stars,
-            [c.memberName]:
-              (stars[c.memberName as keyof typeof stars] || 0) +
-              (nextCompleted ? c.points : -c.points),
+            [c.memberName]: Math.max(
+              0,
+              (stars[c.memberName] || 0) + (nextCompleted ? c.points : -c.points)
+            ),
           }));
           return { ...c, completed: nextCompleted };
         }
         return c;
       })
     );
+
+    try {
+      const res = await fetch("/api/chores", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ choreId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.starBalances) {
+          setStarBalances(data.starBalances);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to toggle chore:", err);
+      // Re-fetch on error to ensure sync
+      fetchChores();
+    }
   };
 
+  const handleAddChore = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim() || !newMemberId) return;
+
+    try {
+      const res = await fetch("/api/chores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId: newMemberId,
+          title: newTitle.trim(),
+          points: newPoints,
+          recurrenceType: newRecurrence,
+        }),
+      });
+
+      if (res.ok) {
+        setNewTitle("");
+        setIsAddModalOpen(false);
+        fetchChores();
+      }
+    } catch (err) {
+      console.error("Failed to add chore:", err);
+    }
+  };
+
+  const filteredChores =
+    selectedMemberId === "all"
+      ? chores
+      : chores.filter((c) => c.memberId === selectedMemberId);
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-cosmos-void/90 p-6 overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-cosmos-void/90 p-3 sm:p-4 md:p-6 overflow-hidden">
       {/* Header & Rewards Summary */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-cosmos-border">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 md:pb-4 border-b border-cosmos-border">
         <div>
-          <h2 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-starlight">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-starlight">
             Daily Chores & Routines
           </h2>
           <p className="text-xs text-slate-400">
-            Check off completed tasks to earn family reward stars!
+            Backed to database — check off tasks to earn family reward stars!
           </p>
         </div>
 
-        {/* Kids Star Balances */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-purple-500/10 border border-purple-500/30 shadow-sm shadow-purple-500/20">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#8b5cf6] shadow-sm shadow-[#8b5cf6]" />
-            <span className="text-xs font-bold text-slate-200">Leo:</span>
-            <span className="flex items-center gap-1 font-black text-starlight text-sm">
-              <Star className="w-4 h-4 fill-starlight text-starlight" />
-              {starBalances.Leo}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 shadow-sm shadow-amber-500/20">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b] shadow-sm shadow-[#f59e0b]" />
-            <span className="text-xs font-bold text-slate-200">Mia:</span>
-            <span className="flex items-center gap-1 font-black text-starlight text-sm">
-              <Star className="w-4 h-4 fill-starlight text-starlight" />
-              {starBalances.Mia}
-            </span>
-          </div>
-
-          {accessMode !== "kid" && (
-            <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-lg shadow-purple-500/20 transition">
-              <Plus className="w-4 h-4" />
-              <span>Add Chore</span>
-            </button>
-          )}
+        {/* Member Star Balances */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
+          {members.map((m) => (
+            <div
+              key={m.id}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-purple-500/10 border border-purple-500/30 shadow-sm shrink-0"
+            >
+              <span
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: m.color }}
+              />
+              <span className="text-xs font-bold text-slate-200">{m.name}:</span>
+              <span className="flex items-center gap-1 font-black text-starlight text-xs">
+                <Star className="w-3.5 h-3.5 fill-starlight text-starlight" />
+                {starBalances[m.name] ?? m.starBalance ?? 0}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Chore List */}
-      <div className="flex-1 overflow-y-auto py-4 space-y-3 pr-2">
-        {chores.map((chore) => (
-          <div
-            key={chore.id}
-            onClick={() => toggleChore(chore.id)}
-            className={`cursor-pointer p-4 rounded-2xl border transition-all flex items-center justify-between select-none ${
-              chore.completed
-                ? "bg-cosmos-deep/40 border-cosmos-border/40 opacity-60"
-                : "bg-cosmos-card/80 border-cosmos-border hover:border-purple-500/40 shadow-lg"
+      {/* Member Filter Chips & Add Button */}
+      <div className="flex items-center justify-between gap-2 py-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+          <button
+            onClick={() => setSelectedMemberId("all")}
+            className={`px-3 py-1.5 rounded-2xl text-xs font-bold transition min-h-[44px] shrink-0 ${
+              selectedMemberId === "all"
+                ? "bg-purple-600 text-white shadow-md shadow-purple-500/30"
+                : "bg-cosmos-surface border border-cosmos-border text-slate-400 hover:text-white"
             }`}
           >
-            <div className="flex items-center gap-4">
-              {chore.completed ? (
-                <CheckCircle className="w-7 h-7 text-emerald-400" />
-              ) : (
-                <Circle className="w-7 h-7 text-slate-500 hover:text-slate-300" />
-              )}
-              <div>
+            All Members
+          </button>
+          {members.map((m) => {
+            const isSelected = selectedMemberId === m.id;
+            return (
+              <button
+                key={m.id}
+                onClick={() => setSelectedMemberId(m.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition min-h-[44px] shrink-0 border ${
+                  isSelected
+                    ? "bg-cosmos-card text-white shadow-md"
+                    : "bg-cosmos-surface border-cosmos-border text-slate-400 hover:text-white"
+                }`}
+                style={{ borderColor: isSelected ? m.color : undefined }}
+              >
                 <span
-                  className={`text-lg font-bold block ${
-                    chore.completed
-                      ? "line-through text-slate-500"
-                      : "text-white"
-                  }`}
-                >
-                  {chore.title}
-                </span>
-                <span className="text-xs text-slate-400">
-                  {chore.frequency}
-                </span>
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: m.color }}
+                />
+                <span>{m.name}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {accessMode !== "kid" && (
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-md transition min-h-[44px] shrink-0 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Add Chore</span>
+          </button>
+        )}
+      </div>
+
+      {/* Chores Grid / List */}
+      <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+        {loading ? (
+          <div className="text-center py-12 text-slate-500">Loading chores...</div>
+        ) : filteredChores.length === 0 ? (
+          <div className="text-center py-12 text-slate-400">
+            <Sparkles className="w-8 h-8 mx-auto mb-2 text-purple-400 opacity-60" />
+            <p className="font-semibold text-sm">No chores found for this view!</p>
+          </div>
+        ) : (
+          filteredChores.map((chore) => (
+            <div
+              key={chore.id}
+              onClick={() => toggleChore(chore.id)}
+              className={`p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between select-none ${
+                chore.completed
+                  ? "bg-cosmos-deep/40 border-cosmos-border/50 opacity-60"
+                  : "bg-cosmos-card hover:bg-cosmos-cardHover border-cosmos-border shadow-lg"
+              }`}
+              style={{
+                borderLeftWidth: "6px",
+                borderLeftColor: chore.memberColor,
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="min-w-[44px] min-h-[44px] flex items-center justify-center">
+                  {chore.completed ? (
+                    <CheckCircle className="w-6 h-6 text-emerald-400" />
+                  ) : (
+                    <Circle className="w-6 h-6 text-slate-500 hover:text-slate-300" />
+                  )}
+                </div>
+                <div>
+                  <span
+                    className={`text-sm sm:text-base font-bold block ${
+                      chore.completed
+                        ? "line-through text-slate-400"
+                        : "text-slate-100"
+                    }`}
+                  >
+                    {chore.title}
+                  </span>
+                  <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <User className="w-3 h-3 text-slate-500" />
+                      {chore.memberName}
+                    </span>
+                    <span>•</span>
+                    <span>{chore.frequency}</span>
+                    {chore.dueTime && <span>at {chore.dueTime}</span>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Points Badge */}
+              <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 font-black text-xs shrink-0">
+                <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                <span>+{chore.points}</span>
               </div>
             </div>
-
-            <div className="flex items-center gap-3">
-              <span
-                className="text-xs px-3 py-1 rounded-full font-bold"
-                style={{
-                  backgroundColor: `${chore.memberColor}22`,
-                  color: chore.memberColor,
-                }}
-              >
-                {chore.memberName}
-              </span>
-              <span className="flex items-center gap-1 text-xs font-black text-starlight bg-starlight/10 px-2.5 py-1 rounded-lg border border-starlight/30 shadow-sm shadow-starlight/20">
-                <Star className="w-3.5 h-3.5 fill-starlight text-starlight" />
-                +{chore.points}
-              </span>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
+
+      {/* Add Chore Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-cosmos-card border border-cosmos-borderLight rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-cosmos-border">
+              <h3 className="text-lg font-black text-white">Add New Chore</h3>
+              <button
+                onClick={() => setIsAddModalOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddChore} className="space-y-4 py-4">
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">
+                  Chore Title
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Put away laundry, Water plants..."
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  className="w-full h-12 bg-cosmos-surface border border-cosmos-border rounded-xl px-4 text-white text-sm focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">
+                  Assign to Family Member
+                </label>
+                <select
+                  value={newMemberId}
+                  onChange={(e) => setNewMemberId(e.target.value)}
+                  className="w-full h-12 bg-cosmos-surface border border-cosmos-border rounded-xl px-3 text-white text-sm focus:outline-none focus:border-purple-500"
+                >
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id} className="bg-cosmos-card">
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">
+                    Reward Stars
+                  </label>
+                  <select
+                    value={newPoints}
+                    onChange={(e) => setNewPoints(Number(e.target.value))}
+                    className="w-full h-12 bg-cosmos-surface border border-cosmos-border rounded-xl px-3 text-white text-sm focus:outline-none focus:border-purple-500"
+                  >
+                    <option value={1} className="bg-cosmos-card">1 Star</option>
+                    <option value={2} className="bg-cosmos-card">2 Stars</option>
+                    <option value={3} className="bg-cosmos-card">3 Stars</option>
+                    <option value={5} className="bg-cosmos-card">5 Stars</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">
+                    Frequency
+                  </label>
+                  <select
+                    value={newRecurrence}
+                    onChange={(e) => setNewRecurrence(e.target.value)}
+                    className="w-full h-12 bg-cosmos-surface border border-cosmos-border rounded-xl px-3 text-white text-sm focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="daily" className="bg-cosmos-card">Daily</option>
+                    <option value="weekly" className="bg-cosmos-card">Weekly</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-cosmos-surface border border-cosmos-border text-xs font-bold text-slate-300 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-xs font-bold text-white shadow-md"
+                >
+                  Save Chore
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
