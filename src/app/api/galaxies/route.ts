@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
+import { ensureDatabaseSchema } from "@/db/ensure-schema";
 import {
   galaxies,
   galaxyMembers,
@@ -13,6 +14,7 @@ import { ensureDbUser } from "@/lib/auth-helpers";
 
 export async function GET(req: Request) {
   try {
+    await ensureDatabaseSchema();
     const session = await auth();
     let userId = session?.user?.id;
     if (session?.user) {
@@ -161,6 +163,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    await ensureDatabaseSchema();
     const session = await auth();
     let userId = session?.user?.id;
     if (session?.user) {

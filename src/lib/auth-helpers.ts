@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import { ensureDatabaseSchema } from "@/db/ensure-schema";
 import { users, galaxies, galaxyMembers } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
@@ -13,6 +14,7 @@ export async function ensureDbUser(sessionUser?: {
   name?: string | null;
   image?: string | null;
 } | null): Promise<string | null> {
+  await ensureDatabaseSchema();
   if (!sessionUser) return null;
   const email = sessionUser.email;
   const id = sessionUser.id;

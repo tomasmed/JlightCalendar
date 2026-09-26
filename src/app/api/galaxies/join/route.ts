@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
+import { ensureDatabaseSchema } from "@/db/ensure-schema";
 import { galaxies, galaxyMembers } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { auth } from "@/auth";
 
 export async function POST(req: Request) {
   try {
+    await ensureDatabaseSchema();
     const session = await auth();
     const userId = session?.user?.id;
 
