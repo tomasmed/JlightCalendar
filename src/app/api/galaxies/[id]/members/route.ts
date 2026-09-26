@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { galaxyMembers, galaxies } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { auth } from "@/auth";
-import { verifyGalaxyAccess } from "@/lib/auth-helpers";
+import { verifyGalaxyAccess, ensureDbUser } from "@/lib/auth-helpers";
 
 export async function GET(
   req: Request,
@@ -12,8 +12,17 @@ export async function GET(
   try {
     const { id: galaxyId } = await params;
     const session = await auth();
+    let userId = session?.user?.id;
+    if (session?.user) {
+      const ensuredId = await ensureDbUser(session.user);
+      if (ensuredId) userId = ensuredId;
+    }
 
-    const hasAccess = await verifyGalaxyAccess(galaxyId, session?.user?.id);
+    const hasAccess = await verifyGalaxyAccess(
+      galaxyId,
+      userId,
+      session?.user?.email
+    );
     if (!hasAccess) {
       return NextResponse.json(
         { error: "You do not have access to view this galaxy's inhabitants." },
@@ -43,8 +52,17 @@ export async function POST(
   try {
     const { id: galaxyId } = await params;
     const session = await auth();
+    let userId = session?.user?.id;
+    if (session?.user) {
+      const ensuredId = await ensureDbUser(session.user);
+      if (ensuredId) userId = ensuredId;
+    }
 
-    const hasAccess = await verifyGalaxyAccess(galaxyId, session?.user?.id);
+    const hasAccess = await verifyGalaxyAccess(
+      galaxyId,
+      userId,
+      session?.user?.email
+    );
     if (!hasAccess) {
       return NextResponse.json(
         { error: "You do not have access to add inhabitants to this galaxy." },
@@ -109,9 +127,17 @@ export async function DELETE(
   try {
     const { id: galaxyId } = await params;
     const session = await auth();
-    const userId = session?.user?.id;
+    let userId = session?.user?.id;
+    if (session?.user) {
+      const ensuredId = await ensureDbUser(session.user);
+      if (ensuredId) userId = ensuredId;
+    }
 
-    const hasAccess = await verifyGalaxyAccess(galaxyId, userId);
+    const hasAccess = await verifyGalaxyAccess(
+      galaxyId,
+      userId,
+      session?.user?.email
+    );
     if (!hasAccess) {
       return NextResponse.json(
         { error: "You do not have access to manage inhabitants in this galaxy." },

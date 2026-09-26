@@ -1,13 +1,25 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { galaxies, galaxyMembers, calendars, generateJoinCode } from "@/db/schema";
+import {
+  galaxies,
+  galaxyMembers,
+  calendars,
+  events,
+  generateJoinCode,
+} from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
+import { ensureDbUser } from "@/lib/auth-helpers";
 
 export async function GET(req: Request) {
   try {
     const session = await auth();
-    const userId = session?.user?.id;
+    let userId = session?.user?.id;
+    if (session?.user) {
+      const ensuredId = await ensureDbUser(session.user);
+      if (ensuredId) userId = ensuredId;
+    }
+
     const { searchParams } = new URL(req.url);
     const isDemo = searchParams.get("demo") === "true";
 
@@ -29,7 +41,7 @@ export async function GET(req: Request) {
         (g) => g.ownerId === userId || memberGalaxyIds.has(g.id)
       );
 
-      // 2. If logged in user has no galaxies yet, auto-provision their personal galaxy
+      // 2. If logged in user has no galaxies yet, auto-provision their personal default galaxy
       if (userGalaxies.length === 0) {
         const galaxyId = crypto.randomUUID();
         const userName = session?.user?.name;
@@ -59,12 +71,28 @@ export async function GET(req: Request) {
           avatarIcon: "user",
         });
 
+        const calendarId = crypto.randomUUID();
         await db.insert(calendars).values({
-          id: crypto.randomUUID(),
+          id: calendarId,
           galaxyId,
           name: "Primary Orbit",
           isPrimary: true,
           color: "#8b5cf6",
+        });
+
+        // 4. Create the welcoming creation event!
+        const todayStr = new Date().toISOString().split("T")[0];
+        await db.insert(events).values({
+          id: crypto.randomUUID(),
+          galaxyId,
+          calendarId,
+          memberId,
+          title: "Date of Jlight galaxy creation",
+          description: `Welcome to ${galaxyName}! Orbit established on ${todayStr}.`,
+          startTime: `${todayStr}T09:00:00`,
+          endTime: `${todayStr}T10:00:00`,
+          isAllDay: true,
+          colorOverride: "#8b5cf6",
         });
 
         const freshGalaxy = await db
@@ -134,7 +162,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const session = await auth();
-    const userId = session?.user?.id;
+    let userId = session?.user?.id;
+    if (session?.user) {
+      const ensuredId = await ensureDbUser(session.user);
+      if (ensuredId) userId = ensuredId;
+    }
 
     if (!userId) {
       return NextResponse.json(
@@ -152,11 +184,12 @@ export async function POST(req: Request) {
 
     const galaxyId = crypto.randomUUID();
     const joinCode = generateJoinCode();
+    const galaxyName = name.trim();
 
     // 1. Create Galaxy
     await db.insert(galaxies).values({
       id: galaxyId,
-      name,
+      name: galaxyName,
       theme,
       icon,
       ownerId: userId,
@@ -184,6 +217,21 @@ export async function POST(req: Request) {
       name: "Primary Orbit",
       isPrimary: true,
       color: "#8b5cf6",
+    });
+
+    // 4. Create the creation event!
+    const todayStr = new Date().toISOString().split("T")[0];
+    await db.insert(events).values({
+      id: crypto.randomUUID(),
+      galaxyId,
+      calendarId,
+      memberId,
+      title: "Date of Jlight galaxy creation",
+      description: `Welcome to ${galaxyName}! Orbit established on ${todayStr}.`,
+      startTime: `${todayStr}T09:00:00`,
+      endTime: `${todayStr}T10:00:00`,
+      isAllDay: true,
+      colorOverride: "#8b5cf6",
     });
 
     return NextResponse.json({

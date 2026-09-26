@@ -14,6 +14,8 @@ import {
 } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
+import { ensureDbUser } from "@/lib/auth-helpers";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   secret:
@@ -44,14 +46,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async jwt({ token, user }) {
-      if (user) {
+      if (user?.id) {
         token.id = user.id;
+      }
+      if (token.email) {
+        try {
+          const dbUserId = await ensureDbUser({
+            id: (token.id as string) || (token.sub as string),
+            email: token.email as string,
+            name: (token.name as string) || (user?.name as string),
+            image: (token.picture as string) || (user?.image as string),
+          });
+          if (dbUserId) {
+            token.id = dbUserId;
+          }
+        } catch (e) {
+          console.error("Failed to sync DB user in jwt callback:", e);
+        }
       }
       return token;
     },
     async session({ session, token }) {
       if (token?.id) {
         session.user.id = token.id as string;
+      } else if (token?.sub) {
+        session.user.id = token.sub as string;
       }
       return session;
     },
