@@ -10,6 +10,7 @@ import {
   galaxies,
   galaxyMembers,
   calendars,
+  generateJoinCode,
 } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -70,6 +71,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         ownerId: user.id,
         theme: "milky-way",
         icon: "sparkles",
+        joinCode: generateJoinCode(),
       });
 
       // 2. Add user as owner member

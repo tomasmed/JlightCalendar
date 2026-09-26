@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { galaxyMembers } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { auth } from "@/auth";
+import { verifyGalaxyAccess } from "@/lib/auth-helpers";
 
 export async function GET(
   req: Request,
@@ -9,6 +11,16 @@ export async function GET(
 ) {
   try {
     const { id: galaxyId } = await params;
+    const session = await auth();
+
+    const hasAccess = await verifyGalaxyAccess(galaxyId, session?.user?.id);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have access to view this galaxy's inhabitants." },
+        { status: 403 }
+      );
+    }
+
     const members = await db
       .select()
       .from(galaxyMembers)
@@ -30,6 +42,16 @@ export async function POST(
 ) {
   try {
     const { id: galaxyId } = await params;
+    const session = await auth();
+
+    const hasAccess = await verifyGalaxyAccess(galaxyId, session?.user?.id);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have access to add inhabitants to this galaxy." },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     const {
       displayName,

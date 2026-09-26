@@ -656,7 +656,11 @@ export function CalendarView({
           </div>
 
           {/* 7-Column Days Grid */}
-          <div className="flex-1 grid grid-cols-7 grid-rows-5 gap-px bg-cosmos-border/70 overflow-hidden">
+          <div
+            className={`flex-1 grid grid-cols-7 ${
+              calendarCells.length > 35 ? "grid-rows-6" : "grid-rows-5"
+            } gap-px bg-cosmos-border/70 overflow-hidden`}
+          >
             {calendarCells.map((cell) => {
               const dayEvents = filteredEvents.filter(
                 (e) => e.date === cell.dateStr

@@ -1,18 +1,20 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { galaxies, galaxyMembers, calendars } from "@/db/schema";
+import { galaxies, galaxyMembers, calendars, generateJoinCode } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await auth();
     const userId = session?.user?.id;
+    const { searchParams } = new URL(req.url);
+    const isDemo = searchParams.get("demo") === "true";
 
     let userGalaxies: (typeof galaxies.$inferSelect)[] = [];
 
     if (userId) {
-      // Fetch galaxies where user is an inhabitant/member or owner
+      // 1. Fetch galaxies where user is an inhabitant/member
       const memberships = await db
         .select({
           galaxyId: galaxyMembers.galaxyId,
@@ -26,16 +28,80 @@ export async function GET() {
       userGalaxies = allGalaxies.filter(
         (g) => g.ownerId === userId || memberGalaxyIds.has(g.id)
       );
-    }
 
-    // If no user or kiosk/demo fallback, return all galaxies
-    if (userGalaxies.length === 0) {
-      userGalaxies = await db.select().from(galaxies);
+      // 2. If logged in user has no galaxies yet, auto-provision their personal galaxy
+      if (userGalaxies.length === 0) {
+        const galaxyId = crypto.randomUUID();
+        const userName = session?.user?.name;
+        const galaxyName = userName
+          ? `${userName}'s Family Galaxy`
+          : "My Family Galaxy";
+        const joinCode = generateJoinCode();
+
+        await db.insert(galaxies).values({
+          id: galaxyId,
+          name: galaxyName,
+          theme: "milky-way",
+          icon: "sparkles",
+          ownerId: userId,
+          parentPin: "1234",
+          joinCode,
+        });
+
+        const memberId = crypto.randomUUID();
+        await db.insert(galaxyMembers).values({
+          id: memberId,
+          galaxyId,
+          userId,
+          displayName: session?.user?.name || "Owner",
+          role: "owner",
+          color: "#8b5cf6",
+          avatarIcon: "user",
+        });
+
+        await db.insert(calendars).values({
+          id: crypto.randomUUID(),
+          galaxyId,
+          name: "Primary Orbit",
+          isPrimary: true,
+          color: "#8b5cf6",
+        });
+
+        const freshGalaxy = await db
+          .select()
+          .from(galaxies)
+          .where(eq(galaxies.id, galaxyId));
+        userGalaxies = freshGalaxy;
+      }
+    } else if (isDemo) {
+      // For unauthenticated sandbox demo mode, return ONLY the demo Sol Family Galaxy
+      const demoGalaxies = await db
+        .select()
+        .from(galaxies)
+        .where(eq(galaxies.id, "galaxy_sol_family"));
+      userGalaxies = demoGalaxies;
+    } else {
+      // Unauthenticated non-demo requests receive empty list (strict privacy)
+      return NextResponse.json({ galaxies: [] });
     }
 
     // Enrich each galaxy with its inhabitants and calendars
     const results = await Promise.all(
       userGalaxies.map(async (galaxy) => {
+        // Ensure galaxy has a joinCode; if legacy without one, populate it
+        let currentJoinCode = galaxy.joinCode;
+        if (!currentJoinCode) {
+          currentJoinCode = generateJoinCode();
+          try {
+            await db
+              .update(galaxies)
+              .set({ joinCode: currentJoinCode })
+              .where(eq(galaxies.id, galaxy.id));
+          } catch (e) {
+            // Ignore error if concurrent
+          }
+        }
+
         const members = await db
           .select()
           .from(galaxyMembers)
@@ -48,6 +114,7 @@ export async function GET() {
 
         return {
           ...galaxy,
+          joinCode: currentJoinCode,
           members,
           calendars: galaxyCalendars,
         };
@@ -67,6 +134,15 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const session = await auth();
+    const userId = session?.user?.id;
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "You must be signed in to create a galaxy." },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const { name, theme = "milky-way", icon = "sparkles" } = body;
 
@@ -75,7 +151,7 @@ export async function POST(req: Request) {
     }
 
     const galaxyId = crypto.randomUUID();
-    const ownerId = session?.user?.id || null;
+    const joinCode = generateJoinCode();
 
     // 1. Create Galaxy
     await db.insert(galaxies).values({
@@ -83,8 +159,9 @@ export async function POST(req: Request) {
       name,
       theme,
       icon,
-      ownerId,
+      ownerId: userId,
       parentPin: "1234",
+      joinCode,
     });
 
     // 2. Add creator as owner member
@@ -92,7 +169,7 @@ export async function POST(req: Request) {
     await db.insert(galaxyMembers).values({
       id: memberId,
       galaxyId,
-      userId: ownerId,
+      userId,
       displayName: session?.user?.name || "Captain",
       role: "owner",
       color: "#8b5cf6",
@@ -116,6 +193,7 @@ export async function POST(req: Request) {
         name,
         theme,
         icon,
+        joinCode,
         members: [
           {
             id: memberId,

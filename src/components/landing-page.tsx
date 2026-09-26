@@ -1,0 +1,235 @@
+"use client";
+
+import React, { useState } from "react";
+import {
+  Sparkles,
+  Calendar,
+  CheckSquare,
+  Utensils,
+  Moon,
+  Shield,
+  Baby,
+  Globe2,
+  ArrowRight,
+  Eye,
+  Star,
+  Users,
+} from "lucide-react";
+import { signIn } from "next-auth/react";
+
+interface LandingPageProps {
+  onExploreDemo: () => void;
+  onJoinCodeSubmit?: (code: string) => void;
+}
+
+export function LandingPage({ onExploreDemo, onJoinCodeSubmit }: LandingPageProps) {
+  const [quickJoinCode, setQuickJoinCode] = useState("");
+
+  const handleQuickJoin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (quickJoinCode.trim()) {
+      if (onJoinCodeSubmit) {
+        onJoinCodeSubmit(quickJoinCode.trim());
+      } else {
+        signIn("google");
+      }
+    }
+  };
+
+  return (
+    <div className="min-h-screen w-full bg-cosmos-void text-slate-100 flex flex-col overflow-y-auto selection:bg-purple-600 selection:text-white">
+      {/* Ambient Celestial Glows */}
+      <div className="fixed top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-purple-600/15 rounded-full blur-[130px] pointer-events-none" />
+      <div className="fixed top-[40%] left-[-10%] w-[500px] h-[400px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed bottom-[-10%] right-[-10%] w-[600px] h-[500px] bg-cyan-600/10 rounded-full blur-[140px] pointer-events-none" />
+
+      {/* Top Navbar */}
+      <header className="w-full max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between relative z-20">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/30">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-xl font-black tracking-tight text-white block leading-tight">
+              Jlight<span className="text-starlight">Calendar</span>
+            </span>
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+              Celestial Family Kiosk
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onExploreDemo}
+            className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-xs font-bold text-slate-300 hover:text-white transition min-h-[44px]"
+          >
+            <Eye className="w-4 h-4 text-starlight-cyan" />
+            <span>Try Live Demo</span>
+          </button>
+
+          <button
+            onClick={() => signIn("google")}
+            className="flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-xs font-bold text-white shadow-lg shadow-purple-500/25 transition min-h-[44px]"
+          >
+            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+            </svg>
+            <span>Sign in with Google</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <main className="flex-1 flex flex-col items-center justify-center text-center px-4 sm:px-6 pt-10 pb-16 relative z-10 max-w-5xl mx-auto">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-bold mb-6 backdrop-blur-sm animate-pulse">
+          <Sparkles className="w-3.5 h-3.5 text-starlight" />
+          <span>Next-Generation Smart Family Display</span>
+        </div>
+
+        <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.1] max-w-4xl text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-100 to-starlight">
+          Bring Calm & Harmony to Your Family Orbit
+        </h1>
+
+        <p className="mt-6 text-base sm:text-xl text-slate-300 max-w-2xl font-medium leading-relaxed">
+          The wall-mounted smart calendar and companion kiosk engineered for busy households. Sync family schedules, gamify chores with stars, organize meals, and manage shared group galaxies with total privacy.
+        </p>
+
+        {/* Primary CTA Buttons */}
+        <div className="mt-8 flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+          <button
+            onClick={() => signIn("google")}
+            className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-extrabold text-base shadow-xl shadow-purple-500/30 transition transform hover:scale-[1.02] min-h-[52px]"
+          >
+            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+            </svg>
+            <span>Get Started with Google</span>
+            <ArrowRight className="w-4 h-4 ml-1" />
+          </button>
+
+          <button
+            onClick={onExploreDemo}
+            className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 py-4 rounded-2xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border hover:border-purple-500/50 text-slate-200 font-bold text-base transition min-h-[52px]"
+          >
+            <Eye className="w-5 h-5 text-starlight-cyan" />
+            <span>Explore Demo Kiosk</span>
+          </button>
+        </div>
+
+        {/* Join with Galaxy Code Bar */}
+        <form
+          onSubmit={handleQuickJoin}
+          className="mt-6 flex flex-col sm:flex-row items-center gap-2 p-1.5 rounded-2xl bg-cosmos-card/80 border border-cosmos-border backdrop-blur-md max-w-md w-full"
+        >
+          <input
+            type="text"
+            value={quickJoinCode}
+            onChange={(e) => setQuickJoinCode(e.target.value.toUpperCase())}
+            placeholder="Have an invite code? (e.g. GLX-8K9)"
+            className="w-full bg-transparent px-4 py-2 text-xs font-mono font-bold text-white placeholder-slate-500 focus:outline-none uppercase"
+          />
+          <button
+            type="submit"
+            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-cosmos-surface hover:bg-purple-600/40 text-starlight text-xs font-bold border border-purple-500/30 transition flex items-center justify-center gap-1.5 shrink-0"
+          >
+            <span>Join Galaxy</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </form>
+
+        {/* Features Grid */}
+        <div className="mt-16 sm:mt-24 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 text-left w-full">
+          {/* Feature 1 */}
+          <div className="p-6 rounded-3xl bg-cosmos-card/70 border border-cosmos-border backdrop-blur-md hover:border-purple-500/40 transition">
+            <div className="w-12 h-12 rounded-2xl bg-purple-600/20 text-starlight-purple flex items-center justify-center mb-4">
+              <Globe2 className="w-6 h-6 text-starlight" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">
+              Multi-Galaxy Privacy
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Every household lives in its own private galaxy. Seamlessly invite grandparents, co-parents, or vacation groups via Join Codes while keeping your family data strictly isolated.
+            </p>
+          </div>
+
+          {/* Feature 2 */}
+          <div className="p-6 rounded-3xl bg-cosmos-card/70 border border-cosmos-border backdrop-blur-md hover:border-purple-500/40 transition">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center mb-4">
+              <Shield className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">
+              3-Tier Kiosk Access
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              PIN-protected Parent Admin controls keep settings secure. Switch to Standard mode for guests or Kid Mode with simplified icons and protected editing.
+            </p>
+          </div>
+
+          {/* Feature 3 */}
+          <div className="p-6 rounded-3xl bg-cosmos-card/70 border border-cosmos-border backdrop-blur-md hover:border-purple-500/40 transition">
+            <div className="w-12 h-12 rounded-2xl bg-amber-600/20 text-amber-400 flex items-center justify-center mb-4">
+              <Star className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">
+              Gamified Star Chores
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Turn daily routines into cosmic quests. Kids earn star points for completing chores and redeem them for family rewards and privileges.
+            </p>
+          </div>
+
+          {/* Feature 4 */}
+          <div className="p-6 rounded-3xl bg-cosmos-card/70 border border-cosmos-border backdrop-blur-md hover:border-purple-500/40 transition">
+            <div className="w-12 h-12 rounded-2xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center mb-4">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">
+              Physical Month & Day Views
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Touchscreen-optimized 7-column calendar grid with color-coded family constellation pills, instant day overviews, and lateral swipe navigation.
+            </p>
+          </div>
+
+          {/* Feature 5 */}
+          <div className="p-6 rounded-3xl bg-cosmos-card/70 border border-cosmos-border backdrop-blur-md hover:border-purple-500/40 transition">
+            <div className="w-12 h-12 rounded-2xl bg-rose-600/20 text-rose-400 flex items-center justify-center mb-4">
+              <Utensils className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">
+              Meal Plans & Shared Lists
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Know what&apos;s for dinner all week. One tap adds recipe ingredients straight to your real-time shared family grocery list.
+            </p>
+          </div>
+
+          {/* Feature 6 */}
+          <div className="p-6 rounded-3xl bg-cosmos-card/70 border border-cosmos-border backdrop-blur-md hover:border-purple-500/40 transition">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center mb-4">
+              <Moon className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">
+              OLED Sleep & Touch Ergonomics
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Designed specifically for wall kiosks with minimum 48px touch targets, ambient weather integration, and scheduled true-black night sleep mode.
+            </p>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="w-full border-t border-cosmos-border/60 py-6 px-4 text-center text-xs text-slate-500 relative z-10">
+        <p>JlightCalendar — Autonomous Family Kiosk & Calendar Platform</p>
+      </footer>
+    </div>
+  );
+}

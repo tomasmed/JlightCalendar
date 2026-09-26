@@ -17,62 +17,65 @@ import { NightSleepOverlay } from "@/components/night-sleep-overlay";
 import { MobileNavBar } from "@/components/mobile-nav-bar";
 import { Inhabitant, InhabitantsModal } from "@/components/inhabitants-modal";
 import { CreateGalaxyModal } from "@/components/create-galaxy-modal";
+import { JoinGalaxyModal } from "@/components/join-galaxy-modal";
+import { LandingPage } from "@/components/landing-page";
 import { CalendarEventData } from "@/components/event-modal";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
+import { Sparkles, ArrowRight } from "lucide-react";
 
 export default function HomePage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const user = session?.user;
+
   const [activeTab, setActiveTab] = useState<ActiveTab>("calendar");
   const [accessMode, setAccessMode] = useState<AccessMode>("standard");
   const [isModeModalOpen, setIsModeModalOpen] = useState(false);
   const [isSleeping, setIsSleeping] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   // Galaxy & Inhabitant State
-  const [galaxies, setGalaxies] = useState<GalaxyItem[]>([
-    {
-      id: "galaxy_sol_family",
-      name: "The Sol Family Galaxy (Home)",
-      theme: "milky-way",
-      icon: "sparkles",
-      members: [],
-    },
-    {
-      id: "galaxy_grandparents",
-      name: "Grandparents & Co.",
-      theme: "andromeda",
-      icon: "heart",
-      members: [],
-    },
-    {
-      id: "galaxy_kids_orbit",
-      name: "Kids Adventure Orbit",
-      theme: "supernova",
-      icon: "rocket",
-      members: [],
-    },
-  ]);
-  const [activeGalaxyId, setActiveGalaxyId] =
-    useState<string>("galaxy_sol_family");
+  const [galaxies, setGalaxies] = useState<GalaxyItem[]>([]);
+  const [activeGalaxyId, setActiveGalaxyId] = useState<string>("");
   const [inhabitants, setInhabitants] = useState<Inhabitant[]>([]);
   const [events, setEvents] = useState<CalendarEventData[]>([]);
 
   // Modals
   const [isInhabitantsModalOpen, setIsInhabitantsModalOpen] = useState(false);
   const [isCreateGalaxyModalOpen, setIsCreateGalaxyModalOpen] = useState(false);
+  const [isJoinGalaxyModalOpen, setIsJoinGalaxyModalOpen] = useState(false);
+  const [pendingJoinCode, setPendingJoinCode] = useState("");
+
+  // Inspect URL parameters on mount (?join=... or ?demo=true)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const joinParam = searchParams.get("join");
+      const demoParam = searchParams.get("demo");
+
+      if (joinParam) {
+        setPendingJoinCode(joinParam.toUpperCase());
+        setIsJoinGalaxyModalOpen(true);
+      }
+      if (demoParam === "true") {
+        setIsDemoMode(true);
+      }
+    }
+  }, []);
 
   // Fetch Galaxies from API
   const fetchGalaxies = async () => {
     try {
-      const res = await fetch("/api/galaxies");
+      const url = !session?.user && isDemoMode ? "/api/galaxies?demo=true" : "/api/galaxies";
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         if (data.galaxies && data.galaxies.length > 0) {
           setGalaxies(data.galaxies);
-          // If activeGalaxyId is not in list, set to first
-          if (!data.galaxies.some((g: GalaxyItem) => g.id === activeGalaxyId)) {
+          if (!activeGalaxyId || !data.galaxies.some((g: GalaxyItem) => g.id === activeGalaxyId)) {
             setActiveGalaxyId(data.galaxies[0].id);
           }
+        } else if (session?.user) {
+          setGalaxies([]);
         }
       }
     } catch (err) {
@@ -82,6 +85,7 @@ export default function HomePage() {
 
   // Fetch Inhabitants for Active Galaxy
   const fetchInhabitants = async (galaxyId: string) => {
+    if (!galaxyId) return;
     try {
       const res = await fetch(`/api/galaxies/${galaxyId}/members`);
       if (res.ok) {
@@ -97,6 +101,7 @@ export default function HomePage() {
 
   // Fetch Events for Active Galaxy
   const fetchEvents = async (galaxyId: string) => {
+    if (!galaxyId) return;
     try {
       const res = await fetch(`/api/events?galaxyId=${galaxyId}`);
       if (res.ok) {
@@ -111,8 +116,10 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    fetchGalaxies();
-  }, [session?.user?.id]);
+    if (status !== "loading") {
+      fetchGalaxies();
+    }
+  }, [session?.user?.id, isDemoMode, status]);
 
   useEffect(() => {
     if (activeGalaxyId) {
@@ -125,7 +132,6 @@ export default function HomePage() {
   const handleSaveEvent = async (eventData: CalendarEventData) => {
     try {
       if (eventData.id) {
-        // Update
         const res = await fetch("/api/events", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -135,7 +141,6 @@ export default function HomePage() {
           await fetchEvents(activeGalaxyId);
         }
       } else {
-        // Create
         const res = await fetch("/api/events", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -167,7 +172,7 @@ export default function HomePage() {
     }
   };
 
-  // Handle Add Inhabitant (e.g. Java the dog or kid)
+  // Handle Add Inhabitant
   const handleAddInhabitant = async (newInhabitant: {
     displayName: string;
     role: "admin" | "member" | "kid" | "pet";
@@ -213,11 +218,30 @@ export default function HomePage() {
     }
   };
 
+  // If user is unauthenticated and not exploring demo kiosk, display the Landing Page
+  if (status !== "loading" && !session?.user && !isDemoMode) {
+    return (
+      <LandingPage
+        onExploreDemo={() => setIsDemoMode(true)}
+        onJoinCodeSubmit={(code) => {
+          setPendingJoinCode(code);
+          setIsJoinGalaxyModalOpen(true);
+        }}
+      />
+    );
+  }
+
   const currentGalaxy =
-    galaxies.find((g) => g.id === activeGalaxyId) || galaxies[0];
+    galaxies.find((g) => g.id === activeGalaxyId) ||
+    galaxies[0] || {
+      id: "default",
+      name: "Family Galaxy",
+      theme: "milky-way",
+      icon: "sparkles",
+    };
 
   return (
-    <main className="h-screen w-screen flex flex-col overflow-hidden bg-cosmos-void text-slate-100 select-none">
+    <main className="h-[100dvh] w-full max-w-[100vw] flex flex-col overflow-hidden bg-cosmos-void text-slate-100 select-none relative">
       {/* 24/7 Night Sleep Mode Overlay */}
       <NightSleepOverlay
         isSleeping={isSleeping}
@@ -248,6 +272,40 @@ export default function HomePage() {
         onCreateGalaxy={handleCreateGalaxy}
       />
 
+      {/* Join Galaxy with Code Modal */}
+      <JoinGalaxyModal
+        isOpen={isJoinGalaxyModalOpen}
+        onClose={() => {
+          setIsJoinGalaxyModalOpen(false);
+          setPendingJoinCode("");
+        }}
+        initialCode={pendingJoinCode}
+        onGalaxyJoined={async (newGalaxyId) => {
+          await fetchGalaxies();
+          setActiveGalaxyId(newGalaxyId);
+        }}
+      />
+
+      {/* Demo Mode Notice Banner (Only shown if unauthenticated user is previewing demo) */}
+      {isDemoMode && !session?.user && (
+        <div className="bg-gradient-to-r from-purple-950 via-indigo-950 to-purple-950 border-b border-purple-500/40 px-3 py-1.5 text-center text-xs flex items-center justify-center gap-2 sm:gap-3 shrink-0 z-50">
+          <span className="flex items-center gap-1.5 text-starlight font-bold text-[11px] sm:text-xs">
+            <Sparkles className="w-3.5 h-3.5 text-starlight" />
+            <span>Sandbox Demo Mode</span>
+          </span>
+          <span className="text-slate-400 hidden md:inline text-[11px]">
+            Previewing sample family data. Sign in to create and join private family orbits.
+          </span>
+          <button
+            onClick={() => signIn("google")}
+            className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] sm:text-xs transition shadow-sm"
+          >
+            <span>Sign In</span>
+            <ArrowRight className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
       {/* Screensaver Takes Over Whole Display */}
       {activeTab === "photos" ? (
         <ScreensaverView onDismiss={() => setActiveTab("calendar")} />
@@ -265,10 +323,11 @@ export default function HomePage() {
             onSelectGalaxy={(id) => setActiveGalaxyId(id)}
             onOpenInhabitantsModal={() => setIsInhabitantsModalOpen(true)}
             onOpenCreateGalaxyModal={() => setIsCreateGalaxyModalOpen(true)}
+            onOpenJoinGalaxyModal={() => setIsJoinGalaxyModalOpen(true)}
             user={user}
           />
 
-          {/* Active View */}
+          {/* Active View Container */}
           <div className="flex-1 flex overflow-hidden pb-16 md:pb-0">
             {activeTab === "calendar" && (
               <CalendarView
@@ -282,9 +341,24 @@ export default function HomePage() {
                 onAddInhabitant={handleAddInhabitant}
               />
             )}
-            {activeTab === "chores" && <ChoresView accessMode={accessMode} />}
-            {activeTab === "meals" && <MealsView accessMode={accessMode} />}
-            {activeTab === "lists" && <ListsView accessMode={accessMode} />}
+            {activeTab === "chores" && (
+              <ChoresView
+                accessMode={accessMode}
+                activeGalaxyId={activeGalaxyId}
+              />
+            )}
+            {activeTab === "meals" && (
+              <MealsView
+                accessMode={accessMode}
+                activeGalaxyId={activeGalaxyId}
+              />
+            )}
+            {activeTab === "lists" && (
+              <ListsView
+                accessMode={accessMode}
+                activeGalaxyId={activeGalaxyId}
+              />
+            )}
           </div>
 
           {/* Mobile Bottom Navigation Bar */}

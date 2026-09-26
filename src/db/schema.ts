@@ -88,10 +88,20 @@ export const galaxies = sqliteTable("galaxies", {
   ownerId: text("owner_id").references(() => users.id, {
     onDelete: "set null",
   }),
+  joinCode: text("join_code").unique(),
   createdAt: text("created_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
 });
+
+export function generateJoinCode(): string {
+  const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+  let code = "GLX-";
+  for (let i = 0; i < 5; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
 
 // ==========================================
 // 3. Galaxy Inhabitants / Members (Users, Kids, Pets)
