@@ -14,6 +14,8 @@ import {
   AlertTriangle,
   Loader2,
   Lock,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { AccessMode } from "./kiosk-header";
 
@@ -39,6 +41,13 @@ interface InhabitantsModalProps {
     color: string;
     avatarIcon: string;
   }) => Promise<void>;
+  onUpdateInhabitant?: (updatedMember: {
+    id: string;
+    displayName?: string;
+    role?: "admin" | "member" | "kid" | "pet";
+    color?: string;
+    avatarIcon?: string;
+  }) => Promise<void>;
   onRemoveInhabitant?: (memberId: string) => Promise<void>;
 }
 
@@ -49,6 +58,7 @@ const COLOR_PRESETS = [
   "#06b6d4", // Cyan
   "#10b981", // Emerald
   "#f59e0b", // Amber
+  "#ffd166", // Yellow / Gold
   "#ef4444", // Red
   "#6366f1", // Indigo
 ];
@@ -60,6 +70,7 @@ export function InhabitantsModal({
   inhabitants,
   accessMode = "standard",
   onAddInhabitant,
+  onUpdateInhabitant,
   onRemoveInhabitant,
 }: InhabitantsModalProps) {
   const [name, setName] = useState("");
@@ -67,6 +78,15 @@ export function InhabitantsModal({
   const [avatar, setAvatar] = useState("user");
   const [selectedColor, setSelectedColor] = useState(COLOR_PRESETS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Edit member modal state
+  const [editingMember, setEditingMember] = useState<Inhabitant | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editRole, setEditRole] = useState<"admin" | "member" | "kid" | "pet">("member");
+  const [editAvatar, setEditAvatar] = useState("user");
+  const [editColor, setEditColor] = useState(COLOR_PRESETS[0]);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   // Confirmation modal state for member removal
   const [memberToRemove, setMemberToRemove] = useState<Inhabitant | null>(null);
@@ -92,6 +112,45 @@ export function InhabitantsModal({
       setAvatar("user");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const startEditing = (inhabitant: Inhabitant) => {
+    setEditingMember(inhabitant);
+    setEditName(inhabitant.displayName);
+    setEditRole(
+      (["admin", "member", "kid", "pet"] as const).includes(
+        inhabitant.role as "admin" | "member" | "kid" | "pet"
+      )
+        ? (inhabitant.role as "admin" | "member" | "kid" | "pet")
+        : "member"
+    );
+    setEditAvatar(inhabitant.avatarIcon || "user");
+    setEditColor(inhabitant.color || COLOR_PRESETS[1]);
+    setUpdateError(null);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMember || !onUpdateInhabitant || !editName.trim()) return;
+
+    setIsUpdating(true);
+    setUpdateError(null);
+    try {
+      await onUpdateInhabitant({
+        id: editingMember.id,
+        displayName: editName.trim(),
+        role: editingMember.role === "owner" ? undefined : editRole,
+        color: editColor,
+        avatarIcon: editAvatar,
+      });
+      setEditingMember(null);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update inhabitant.";
+      setUpdateError(message);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -219,20 +278,34 @@ export function InhabitantsModal({
                       </div>
                     </div>
 
-                    {/* Remove Action Button (Strictly Admin Mode & Non-Owner) */}
-                    {canRemove && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRemoveError(null);
-                          setMemberToRemove(inhabitant);
-                        }}
-                        title={`Remove ${inhabitant.displayName} from galaxy`}
-                        className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 hover:text-rose-200 border border-rose-500/30 transition min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 cursor-pointer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                    {/* Actions: Edit & Remove */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {accessMode === "admin" && !!onUpdateInhabitant && (
+                        <button
+                          type="button"
+                          onClick={() => startEditing(inhabitant)}
+                          title={`Edit ${inhabitant.displayName}'s color or avatar`}
+                          className="p-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/25 text-purple-300 hover:text-white border border-purple-500/30 transition min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 cursor-pointer"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {/* Remove Action Button (Strictly Admin Mode & Non-Owner) */}
+                      {canRemove && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRemoveError(null);
+                            setMemberToRemove(inhabitant);
+                          }}
+                          title={`Remove ${inhabitant.displayName} from galaxy`}
+                          className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 hover:text-rose-200 border border-rose-500/30 transition min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -420,6 +493,175 @@ export function InhabitantsModal({
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Member Edit Modal */}
+        {editingMember && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-cosmos-void/85 backdrop-blur-md animate-in fade-in">
+            <div className="bg-cosmos-card border border-purple-500/40 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl p-6 space-y-5 animate-in zoom-in-95">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-cosmos-border pb-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-md"
+                    style={{ backgroundColor: editColor }}
+                  >
+                    {(() => {
+                      const Icon = getIcon(editAvatar);
+                      return <Icon className="w-5 h-5 text-white" />;
+                    })()}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white">
+                      Edit Inhabitant Profile
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Customize avatar color, icon, name, and role
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setEditingMember(null)}
+                  className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-cosmos-surface min-w-[44px] min-h-[44px] flex items-center justify-center"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEdit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
+                      Name / Identifier
+                    </label>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-cosmos-surface border border-cosmos-border text-white text-sm font-medium focus:outline-none focus:border-purple-500 min-h-[48px]"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
+                      Role in Galaxy
+                    </label>
+                    <select
+                      disabled={editingMember.role === "owner"}
+                      value={editRole}
+                      onChange={(e) =>
+                        setEditRole(e.target.value as "admin" | "member" | "kid" | "pet")
+                      }
+                      className="w-full px-4 py-3 rounded-xl bg-cosmos-surface border border-cosmos-border text-white text-sm font-medium focus:outline-none focus:border-purple-500 disabled:opacity-60 min-h-[48px]"
+                    >
+                      {editingMember.role === "owner" ? (
+                        <option value="owner">Galaxy Owner (Primary)</option>
+                      ) : (
+                        <>
+                          <option value="member">Family Member (Standard)</option>
+                          <option value="admin">Admin / Parent</option>
+                          <option value="kid">Child / Kid Profile</option>
+                          <option value="pet">Pet / Companion</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Avatar Icon Selection */}
+                <div>
+                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
+                    Avatar Icon
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {[
+                      { id: "user", icon: User, label: "Person" },
+                      { id: "baby", icon: Baby, label: "Child" },
+                      { id: "dog", icon: Dog, label: "Dog" },
+                      { id: "cat", icon: Cat, label: "Cat" },
+                      { id: "sparkles", icon: Sparkles, label: "Star" },
+                    ].map((item) => {
+                      const Icon = item.icon;
+                      const isSelected = editAvatar === item.id;
+                      return (
+                        <button
+                          type="button"
+                          key={item.id}
+                          onClick={() => setEditAvatar(item.id)}
+                          className={`p-3 rounded-xl border flex items-center justify-center min-w-[48px] min-h-[48px] transition ${
+                            isSelected
+                              ? "bg-purple-600/30 border-purple-400 text-white shadow-md shadow-purple-500/20"
+                              : "bg-cosmos-surface border-cosmos-border text-slate-400 hover:text-white"
+                          }`}
+                          title={item.label}
+                        >
+                          <Icon className="w-5 h-5" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Color Selection (Including Yellow) */}
+                <div>
+                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
+                    Avatar & Orbital Badge Color
+                  </label>
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    {COLOR_PRESETS.map((color) => (
+                      <button
+                        type="button"
+                        key={color}
+                        onClick={() => setEditColor(color)}
+                        style={{ backgroundColor: color }}
+                        className={`w-10 h-10 rounded-xl border-2 transition min-w-[40px] min-h-[40px] ${
+                          editColor.toLowerCase() === color.toLowerCase()
+                            ? "border-white scale-110 shadow-lg ring-2 ring-starlight"
+                            : "border-transparent opacity-80 hover:opacity-100 hover:scale-105"
+                        }`}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {updateError && (
+                  <div className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-xl p-2.5">
+                    {updateError}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-cosmos-border">
+                  <button
+                    type="button"
+                    disabled={isUpdating}
+                    onClick={() => setEditingMember(null)}
+                    className="py-3 px-5 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-slate-300 font-bold text-xs transition min-h-[48px]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isUpdating || !editName.trim()}
+                    className="py-3 px-6 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black text-xs tracking-wide shadow-lg shadow-purple-600/30 transition min-h-[48px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isUpdating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Save Changes</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

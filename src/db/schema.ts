@@ -201,7 +201,7 @@ export const chores = sqliteTable("chores", {
   title: text("title").notNull(),
   points: integer("points").notNull().default(1),
   recurrenceType: text("recurrence_type", {
-    enum: ["daily", "weekly", "custom"],
+    enum: ["daily", "weekly", "custom", "one_time"],
   })
     .notNull()
     .default("daily"),

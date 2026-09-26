@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Star, CheckCircle, Circle, Plus, Sparkles, X, User } from "lucide-react";
+import { Star, CheckCircle, Circle, Plus, Sparkles, X, User, Trash2 } from "lucide-react";
 import { AccessMode } from "./kiosk-header";
 
 interface ChoreItem {
@@ -13,6 +13,7 @@ interface ChoreItem {
   points: number;
   completed: boolean;
   frequency: string;
+  recurrenceType?: string;
   dueTime?: string;
 }
 
@@ -132,6 +133,21 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
       }
     } catch (err) {
       console.error("Failed to add chore:", err);
+    }
+  };
+
+  const handleDeleteChore = async (choreId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to remove this chore?")) return;
+    try {
+      const res = await fetch(`/api/chores?choreId=${encodeURIComponent(choreId)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setChores((prev) => prev.filter((c) => c.id !== choreId));
+      }
+    } catch (err) {
+      console.error("Failed to delete chore:", err);
     }
   };
 
@@ -269,16 +285,35 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
                       {chore.memberName}
                     </span>
                     <span>•</span>
-                    <span>{chore.frequency}</span>
+                    {chore.frequency === "One-Time Task" || chore.recurrenceType === "one_time" ? (
+                      <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-extrabold text-[10px] border border-amber-500/30">
+                        ⚡ One-Time
+                      </span>
+                    ) : (
+                      <span>{chore.frequency}</span>
+                    )}
                     {chore.dueTime && <span>at {chore.dueTime}</span>}
                   </div>
                 </div>
               </div>
 
-              {/* Points Badge */}
-              <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 font-black text-xs shrink-0">
-                <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
-                <span>+{chore.points}</span>
+              {/* Right: Points Badge & Delete */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 font-black text-xs shrink-0">
+                  <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                  <span>+{chore.points}</span>
+                </div>
+
+                {accessMode !== "kid" && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteChore(chore.id, e)}
+                    title="Delete chore"
+                    className="p-2.5 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 transition min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
           ))
@@ -355,10 +390,11 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
                   <select
                     value={newRecurrence}
                     onChange={(e) => setNewRecurrence(e.target.value)}
-                    className="w-full h-12 bg-cosmos-surface border border-cosmos-border rounded-xl px-3 text-white text-sm focus:outline-none focus:border-purple-500"
+                    className="w-full h-12 bg-cosmos-surface border border-cosmos-border rounded-xl px-3 text-white text-sm focus:outline-none focus:border-purple-500 min-h-[48px]"
                   >
                     <option value="daily" className="bg-cosmos-card">Daily</option>
                     <option value="weekly" className="bg-cosmos-card">Weekly</option>
+                    <option value="one_time" className="bg-cosmos-card">One-Time (Non-repeating)</option>
                   </select>
                 </div>
               </div>
