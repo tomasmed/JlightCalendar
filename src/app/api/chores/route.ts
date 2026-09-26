@@ -40,12 +40,28 @@ export async function GET(request: Request) {
     }
 
     // Fetch completions for the requested date
-    const completions = await db
+    const dateCompletions = await db
       .select()
       .from(choreCompletions)
       .where(eq(choreCompletions.completedDate, dateParam));
 
-    const completedChoreIds = new Set(completions.map((c) => c.choreId));
+    const completedChoreIds = new Set(dateCompletions.map((c) => c.choreId));
+
+    // Also fetch completions for any one_time chore across all dates
+    const oneTimeChoreIds = allChores
+      .filter((c) => c.recurrenceType === "one_time")
+      .map((c) => c.id);
+
+    if (oneTimeChoreIds.length > 0) {
+      const allCompletions = await db
+        .select({ choreId: choreCompletions.choreId })
+        .from(choreCompletions);
+      for (const comp of allCompletions) {
+        if (oneTimeChoreIds.includes(comp.choreId)) {
+          completedChoreIds.add(comp.choreId);
+        }
+      }
+    }
 
     const choreItems = allChores.map((chore) => {
       const member = memberMap.get(chore.memberId);
@@ -58,7 +74,12 @@ export async function GET(request: Request) {
         points: chore.points,
         completed: completedChoreIds.has(chore.id),
         frequency:
-          chore.recurrenceType === "daily" ? "Daily Routine" : "Weekly Routine",
+          chore.recurrenceType === "one_time"
+            ? "One-Time Task"
+            : chore.recurrenceType === "weekly"
+            ? "Weekly Routine"
+            : "Daily Routine",
+        recurrenceType: chore.recurrenceType,
         dueTime: chore.dueTime || undefined,
       };
     });
@@ -174,17 +195,24 @@ export async function PATCH(request: Request) {
       );
     }
 
-    // Check existing completion
-    const [existing] = await db
-      .select()
-      .from(choreCompletions)
-      .where(
-        and(
-          eq(choreCompletions.choreId, choreId),
-          eq(choreCompletions.completedDate, completedDate)
-        )
-      )
-      .limit(1);
+    // Check existing completion (for one_time chores, check any date)
+    const [existing] =
+      chore.recurrenceType === "one_time"
+        ? await db
+            .select()
+            .from(choreCompletions)
+            .where(eq(choreCompletions.choreId, choreId))
+            .limit(1)
+        : await db
+            .select()
+            .from(choreCompletions)
+            .where(
+              and(
+                eq(choreCompletions.choreId, choreId),
+                eq(choreCompletions.completedDate, completedDate)
+              )
+            )
+            .limit(1);
 
     let completed = false;
     const pointsDelta = chore.points;
@@ -238,6 +266,58 @@ export async function PATCH(request: Request) {
     console.error("Failed to toggle chore completion:", error);
     return NextResponse.json(
       { error: "Failed to toggle chore completion" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const session = await auth();
+    const { searchParams } = new URL(request.url);
+    const choreId = searchParams.get("choreId");
+
+    if (!choreId) {
+      return NextResponse.json(
+        { error: "choreId is required" },
+        { status: 400 }
+      );
+    }
+
+    const [chore] = await db
+      .select()
+      .from(chores)
+      .where(eq(chores.id, choreId))
+      .limit(1);
+
+    if (!chore) {
+      return NextResponse.json({ error: "Chore not found" }, { status: 404 });
+    }
+
+    const hasAccess = await verifyGalaxyAccess(
+      chore.galaxyId,
+      session?.user?.id
+    );
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have permission to delete this chore." },
+        { status: 403 }
+      );
+    }
+
+    // Delete completions first
+    await db
+      .delete(choreCompletions)
+      .where(eq(choreCompletions.choreId, choreId));
+
+    // Delete chore
+    await db.delete(chores).where(eq(chores.id, choreId));
+
+    return NextResponse.json({ success: true, deletedChoreId: choreId });
+  } catch (error) {
+    console.error("Failed to delete chore:", error);
+    return NextResponse.json(
+      { error: "Failed to delete chore" },
       { status: 500 }
     );
   }

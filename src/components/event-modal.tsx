@@ -66,6 +66,7 @@ export function EventModal({
   const [date, setDate] = useState("");
   const [time, setTime] = useState("09:00");
   const [durationMinutes, setDurationMinutes] = useState(60);
+  const [isAllDay, setIsAllDay] = useState(false);
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [memberId, setMemberId] = useState<string>("all");
@@ -75,6 +76,8 @@ export function EventModal({
   useEffect(() => {
     if (eventToEdit) {
       setTitle(eventToEdit.title);
+      const allDay = Boolean(eventToEdit.isAllDay);
+      setIsAllDay(allDay);
       const start = new Date(eventToEdit.startTime);
       if (!isNaN(start.getTime())) {
         setDate(eventToEdit.startTime.split("T")[0]);
@@ -85,6 +88,20 @@ export function EventModal({
         setDate(selectedDate || new Date().toISOString().split("T")[0]);
         setTime("09:00");
       }
+
+      if (eventToEdit.startTime && eventToEdit.endTime) {
+        const sTime = new Date(eventToEdit.startTime).getTime();
+        const eTime = new Date(eventToEdit.endTime).getTime();
+        const diffMins = Math.round((eTime - sTime) / 60000);
+        if (diffMins > 0) {
+          setDurationMinutes(diffMins);
+        } else {
+          setDurationMinutes(60);
+        }
+      } else {
+        setDurationMinutes(60);
+      }
+
       setLocation(eventToEdit.location || "");
       setDescription(eventToEdit.description || "");
       setMemberId(eventToEdit.memberId || "all");
@@ -94,6 +111,7 @@ export function EventModal({
       setDate(selectedDate || new Date().toISOString().split("T")[0]);
       setTime("09:00");
       setDurationMinutes(60);
+      setIsAllDay(false);
       setLocation("");
       setDescription("");
       setMemberId("all");
@@ -112,10 +130,13 @@ export function EventModal({
 
     setIsSubmitting(true);
     try {
-      const startTimeISO = `${date}T${time}:00`;
-      const startDt = new Date(startTimeISO);
-      const endDt = new Date(startDt.getTime() + durationMinutes * 60000);
-      const endTimeISO = endDt.toISOString().replace("Z", "");
+      const startTimeISO = isAllDay ? `${date}T00:00:00` : `${date}T${time}:00`;
+      let endTimeISO = `${date}T23:59:59`;
+      if (!isAllDay) {
+        const startDt = new Date(startTimeISO);
+        const endDt = new Date(startDt.getTime() + durationMinutes * 60000);
+        endTimeISO = endDt.toISOString().replace("Z", "");
+      }
 
       await onSaveEvent({
         id: eventToEdit?.id,
@@ -126,7 +147,7 @@ export function EventModal({
         description: description.trim() || null,
         startTime: startTimeISO,
         endTime: endTimeISO,
-        isAllDay: false,
+        isAllDay,
         colorOverride: color,
       });
       onClose();
@@ -201,6 +222,25 @@ export function EventModal({
             />
           </div>
 
+          {/* All-Day Toggle */}
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-cosmos-surface border border-cosmos-border">
+            <label className="flex items-center gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                disabled={isReadOnly}
+                checked={isAllDay}
+                onChange={(e) => setIsAllDay(e.target.checked)}
+                className="w-5 h-5 rounded-md accent-purple-600 cursor-pointer"
+              />
+              <span className="text-xs font-bold text-white">All-Day Event</span>
+            </label>
+            {isAllDay && (
+              <span className="text-[11px] font-extrabold text-purple-300 bg-purple-500/20 px-2.5 py-0.5 rounded-full border border-purple-500/30">
+                Spans Full Day
+              </span>
+            )}
+          </div>
+
           {/* Date & Time */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -217,37 +257,57 @@ export function EventModal({
               />
             </div>
 
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
-                  Start Time
-                </label>
-                <input
-                  type="time"
-                  disabled={isReadOnly}
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-cosmos-surface border border-cosmos-border text-white text-sm font-medium focus:outline-none focus:border-purple-500 disabled:opacity-60 min-h-[48px]"
-                />
+            {!isAllDay ? (
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
+                    Start Time
+                  </label>
+                  <input
+                    type="time"
+                    disabled={isReadOnly}
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-cosmos-surface border border-cosmos-border text-white text-sm font-medium focus:outline-none focus:border-purple-500 disabled:opacity-60 min-h-[48px]"
+                  />
+                </div>
+                <div className="w-32">
+                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
+                    Duration
+                  </label>
+                  <select
+                    disabled={isReadOnly}
+                    value={durationMinutes}
+                    onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                    className="w-full px-3 py-3 rounded-xl bg-cosmos-surface border border-cosmos-border text-white text-sm font-medium focus:outline-none focus:border-purple-500 disabled:opacity-60 min-h-[48px]"
+                  >
+                    <option value={15}>15 min</option>
+                    <option value={30}>30 min</option>
+                    <option value={45}>45 min</option>
+                    <option value={60}>1 hr</option>
+                    <option value={90}>1.5 hrs</option>
+                    <option value={120}>2 hrs</option>
+                    <option value={180}>3 hrs</option>
+                    <option value={240}>4 hrs</option>
+                    <option value={300}>5 hrs</option>
+                    <option value={360}>6 hrs</option>
+                    <option value={480}>8 hrs</option>
+                    <option value={600}>10 hrs</option>
+                    <option value={720}>12 hrs</option>
+                    <option value={1440}>24 hrs</option>
+                    {![15, 30, 45, 60, 90, 120, 180, 240, 300, 360, 480, 600, 720, 1440].includes(durationMinutes) && (
+                      <option value={durationMinutes}>{durationMinutes} min</option>
+                    )}
+                  </select>
+                </div>
               </div>
-              <div className="w-28">
-                <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
-                  Duration
-                </label>
-                <select
-                  disabled={isReadOnly}
-                  value={durationMinutes}
-                  onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                  className="w-full px-3 py-3 rounded-xl bg-cosmos-surface border border-cosmos-border text-white text-sm font-medium focus:outline-none focus:border-purple-500 disabled:opacity-60 min-h-[48px]"
-                >
-                  <option value={30}>30 min</option>
-                  <option value={45}>45 min</option>
-                  <option value={60}>1 hr</option>
-                  <option value={90}>1.5 hr</option>
-                  <option value={120}>2 hrs</option>
-                </select>
+            ) : (
+              <div className="flex flex-col justify-end">
+                <div className="px-4 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-bold flex items-center min-h-[48px]">
+                  <span>🕒 All day event (00:00 to 23:59)</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Assigned Inhabitant (Crew Member / Pet) */}

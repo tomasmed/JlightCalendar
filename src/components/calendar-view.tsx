@@ -48,6 +48,9 @@ export interface CalendarEvent {
   title: string;
   date: string; // YYYY-MM-DD
   time: string;
+  startTime?: string;
+  endTime?: string;
+  isAllDay?: boolean;
   duration: string;
   location?: string | null;
   description?: string | null;
@@ -183,6 +186,13 @@ interface CalendarViewProps {
     color: string;
     avatarIcon: string;
   }) => Promise<void>;
+  onUpdateInhabitant?: (updatedMember: {
+    id: string;
+    displayName?: string;
+    role?: "admin" | "member" | "kid" | "pet";
+    color?: string;
+    avatarIcon?: string;
+  }) => Promise<void>;
   onRemoveInhabitant?: (memberId: string) => Promise<void>;
 }
 
@@ -195,6 +205,7 @@ export function CalendarView({
   onSaveEvent,
   onDeleteEvent,
   onAddInhabitant,
+  onUpdateInhabitant,
   onRemoveInhabitant,
 }: CalendarViewProps) {
   const [viewType, setViewType] = useState<"month" | "week" | "day" | "schedule">("month");
@@ -273,9 +284,32 @@ export function CalendarView({
     propEvents !== undefined
       ? propEvents.map((pe) => {
           const dateStr = pe.startTime.split("T")[0] || todayStr;
-          const timeStr = pe.startTime.includes("T")
+          const isAllDay = Boolean(pe.isAllDay);
+          const timeStr = isAllDay
+            ? "All Day"
+            : pe.startTime.includes("T")
             ? pe.startTime.split("T")[1]?.slice(0, 5) || "09:00"
             : "09:00";
+
+          let durationStr = "1 hr";
+          if (isAllDay) {
+            durationStr = "All Day";
+          } else if (pe.startTime && pe.endTime) {
+            const sTime = new Date(pe.startTime).getTime();
+            const eTime = new Date(pe.endTime).getTime();
+            const diffMins = Math.round((eTime - sTime) / 60000);
+            if (diffMins > 0) {
+              if (diffMins < 60) {
+                durationStr = `${diffMins} min`;
+              } else if (diffMins % 60 === 0) {
+                const hrs = diffMins / 60;
+                durationStr = `${hrs} hr${hrs > 1 ? "s" : ""}`;
+              } else {
+                durationStr = `${(diffMins / 60).toFixed(1)} hrs`;
+              }
+            }
+          }
+
           return {
             id: pe.id || crypto.randomUUID(),
             galaxyId: pe.galaxyId,
@@ -284,7 +318,10 @@ export function CalendarView({
             title: pe.title,
             date: dateStr,
             time: timeStr,
-            duration: "1 hr",
+            startTime: pe.startTime,
+            endTime: pe.endTime,
+            isAllDay,
+            duration: durationStr,
             location: pe.location,
             description: pe.description,
             color:
@@ -492,8 +529,15 @@ export function CalendarView({
       title: evt.title,
       description: evt.description,
       location: evt.location,
-      startTime: `${evt.date}T${evt.time.includes(":") ? evt.time : "09:00"}:00`,
-      endTime: `${evt.date}T10:00:00`,
+      startTime:
+        evt.startTime ||
+        (evt.isAllDay
+          ? `${evt.date}T00:00:00`
+          : `${evt.date}T${evt.time.includes(":") ? evt.time : "09:00"}:00`),
+      endTime:
+        evt.endTime ||
+        (evt.isAllDay ? `${evt.date}T23:59:59` : `${evt.date}T10:00:00`),
+      isAllDay: evt.isAllDay,
       colorOverride: evt.color,
     });
     setIsEventModalOpen(true);
@@ -529,6 +573,7 @@ export function CalendarView({
         inhabitants={modalInhabitants}
         accessMode={accessMode}
         onAddInhabitant={onAddInhabitant || (async () => {})}
+        onUpdateInhabitant={onUpdateInhabitant}
         onRemoveInhabitant={onRemoveInhabitant}
       />
 
@@ -723,7 +768,7 @@ export function CalendarView({
                         }}
                       >
                         <span className="opacity-70 font-mono text-[9px] mr-1">
-                          {evt.time.replace(":00", "").toLowerCase()}
+                          {evt.isAllDay ? "ALL DAY" : evt.time.replace(":00", "").toLowerCase()}
                         </span>
                         <span>{evt.title}</span>
                       </div>
@@ -802,7 +847,7 @@ export function CalendarView({
                     <div className="flex items-center gap-4 mt-1 text-xs text-slate-400">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5 text-slate-500" />
-                        {evt.time} ({evt.duration})
+                        {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
                       </span>
                       {evt.location && (
                         <span className="flex items-center gap-1">
@@ -883,7 +928,9 @@ export function CalendarView({
                           }}
                         >
                           <span className="font-bold block truncate">{evt.title}</span>
-                          <span className="text-[10px] text-slate-300">{evt.time}</span>
+                          <span className="text-[10px] text-slate-300">
+                            {evt.isAllDay ? "All Day" : evt.time}
+                          </span>
                         </div>
                       ))
                     )}
@@ -912,7 +959,7 @@ export function CalendarView({
                 <div>
                   <span className="text-base font-bold text-white">{evt.title}</span>
                   <span className="text-xs text-slate-400 block">
-                    {evt.date} at {evt.time}
+                    {evt.date} • {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
                   </span>
                 </div>
               </div>
@@ -975,7 +1022,7 @@ export function CalendarView({
                       <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3 text-slate-500" />
-                          {evt.time} ({evt.duration})
+                          {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
                         </span>
                         {evt.location && (
                           <span className="flex items-center gap-1">

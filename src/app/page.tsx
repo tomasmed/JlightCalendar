@@ -197,6 +197,53 @@ export default function HomePage() {
     }
   };
 
+  // Handle Update Inhabitant (Color, Avatar, Name, Role)
+  const handleUpdateInhabitant = async (updatedMember: {
+    id: string;
+    displayName?: string;
+    role?: "admin" | "member" | "kid" | "pet";
+    color?: string;
+    avatarIcon?: string;
+  }) => {
+    if (!activeGalaxyId || !updatedMember.id) return;
+    try {
+      const res = await fetch(`/api/galaxies/${activeGalaxyId}/members`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId: updatedMember.id,
+          displayName: updatedMember.displayName,
+          role: updatedMember.role,
+          color: updatedMember.color,
+          avatarIcon: updatedMember.avatarIcon,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update inhabitant.");
+      }
+      setInhabitants((prev) =>
+        prev.map((inh) =>
+          inh.id === updatedMember.id
+            ? {
+                ...inh,
+                ...(updatedMember.displayName ? { displayName: updatedMember.displayName } : {}),
+                ...(updatedMember.role ? { role: updatedMember.role } : {}),
+                ...(updatedMember.color ? { color: updatedMember.color } : {}),
+                ...(updatedMember.avatarIcon ? { avatarIcon: updatedMember.avatarIcon } : {}),
+              }
+            : inh
+        )
+      );
+      await fetchInhabitants(activeGalaxyId);
+      await fetchGalaxies();
+      await fetchEvents(activeGalaxyId);
+    } catch (err) {
+      console.error("Failed to update inhabitant:", err);
+      throw err;
+    }
+  };
+
   // Handle Remove Inhabitant
   const handleRemoveInhabitant = async (memberId: string) => {
     if (!activeGalaxyId || !memberId) return;
@@ -304,6 +351,7 @@ export default function HomePage() {
         inhabitants={inhabitants}
         accessMode={accessMode}
         onAddInhabitant={handleAddInhabitant}
+        onUpdateInhabitant={handleUpdateInhabitant}
         onRemoveInhabitant={handleRemoveInhabitant}
       />
 
@@ -381,6 +429,7 @@ export default function HomePage() {
                 onSaveEvent={handleSaveEvent}
                 onDeleteEvent={handleDeleteEvent}
                 onAddInhabitant={handleAddInhabitant}
+                onUpdateInhabitant={handleUpdateInhabitant}
                 onRemoveInhabitant={handleRemoveInhabitant}
               />
             )}
