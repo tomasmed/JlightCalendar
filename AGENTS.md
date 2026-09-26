@@ -18,6 +18,16 @@ All autonomous agents working on this codebase **must strictly adhere** to the g
 
 ## 2. Git Worktree & Branching Workflow
 
+### **Step 0: Always start a new session by pulling latest from `main`**
+Before starting any new feature, bugfix, or chore, always make sure the local `main` branch is up to date with remote:
+
+```powershell
+# From the repository root (e:\JlightCalendar):
+git checkout main
+git pull origin main
+npm install
+```
+
 ### **Step 1: Check out a new branch in an isolated worktree**
 Never modify the root working tree directly for feature work. Always create a git worktree in `.worktrees/`:
 

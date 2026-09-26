@@ -383,18 +383,20 @@ export function KioskHeader({
                   </button>
                 )}
 
-                {accessMode === "admin" && onOpenCreateGalaxyModal && (
-                  <button
-                    onClick={() => {
-                      setShowGalaxyMenu(false);
-                      onOpenCreateGalaxyModal();
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-starlight hover:bg-purple-600/20 flex items-center gap-2 transition"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ Orbit New Galaxy</span>
-                  </button>
-                )}
+                {(!!user || accessMode === "admin") &&
+                  accessMode !== "kid" &&
+                  onOpenCreateGalaxyModal && (
+                    <button
+                      onClick={() => {
+                        setShowGalaxyMenu(false);
+                        onOpenCreateGalaxyModal();
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-starlight hover:bg-purple-600/20 flex items-center gap-2 transition cursor-pointer min-h-[44px]"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Orbit New Galaxy</span>
+                    </button>
+                  )}
               </div>
             </div>
           )}
@@ -481,12 +483,24 @@ export function KioskHeader({
                     {user.email}
                   </span>
                 </div>
+                {accessMode !== "kid" && onOpenCreateGalaxyModal && (
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      onOpenCreateGalaxyModal();
+                    }}
+                    className="w-full text-left mt-1 px-3 py-2 rounded-xl text-xs font-bold text-starlight hover:bg-purple-600/20 flex items-center gap-2 transition cursor-pointer min-h-[44px]"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-starlight" />
+                    <span>+ Create New Galaxy</span>
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setShowUserMenu(false);
                     signOut();
                   }}
-                  className="w-full text-left mt-1 px-3 py-2 rounded-xl text-xs font-bold text-rose-300 hover:bg-rose-500/10 flex items-center gap-2 transition"
+                  className="w-full text-left mt-1 px-3 py-2 rounded-xl text-xs font-bold text-rose-300 hover:bg-rose-500/10 flex items-center gap-2 transition min-h-[44px] cursor-pointer"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>Sign Out</span>

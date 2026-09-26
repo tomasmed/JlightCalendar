@@ -194,6 +194,31 @@ export default function HomePage() {
     }
   };
 
+  // Handle Remove Inhabitant
+  const handleRemoveInhabitant = async (memberId: string) => {
+    if (!activeGalaxyId || !memberId) return;
+    try {
+      const res = await fetch(
+        `/api/galaxies/${activeGalaxyId}/members?memberId=${encodeURIComponent(
+          memberId
+        )}`,
+        {
+          method: "DELETE",
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to remove inhabitant.");
+      }
+      await fetchInhabitants(activeGalaxyId);
+      await fetchGalaxies();
+      await fetchEvents(activeGalaxyId);
+    } catch (err) {
+      console.error("Failed to remove inhabitant:", err);
+      throw err;
+    }
+  };
+
   // Handle Create New Galaxy
   const handleCreateGalaxy = async (galaxyData: {
     name: string;
@@ -262,7 +287,9 @@ export default function HomePage() {
         onClose={() => setIsInhabitantsModalOpen(false)}
         galaxyName={currentGalaxy?.name || "Family Galaxy"}
         inhabitants={inhabitants}
+        accessMode={accessMode}
         onAddInhabitant={handleAddInhabitant}
+        onRemoveInhabitant={handleRemoveInhabitant}
       />
 
       {/* Create Galaxy Modal */}
@@ -339,6 +366,7 @@ export default function HomePage() {
                 onSaveEvent={handleSaveEvent}
                 onDeleteEvent={handleDeleteEvent}
                 onAddInhabitant={handleAddInhabitant}
+                onRemoveInhabitant={handleRemoveInhabitant}
               />
             )}
             {activeTab === "chores" && (
