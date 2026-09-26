@@ -10,9 +10,12 @@ import {
   Dog,
   Cat,
   Shield,
-  Heart,
-  Palette,
+  Trash2,
+  AlertTriangle,
+  Loader2,
+  Lock,
 } from "lucide-react";
+import { AccessMode } from "./kiosk-header";
 
 export interface Inhabitant {
   id: string;
@@ -29,12 +32,14 @@ interface InhabitantsModalProps {
   onClose: () => void;
   galaxyName: string;
   inhabitants: Inhabitant[];
+  accessMode?: AccessMode;
   onAddInhabitant: (newInhabitant: {
     displayName: string;
     role: "admin" | "member" | "kid" | "pet";
     color: string;
     avatarIcon: string;
   }) => Promise<void>;
+  onRemoveInhabitant?: (memberId: string) => Promise<void>;
 }
 
 const COLOR_PRESETS = [
@@ -53,13 +58,20 @@ export function InhabitantsModal({
   onClose,
   galaxyName,
   inhabitants,
+  accessMode = "standard",
   onAddInhabitant,
+  onRemoveInhabitant,
 }: InhabitantsModalProps) {
   const [name, setName] = useState("");
   const [role, setRole] = useState<"admin" | "member" | "kid" | "pet">("member");
   const [avatar, setAvatar] = useState("user");
   const [selectedColor, setSelectedColor] = useState(COLOR_PRESETS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Confirmation modal state for member removal
+  const [memberToRemove, setMemberToRemove] = useState<Inhabitant | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -80,6 +92,22 @@ export function InhabitantsModal({
       setAvatar("user");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!memberToRemove || !onRemoveInhabitant) return;
+    setIsRemoving(true);
+    setRemoveError(null);
+    try {
+      await onRemoveInhabitant(memberToRemove.id);
+      setMemberToRemove(null);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to remove inhabitant.";
+      setRemoveError(message);
+    } finally {
+      setIsRemoving(false);
     }
   };
 
@@ -128,59 +156,95 @@ export function InhabitantsModal({
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
           {/* Current Inhabitants List */}
           <div>
-            <span className="text-xs font-black uppercase tracking-wider text-slate-400 block mb-3">
-              Active Crew & Companions ({inhabitants.length})
-            </span>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-400 block">
+                Active Crew & Companions ({inhabitants.length})
+              </span>
+              {accessMode !== "admin" && (
+                <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-slate-500" />
+                  <span>Admin mode required to remove members</span>
+                </span>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {inhabitants.map((inhabitant) => {
                 const Icon = getIcon(inhabitant.avatarIcon);
+                const isOwner = inhabitant.role === "owner";
+                const canRemove =
+                  accessMode === "admin" && !isOwner && !!onRemoveInhabitant;
+
                 return (
                   <div
                     key={inhabitant.id}
-                    className="flex items-center gap-3 p-3.5 rounded-2xl bg-cosmos-surface/80 border border-cosmos-border hover:border-cosmos-borderLight transition"
+                    className="flex items-center gap-3 p-3.5 rounded-2xl bg-cosmos-surface/80 border border-cosmos-border hover:border-cosmos-borderLight transition justify-between"
                   >
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-md flex-shrink-0"
-                      style={{ backgroundColor: inhabitant.color }}
-                    >
-                      <Icon className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white truncate">
-                          {inhabitant.displayName}
-                        </span>
-                        {inhabitant.role === "pet" && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                            Pet
-                          </span>
-                        )}
-                        {inhabitant.role === "kid" && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                            Kid
-                          </span>
-                        )}
-                        {inhabitant.role === "admin" && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                            Admin
-                          </span>
-                        )}
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-md flex-shrink-0"
+                        style={{ backgroundColor: inhabitant.color }}
+                      >
+                        <Icon className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-xs text-slate-400 capitalize">
-                        {inhabitant.role}
-                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-white truncate">
+                            {inhabitant.displayName}
+                          </span>
+                          {inhabitant.role === "owner" && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-purple-500/30 text-starlight border border-purple-400/40">
+                              Owner
+                            </span>
+                          )}
+                          {inhabitant.role === "pet" && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              Pet
+                            </span>
+                          )}
+                          {inhabitant.role === "kid" && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                              Kid
+                            </span>
+                          )}
+                          {inhabitant.role === "admin" && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              Admin
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-slate-400 capitalize">
+                          {inhabitant.role}
+                        </span>
+                      </div>
                     </div>
+
+                    {/* Remove Action Button (Strictly Admin Mode & Non-Owner) */}
+                    {canRemove && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRemoveError(null);
+                          setMemberToRemove(inhabitant);
+                        }}
+                        title={`Remove ${inhabitant.displayName} from galaxy`}
+                        className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 hover:text-rose-200 border border-rose-500/30 transition min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Add Inhabitant Form */}
-          <form
-            onSubmit={handleAdd}
-            className="p-5 rounded-2xl bg-cosmos-deep/80 border border-cosmos-borderLight space-y-4"
-          >
+          {/* Add Inhabitant Form (Suppressed in Kid Mode) */}
+          {accessMode !== "kid" && (
+            <form
+              onSubmit={handleAdd}
+              className="p-5 rounded-2xl bg-cosmos-deep/80 border border-cosmos-borderLight space-y-4"
+            >
             <div className="flex items-center justify-between">
               <span className="text-xs font-black uppercase tracking-wider text-starlight flex items-center gap-2">
                 <Plus className="w-4 h-4" /> Add Inhabitant / Companion (e.g. Java the Dog)
@@ -289,7 +353,76 @@ export function InhabitantsModal({
               </button>
             </div>
           </form>
+          )}
         </div>
+
+        {/* Member Removal Confirmation Modal */}
+        {memberToRemove && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-cosmos-void/85 backdrop-blur-md animate-in fade-in">
+            <div className="bg-cosmos-card border border-rose-500/40 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-6 text-center space-y-5 animate-in zoom-in-95">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400">
+                <AlertTriangle className="w-7 h-7" />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-black text-white">
+                  Remove {memberToRemove.displayName}?
+                </h3>
+                <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                  Are you sure you want to remove{" "}
+                  <strong className="text-white">
+                    {memberToRemove.displayName}
+                  </strong>{" "}
+                  from <strong className="text-starlight">{galaxyName}</strong>?
+                </p>
+                {memberToRemove.role === "kid" && (
+                  <p className="text-[11px] text-amber-300/90 mt-2 bg-amber-500/10 border border-amber-500/30 rounded-xl p-2.5">
+                    ⚠️ Removing this kid profile will delete their assigned
+                    chores and star balances.
+                  </p>
+                )}
+              </div>
+
+              {removeError && (
+                <div className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-xl p-2.5">
+                  {removeError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={isRemoving}
+                  onClick={() => {
+                    setMemberToRemove(null);
+                    setRemoveError(null);
+                  }}
+                  className="flex-1 py-3 px-4 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-slate-300 font-bold text-xs transition min-h-[48px]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isRemoving}
+                  onClick={handleConfirmRemove}
+                  className="flex-1 py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs tracking-wide shadow-lg shadow-rose-600/30 transition min-h-[48px] flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isRemoving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Removing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      <span>Remove Member</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

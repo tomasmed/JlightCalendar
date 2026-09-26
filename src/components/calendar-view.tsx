@@ -183,6 +183,7 @@ interface CalendarViewProps {
     color: string;
     avatarIcon: string;
   }) => Promise<void>;
+  onRemoveInhabitant?: (memberId: string) => Promise<void>;
 }
 
 export function CalendarView({
@@ -194,6 +195,7 @@ export function CalendarView({
   onSaveEvent,
   onDeleteEvent,
   onAddInhabitant,
+  onRemoveInhabitant,
 }: CalendarViewProps) {
   const [viewType, setViewType] = useState<"month" | "week" | "day" | "schedule">("month");
   const [selectedMemberId, setSelectedMemberId] = useState<string>("all");
@@ -517,7 +519,9 @@ export function CalendarView({
         onClose={() => setIsInhabitantsModalOpen(false)}
         galaxyName={activeGalaxyName}
         inhabitants={modalInhabitants}
+        accessMode={accessMode}
         onAddInhabitant={onAddInhabitant || (async () => {})}
+        onRemoveInhabitant={onRemoveInhabitant}
       />
 
       {/* Top Filter Bar: Family Members & Cosmic View Switcher */}

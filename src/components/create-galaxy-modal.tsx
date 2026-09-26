@@ -1,7 +1,14 @@
-"use client";
-
 import React, { useState } from "react";
-import { X, Sparkles, Plus, Globe2 } from "lucide-react";
+import {
+  X,
+  Sparkles,
+  Plus,
+  Globe2,
+  Rocket,
+  Heart,
+  Compass,
+  Loader2,
+} from "lucide-react";
 
 interface CreateGalaxyModalProps {
   isOpen: boolean;
@@ -13,6 +20,14 @@ interface CreateGalaxyModalProps {
   }) => Promise<void>;
 }
 
+const GALAXY_ICONS = [
+  { id: "sparkles", icon: Sparkles, label: "Sparkles" },
+  { id: "globe", icon: Globe2, label: "Planet" },
+  { id: "rocket", icon: Rocket, label: "Rocket" },
+  { id: "heart", icon: Heart, label: "Heart" },
+  { id: "compass", icon: Compass, label: "Compass" },
+];
+
 export function CreateGalaxyModal({
   isOpen,
   onClose,
@@ -22,7 +37,9 @@ export function CreateGalaxyModal({
   const [theme, setTheme] = useState<
     "milky-way" | "andromeda" | "nebula" | "supernova"
   >("milky-way");
+  const [icon, setIcon] = useState("sparkles");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -31,14 +48,19 @@ export function CreateGalaxyModal({
     if (!name.trim()) return;
 
     setIsSubmitting(true);
+    setError(null);
     try {
       await onCreateGalaxy({
         name: name.trim(),
         theme,
-        icon: "sparkles",
+        icon,
       });
       setName("");
+      setIcon("sparkles");
       onClose();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to launch galaxy.";
+      setError(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -110,21 +132,63 @@ export function CreateGalaxyModal({
             </select>
           </div>
 
+          <div>
+            <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
+              Galaxy Crest
+            </label>
+            <div className="flex items-center gap-2">
+              {GALAXY_ICONS.map((item) => {
+                const IconComponent = item.icon;
+                const isSelected = icon === item.id;
+                return (
+                  <button
+                    type="button"
+                    key={item.id}
+                    onClick={() => setIcon(item.id)}
+                    className={`p-3 rounded-xl border flex items-center justify-center min-w-[48px] min-h-[48px] transition cursor-pointer ${
+                      isSelected
+                        ? "bg-purple-600/30 border-purple-400 text-starlight shadow-md shadow-purple-500/20"
+                        : "bg-cosmos-surface border-cosmos-border text-slate-400 hover:text-white"
+                    }`}
+                    title={item.label}
+                  >
+                    <IconComponent className="w-5 h-5" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {error && (
+            <div className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-xl p-3">
+              {error}
+            </div>
+          )}
+
           <div className="pt-4 flex items-center justify-end gap-3 border-t border-cosmos-border">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-3 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover text-slate-300 text-sm font-bold border border-cosmos-border transition min-h-[48px]"
+              className="px-5 py-3 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover text-slate-300 text-sm font-bold border border-cosmos-border transition min-h-[48px] cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim()}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black text-sm tracking-wide shadow-lg shadow-purple-500/30 transition disabled:opacity-50 min-h-[48px] flex items-center gap-2"
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black text-sm tracking-wide shadow-lg shadow-purple-500/30 transition disabled:opacity-50 min-h-[48px] flex items-center gap-2 cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
-              <span>{isSubmitting ? "Launching..." : "Launch Galaxy"}</span>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Launching...</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  <span>Launch Galaxy</span>
+                </>
+              )}
             </button>
           </div>
         </form>
