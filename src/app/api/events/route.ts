@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { events, calendars } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { auth } from "@/auth";
+import { verifyGalaxyAccess } from "@/lib/auth-helpers";
 
 export async function GET(req: Request) {
   try {
@@ -12,6 +14,15 @@ export async function GET(req: Request) {
       return NextResponse.json(
         { error: "galaxyId is required" },
         { status: 400 }
+      );
+    }
+
+    const session = await auth();
+    const hasAccess = await verifyGalaxyAccess(galaxyId, session?.user?.id);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have access to this galaxy's events." },
+        { status: 403 }
       );
     }
 
@@ -50,6 +61,15 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "galaxyId, title, startTime, and endTime are required" },
         { status: 400 }
+      );
+    }
+
+    const session = await auth();
+    const hasAccess = await verifyGalaxyAccess(galaxyId, session?.user?.id);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have permission to add events to this galaxy." },
+        { status: 403 }
       );
     }
 
@@ -111,11 +131,33 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
+    const session = await auth();
     const body = await req.json();
     const { id, ...updates } = body;
 
     if (!id) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
+    }
+
+    const existing = await db
+      .select()
+      .from(events)
+      .where(eq(events.id, id))
+      .limit(1);
+
+    if (existing.length === 0) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    const hasAccess = await verifyGalaxyAccess(
+      existing[0].galaxyId,
+      session?.user?.id
+    );
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have permission to edit this event." },
+        { status: 403 }
+      );
     }
 
     await db.update(events).set(updates).where(eq(events.id, id));
@@ -132,11 +174,33 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    const session = await auth();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
     if (!id) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
+    }
+
+    const existing = await db
+      .select()
+      .from(events)
+      .where(eq(events.id, id))
+      .limit(1);
+
+    if (existing.length === 0) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    const hasAccess = await verifyGalaxyAccess(
+      existing[0].galaxyId,
+      session?.user?.id
+    );
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have permission to delete this event." },
+        { status: 403 }
+      );
     }
 
     await db.delete(events).where(eq(events.id, id));

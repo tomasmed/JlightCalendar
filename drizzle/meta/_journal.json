@@ -15,6 +15,13 @@
       "when": 1790211634347,
       "tag": "0001_previous_nightmare",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790422315025,
+      "tag": "0002_mean_barracuda",
+      "breakpoints": true
     }
   ]
 }

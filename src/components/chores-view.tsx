@@ -25,9 +25,10 @@ interface FamilyMember {
 
 interface ChoresViewProps {
   accessMode: AccessMode;
+  activeGalaxyId?: string;
 }
 
-export function ChoresView({ accessMode }: ChoresViewProps) {
+export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
   const [chores, setChores] = useState<ChoreItem[]>([]);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [starBalances, setStarBalances] = useState<Record<string, number>>({});
@@ -43,7 +44,10 @@ export function ChoresView({ accessMode }: ChoresViewProps) {
 
   const fetchChores = async () => {
     try {
-      const res = await fetch("/api/chores");
+      const url = activeGalaxyId
+        ? `/api/chores?galaxyId=${activeGalaxyId}`
+        : "/api/chores";
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setChores(data.chores || []);
@@ -64,7 +68,7 @@ export function ChoresView({ accessMode }: ChoresViewProps) {
 
   useEffect(() => {
     fetchChores();
-  }, []);
+  }, [activeGalaxyId]);
 
   const toggleChore = async (choreId: string) => {
     // Optimistic UI update
@@ -117,6 +121,7 @@ export function ChoresView({ accessMode }: ChoresViewProps) {
           title: newTitle.trim(),
           points: newPoints,
           recurrenceType: newRecurrence,
+          galaxyId: activeGalaxyId,
         }),
       });
 

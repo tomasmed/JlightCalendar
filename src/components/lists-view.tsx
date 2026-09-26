@@ -22,9 +22,10 @@ interface FamilyMember {
 
 interface ListsViewProps {
   accessMode: AccessMode;
+  activeGalaxyId?: string;
 }
 
-export function ListsView({ accessMode }: ListsViewProps) {
+export function ListsView({ accessMode, activeGalaxyId }: ListsViewProps) {
   const [items, setItems] = useState<ListItem[]>([]);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<string>("all");
@@ -34,10 +35,11 @@ export function ListsView({ accessMode }: ListsViewProps) {
 
   const fetchItems = async () => {
     try {
+      const gidParam = activeGalaxyId ? `galaxyId=${activeGalaxyId}&` : "";
       const url =
         selectedMemberId === "all"
-          ? "/api/lists"
-          : `/api/lists?memberId=${selectedMemberId}`;
+          ? `/api/lists?${gidParam}type=grocery`
+          : `/api/lists?${gidParam}type=grocery&memberId=${selectedMemberId}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -58,7 +60,7 @@ export function ListsView({ accessMode }: ListsViewProps) {
 
   useEffect(() => {
     fetchItems();
-  }, [selectedMemberId]);
+  }, [selectedMemberId, activeGalaxyId]);
 
   const toggleItem = async (id: string, currentCompleted: boolean) => {
     // Optimistic UI update
@@ -90,6 +92,7 @@ export function ListsView({ accessMode }: ListsViewProps) {
           title: newTitle.trim(),
           addedByMemberId: addedById || null,
           listType: "grocery",
+          galaxyId: activeGalaxyId,
         }),
       });
 
@@ -105,7 +108,8 @@ export function ListsView({ accessMode }: ListsViewProps) {
   const clearCompleted = async () => {
     setItems((prev) => prev.filter((it) => !it.completed));
     try {
-      await fetch("/api/lists?action=clear-completed", {
+      const gidParam = activeGalaxyId ? `&galaxyId=${activeGalaxyId}` : "";
+      await fetch(`/api/lists?action=clear-completed${gidParam}`, {
         method: "DELETE",
       });
     } catch (err) {

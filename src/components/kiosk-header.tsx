@@ -25,6 +25,9 @@ import {
   LogIn,
   LogOut,
   ExternalLink,
+  Copy,
+  Check,
+  UserPlus,
 } from "lucide-react";
 import { signIn, signOut } from "next-auth/react";
 
@@ -36,6 +39,7 @@ export interface GalaxyItem {
   name: string;
   theme: string;
   icon: string;
+  joinCode?: string | null;
   members?: { id: string; displayName: string; avatarIcon: string; role: string }[];
   calendars?: { id: string; name: string; isPrimary: boolean }[];
 }
@@ -60,6 +64,7 @@ interface KioskHeaderProps {
   onSelectGalaxy?: (galaxyId: string) => void;
   onOpenInhabitantsModal?: () => void;
   onOpenCreateGalaxyModal?: () => void;
+  onOpenJoinGalaxyModal?: () => void;
   user?: {
     name?: string | null;
     email?: string | null;
@@ -78,12 +83,15 @@ export function KioskHeader({
   onSelectGalaxy,
   onOpenInhabitantsModal,
   onOpenCreateGalaxyModal,
+  onOpenJoinGalaxyModal,
   user,
 }: KioskHeaderProps) {
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
   const [showGalaxyMenu, setShowGalaxyMenu] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -112,10 +120,9 @@ export function KioskHeader({
     async function fetchWeather() {
       try {
         let lat = 40.7128;
-        let lon = -74.0060;
+        let lon = -74.006;
         let city = "New York";
 
-        // Attempt IP-based approximate location with timeout
         try {
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), 2500);
@@ -132,7 +139,7 @@ export function KioskHeader({
             }
           }
         } catch {
-          // Fallback to default NYC coordinates
+          // Fallback
         }
 
         const weatherRes = await fetch(
@@ -196,19 +203,19 @@ export function KioskHeader({
     const iconType = weather?.icon || "cloud-sun";
     switch (iconType) {
       case "sun":
-        return <Sun className="w-4 h-4 text-amber-400" />;
+        return <Sun className="w-3.5 h-3.5 text-amber-400" />;
       case "moon":
-        return <Moon className="w-4 h-4 text-indigo-300" />;
+        return <Moon className="w-3.5 h-3.5 text-indigo-300" />;
       case "cloud-rain":
-        return <CloudRain className="w-4 h-4 text-cyan-400" />;
+        return <CloudRain className="w-3.5 h-3.5 text-cyan-400" />;
       case "snowflake":
-        return <Snowflake className="w-4 h-4 text-blue-200" />;
+        return <Snowflake className="w-3.5 h-3.5 text-blue-200" />;
       case "cloud-lightning":
-        return <CloudLightning className="w-4 h-4 text-yellow-400" />;
+        return <CloudLightning className="w-3.5 h-3.5 text-yellow-400" />;
       case "cloud":
-        return <Cloud className="w-4 h-4 text-slate-300" />;
+        return <Cloud className="w-3.5 h-3.5 text-slate-300" />;
       default:
-        return <CloudSun className="w-4 h-4 text-starlight" />;
+        return <CloudSun className="w-3.5 h-3.5 text-starlight" />;
     }
   };
 
@@ -216,9 +223,10 @@ export function KioskHeader({
     galaxies.find((g) => g.id === activeGalaxyId) ||
     galaxies[0] || {
       id: "default",
-      name: "The Sol Family Galaxy",
+      name: "The Family Galaxy",
       theme: "milky-way",
       icon: "sparkles",
+      joinCode: "GLX-HOME",
     };
 
   const tabs: { id: ActiveTab; label: string; icon: React.ElementType }[] = [
@@ -229,52 +237,92 @@ export function KioskHeader({
     { id: "photos", label: "Photos", icon: ImageIcon },
   ];
 
+  const handleCopyJoinCode = () => {
+    if (activeGalaxy?.joinCode) {
+      navigator.clipboard.writeText(activeGalaxy.joinCode);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
+
   return (
-    <header className="h-16 md:h-20 bg-cosmos-deep/95 border-b border-cosmos-border px-3 md:px-6 flex items-center justify-between select-none backdrop-blur-xl relative z-40">
-      {/* Left: Clock, Date & Calendar Galaxy Switcher */}
-      <div className="flex items-center gap-2 sm:gap-4 md:gap-5">
-        <div className="flex flex-col">
-          <span className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-100 to-starlight tabular-nums drop-shadow-sm leading-tight">
+    <header className="h-16 md:h-20 bg-cosmos-deep/95 border-b border-cosmos-border px-3 sm:px-4 md:px-6 flex items-center justify-between select-none backdrop-blur-xl relative z-40 max-w-full">
+      {/* LEFT: Clock & Calendar Galaxy Switcher */}
+      <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
+        {/* Time & Date */}
+        <div className="flex flex-col leading-none">
+          <span className="text-lg sm:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-100 to-starlight tabular-nums drop-shadow-sm">
             {time || "--:--"}
           </span>
-          <span className="text-[10px] md:text-[11px] font-extrabold uppercase tracking-widest text-slate-400">
+          <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mt-0.5">
             {date || "Loading..."}
           </span>
         </div>
 
-        {/* Multi-Galaxy Switcher Dropdown (Epic 1 / FEAT-101 / FEAT-102) */}
+        {/* Galaxy Switcher Dropdown */}
         <div className="relative">
           <button
             onClick={() => setShowGalaxyMenu(!showGalaxyMenu)}
-            className="flex items-center gap-1.5 sm:gap-2.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-2xl bg-cosmos-surface border border-cosmos-border hover:border-purple-500/50 transition font-bold text-xs text-slate-200 shadow-md min-h-[44px]"
-            title="Switch Calendar Galaxy"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-2xl bg-cosmos-surface border border-cosmos-border hover:border-purple-500/50 transition font-bold text-xs text-slate-200 shadow-md min-h-[44px]"
+            title="Switch Galaxy Orbit"
           >
-            <div className="p-1 rounded-lg bg-purple-600/30 text-starlight">
+            <div className="p-1 rounded-lg bg-purple-600/30 text-starlight shrink-0">
               <Sparkles className="w-3.5 h-3.5" />
             </div>
-            <div className="flex flex-col text-left">
-              <span className="text-[9px] font-black uppercase tracking-widest text-starlight leading-none mb-0.5 hidden sm:inline">
+            <div className="flex flex-col text-left max-w-[100px] sm:max-w-[140px] truncate">
+              <span className="text-[8px] font-black uppercase tracking-widest text-starlight leading-none hidden sm:inline">
                 Galaxy
               </span>
-              <span className="truncate max-w-[100px] sm:max-w-[140px] text-white">
+              <span className="truncate text-white text-xs font-bold">
                 {activeGalaxy.name}
               </span>
             </div>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-1" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           </button>
 
           {showGalaxyMenu && (
-            <div className="absolute top-12 left-0 w-72 bg-cosmos-card border border-cosmos-borderLight rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95">
-              <div className="px-3 py-2 border-b border-cosmos-border/60 flex items-center justify-between">
+            <div className="absolute top-12 left-0 w-72 sm:w-80 bg-cosmos-card border border-cosmos-borderLight rounded-2xl shadow-2xl p-2.5 z-50 animate-in fade-in zoom-in-95">
+              <div className="px-3 py-1.5 border-b border-cosmos-border/60 flex items-center justify-between">
                 <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                  Select Calendar Galaxy
+                  Your Galaxies
                 </span>
                 <span className="text-[10px] text-starlight font-bold">
-                  {galaxies.length} Galaxies
+                  {galaxies.length} Connected
                 </span>
               </div>
 
-              <div className="py-1 max-h-60 overflow-y-auto space-y-1">
+              {/* Active Galaxy Join Code Banner */}
+              {activeGalaxy.joinCode && (
+                <div className="my-2 p-2.5 rounded-xl bg-purple-950/40 border border-purple-500/30 flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                      Galaxy Join Code
+                    </span>
+                    <span className="font-mono text-xs font-black text-starlight tracking-wider">
+                      {activeGalaxy.joinCode}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleCopyJoinCode}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 text-starlight text-[10px] font-bold border border-purple-500/40 transition"
+                  >
+                    {copiedCode ? (
+                      <>
+                        <Check className="w-3 h-3 text-emerald-400" />
+                        <span className="text-emerald-300">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* Galaxy List */}
+              <div className="py-1 max-h-52 overflow-y-auto space-y-1">
                 {galaxies.map((g) => {
                   const isSelected = g.id === activeGalaxy.id;
                   return (
@@ -284,7 +332,7 @@ export function KioskHeader({
                         onSelectGalaxy?.(g.id);
                         setShowGalaxyMenu(false);
                       }}
-                      className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition ${
+                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition ${
                         isSelected
                           ? "bg-purple-600/30 text-white border border-purple-500/40 shadow-sm"
                           : "text-slate-300 hover:bg-cosmos-surface"
@@ -293,9 +341,9 @@ export function KioskHeader({
                       <div className="flex items-center gap-2.5 truncate">
                         <Globe2 className="w-4 h-4 text-starlight flex-shrink-0" />
                         <div className="truncate">
-                          <span className="block truncate">{g.name}</span>
+                          <span className="block truncate font-bold">{g.name}</span>
                           <span className="text-[10px] text-slate-400 font-normal">
-                            {g.members ? `${g.members.length} Inhabitants` : "Active Group"}
+                            {g.members ? `${g.members.length} Inhabitants` : "Active Orbit"}
                           </span>
                         </div>
                       </div>
@@ -309,6 +357,19 @@ export function KioskHeader({
 
               {/* Action Buttons in Dropdown */}
               <div className="pt-2 mt-1 border-t border-cosmos-border/60 space-y-1">
+                {onOpenJoinGalaxyModal && (
+                  <button
+                    onClick={() => {
+                      setShowGalaxyMenu(false);
+                      onOpenJoinGalaxyModal();
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-starlight-cyan hover:bg-cyan-500/10 flex items-center gap-2 transition"
+                  >
+                    <UserPlus className="w-3.5 h-3.5 text-starlight-cyan" />
+                    <span>Join Galaxy with Code</span>
+                  </button>
+                )}
+
                 {accessMode !== "kid" && onOpenInhabitantsModal && (
                   <button
                     onClick={() => {
@@ -339,25 +400,25 @@ export function KioskHeader({
           )}
         </div>
 
-        {/* Ambient Real Weather Pill (Redirects to Weather.com on click) */}
+        {/* Ambient Real Weather Pill (Visible on md+ screens) */}
         <button
           onClick={openWeatherCom}
-          title="Click to view detailed forecast on Weather.com"
-          className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-full bg-cosmos-surface/80 border border-cosmos-border text-slate-300 hover:border-purple-500/60 hover:bg-cosmos-cardHover transition group cursor-pointer min-h-[44px]"
+          title="Click to view forecast on Weather.com"
+          className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cosmos-surface/80 border border-cosmos-border text-slate-300 hover:border-purple-500/60 hover:bg-cosmos-cardHover transition group cursor-pointer min-h-[44px]"
         >
           {renderWeatherIcon()}
           <span className="font-bold text-white text-xs">
             {weather ? `${weather.temp}°F` : "72°F"}
           </span>
-          <span className="text-[11px] text-slate-400 hidden sm:inline">
+          <span className="text-[10px] text-slate-400 hidden xl:inline">
             {weather ? weather.condition : "Clear"}
           </span>
-          <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-starlight transition hidden sm:inline" />
+          <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-starlight transition" />
         </button>
       </div>
 
-      {/* Center: Navigation Tabs (Visible on tablet & desktop, handled by MobileNavBar on mobile) */}
-      <nav className="hidden md:flex items-center gap-1.5 bg-cosmos-void/80 p-1.5 rounded-2xl border border-cosmos-border">
+      {/* CENTER: Navigation Tabs (Visible on tablet & desktop, handled by MobileNavBar on mobile) */}
+      <nav className="hidden md:flex items-center gap-1 bg-cosmos-void/80 p-1 rounded-2xl border border-cosmos-border shrink-0">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -370,61 +431,86 @@ export function KioskHeader({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex items-center gap-2 px-3 lg:px-4 py-2 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 min-h-[44px] ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 min-h-[44px] ${
                 isActive
-                  ? "bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white shadow-lg shadow-purple-500/30"
+                  ? "bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white shadow-md shadow-purple-500/30"
                   : "text-slate-400 hover:text-slate-200 hover:bg-cosmos-surface/80"
               }`}
             >
               <Icon className="w-4 h-4" />
-              <span>{tab.label}</span>
+              <span className="hidden lg:inline">{tab.label}</span>
             </button>
           );
         })}
       </nav>
 
-      {/* Right: User OAuth Profile, Mode Badge & Sleep Mode Button */}
-      <div className="flex items-center gap-2 md:gap-3">
-        {/* Google OAuth Profile / Sign In */}
+      {/* RIGHT: User Profile / OAuth Sign-In, Mode Badge & Sleep Button */}
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        {/* User OAuth Profile or Sign In Button - ALWAYS VISIBLE ON ALL SCREENS */}
         {user ? (
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-cosmos-surface border border-cosmos-border">
-            {user.image ? (
-              <img
-                src={user.image}
-                alt={user.name || "User"}
-                className="w-6 h-6 rounded-full border border-purple-400"
-              />
-            ) : (
-              <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-[10px] font-bold text-white">
-                {user.name?.[0]?.toUpperCase() || "U"}
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-2xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border transition min-h-[44px]"
+              title={`Logged in as ${user.name || user.email}`}
+            >
+              {user.image ? (
+                <img
+                  src={user.image}
+                  alt={user.name || "User"}
+                  className="w-6 h-6 rounded-full border border-purple-400 shrink-0"
+                />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                  {user.name?.[0]?.toUpperCase() || "U"}
+                </div>
+              )}
+              <span className="text-xs font-bold text-slate-200 truncate max-w-[80px] sm:max-w-[110px] hidden sm:inline">
+                {user.name || user.email?.split("@")[0]}
+              </span>
+              <ChevronDown className="w-3 h-3 text-slate-400 hidden sm:inline" />
+            </button>
+
+            {showUserMenu && (
+              <div className="absolute top-12 right-0 w-56 bg-cosmos-card border border-cosmos-borderLight rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95">
+                <div className="px-3 py-2 border-b border-cosmos-border/60">
+                  <span className="text-xs font-bold text-white block truncate">
+                    {user.name || "User"}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block truncate">
+                    {user.email}
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    signOut();
+                  }}
+                  className="w-full text-left mt-1 px-3 py-2 rounded-xl text-xs font-bold text-rose-300 hover:bg-rose-500/10 flex items-center gap-2 transition"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sign Out</span>
+                </button>
               </div>
             )}
-            <span className="text-xs font-bold text-slate-200 truncate max-w-[100px]">
-              {user.name || user.email?.split("@")[0]}
-            </span>
-            <button
-              onClick={() => signOut()}
-              title="Sign Out"
-              className="p-1 text-slate-400 hover:text-rose-400 transition"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
           </div>
         ) : (
           <button
             onClick={() => signIn("google")}
-            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border hover:border-purple-500/40 text-xs font-bold text-slate-200 transition min-h-[44px]"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 border border-purple-400/40 text-xs font-bold text-white shadow-md shadow-purple-500/20 transition min-h-[44px]"
+            title="Sign in with Google OAuth"
           >
             <LogIn className="w-3.5 h-3.5 text-starlight" />
-            <span>Google Login</span>
+            <span className="hidden sm:inline">Google Login</span>
+            <span className="sm:hidden text-xs">Login</span>
           </button>
         )}
 
-        {/* Night Sleep Button */}
+        {/* Night Sleep Button (OLED Protection) */}
         <button
           onClick={onToggleSleep}
           title="Night Sleep Mode (OLED Protection)"
-          className="p-2 md:p-3 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover text-slate-400 hover:text-starlight border border-cosmos-border transition min-w-[48px] min-h-[48px] flex items-center justify-center"
+          className="p-2 sm:p-2.5 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover text-slate-400 hover:text-starlight border border-cosmos-border transition min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
         >
           <Moon className="w-4 h-4" />
         </button>
@@ -432,22 +518,22 @@ export function KioskHeader({
         {/* 3-Tier Access Mode Trigger */}
         <button
           onClick={onOpenModeModal}
-          className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3.5 py-1.5 md:py-2 rounded-xl text-[11px] md:text-xs font-black uppercase tracking-wider border transition-all min-h-[48px] ${
+          className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider border transition-all min-h-[44px] shrink-0 ${
             accessMode === "admin"
-              ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/20 shadow-sm shadow-emerald-500/20"
+              ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/20"
               : accessMode === "kid"
-              ? "bg-purple-500/10 text-purple-300 border-purple-500/40 hover:bg-purple-500/20 shadow-sm shadow-purple-500/20"
-              : "bg-blue-500/10 text-starlight-cyan border-cyan-500/40 hover:bg-cyan-500/20 shadow-sm shadow-cyan-500/20"
+              ? "bg-purple-500/10 text-purple-300 border-purple-500/40 hover:bg-purple-500/20"
+              : "bg-blue-500/10 text-starlight-cyan border-cyan-500/40 hover:bg-cyan-500/20"
           }`}
         >
           {accessMode === "admin" && (
-            <Shield className="w-3.5 h-3.5 text-emerald-400" />
+            <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
           )}
           {accessMode === "standard" && (
-            <User className="w-3.5 h-3.5 text-starlight-cyan" />
+            <User className="w-3.5 h-3.5 text-starlight-cyan shrink-0" />
           )}
           {accessMode === "kid" && (
-            <Baby className="w-3.5 h-3.5 text-purple-400" />
+            <Baby className="w-3.5 h-3.5 text-purple-400 shrink-0" />
           )}
           <span className="hidden sm:inline">{accessMode} Mode</span>
         </button>

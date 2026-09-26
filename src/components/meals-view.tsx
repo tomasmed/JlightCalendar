@@ -24,9 +24,10 @@ interface FamilyMember {
 
 interface MealsViewProps {
   accessMode: AccessMode;
+  activeGalaxyId?: string;
 }
 
-export function MealsView({ accessMode }: MealsViewProps) {
+export function MealsView({ accessMode, activeGalaxyId }: MealsViewProps) {
   const [meals, setMeals] = useState<MealPlanItem[]>([]);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [addedGrocery, setAddedGrocery] = useState<Record<string, boolean>>({});
@@ -42,7 +43,10 @@ export function MealsView({ accessMode }: MealsViewProps) {
 
   const fetchMeals = async () => {
     try {
-      const res = await fetch("/api/meals");
+      const url = activeGalaxyId
+        ? `/api/meals?galaxyId=${activeGalaxyId}`
+        : "/api/meals";
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setMeals(data.meals || []);
@@ -62,7 +66,7 @@ export function MealsView({ accessMode }: MealsViewProps) {
 
   useEffect(() => {
     fetchMeals();
-  }, []);
+  }, [activeGalaxyId]);
 
   const handleAddToGrocery = async (mealTitle: string, memberId?: string | null) => {
     setAddedGrocery((prev) => ({ ...prev, [mealTitle]: true }));
@@ -75,6 +79,7 @@ export function MealsView({ accessMode }: MealsViewProps) {
           action: "add-to-grocery",
           title: mealTitle,
           memberId: memberId || null,
+          galaxyId: activeGalaxyId,
         }),
       });
     } catch (err) {
@@ -100,6 +105,7 @@ export function MealsView({ accessMode }: MealsViewProps) {
           mealType: newMealType,
           memberId: newMemberId || null,
           notes: newNotes.trim() || null,
+          galaxyId: activeGalaxyId,
         }),
       });
 

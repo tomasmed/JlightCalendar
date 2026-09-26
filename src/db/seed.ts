@@ -43,6 +43,7 @@ async function main() {
         parentPin: "1234",
         timezone: "America/New_York",
         ownerId: demoUserId,
+        joinCode: "SOL-HOME1",
       },
       {
         id: grandparentsGalaxyId,
@@ -53,6 +54,7 @@ async function main() {
         parentPin: "1234",
         timezone: "America/New_York",
         ownerId: demoUserId,
+        joinCode: "GRAND-P1",
       },
       {
         id: kidsGalaxyId,
@@ -63,6 +65,7 @@ async function main() {
         parentPin: "1234",
         timezone: "America/New_York",
         ownerId: demoUserId,
+        joinCode: "KIDS-ADV1",
       },
     ])
     .onConflictDoNothing();
