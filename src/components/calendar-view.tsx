@@ -236,7 +236,9 @@ export function CalendarView({
   ];
   const dayLabels = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
-  // Normalize Inhabitants: If DB provided, map to member items; else fallback to SAMPLE_MEMBERS
+  const isSolDemoGalaxy = activeGalaxyId === "galaxy_sol_family";
+
+  // Normalize Inhabitants: If DB provided, map to member items; else fallback to SAMPLE_MEMBERS ONLY for demo
   const memberList: Member[] = [
     { id: "all", name: "All Family", color: "#ffd166", avatarIcon: "sparkles" },
     ...(inhabitants.length > 0
@@ -247,24 +249,28 @@ export function CalendarView({
           role: inh.role,
           avatarIcon: inh.avatarIcon,
         }))
-      : SAMPLE_MEMBERS.filter((m) => m.id !== "all")),
+      : isSolDemoGalaxy
+      ? SAMPLE_MEMBERS.filter((m) => m.id !== "all")
+      : []),
   ];
 
-  // Inhabitants state for modals
+  // Inhabitants state for modals: only Sol demo galaxy falls back to mock Mom/Dad/Leo/Mia/Java
   const modalInhabitants: Inhabitant[] =
     inhabitants.length > 0
       ? inhabitants
-      : [
+      : isSolDemoGalaxy
+      ? [
           { id: "mem_mom", galaxyId: activeGalaxyId, displayName: "Mom", role: "admin", color: "#ec4899", avatarIcon: "user", starBalance: 0 },
           { id: "mem_dad", galaxyId: activeGalaxyId, displayName: "Dad", role: "admin", color: "#10b981", avatarIcon: "user", starBalance: 0 },
           { id: "mem_leo", galaxyId: activeGalaxyId, displayName: "Leo", role: "kid", color: "#8b5cf6", avatarIcon: "baby", starBalance: 18 },
           { id: "mem_mia", galaxyId: activeGalaxyId, displayName: "Mia", role: "kid", color: "#f59e0b", avatarIcon: "baby", starBalance: 24 },
           { id: "mem_java", galaxyId: activeGalaxyId, displayName: "Java 🐕", role: "pet", color: "#06b6d4", avatarIcon: "dog", starBalance: 0 },
-        ];
+        ]
+      : [];
 
-  // Events: If propEvents provided with items, map them; otherwise use dynamic events centered on today
+  // Events: Map passed events; only Sol demo galaxy with undefined events generates dynamic sample events
   const calendarEvents: CalendarEvent[] =
-    propEvents && propEvents.length > 0
+    propEvents !== undefined
       ? propEvents.map((pe) => {
           const dateStr = pe.startTime.split("T")[0] || todayStr;
           const timeStr = pe.startTime.includes("T")
@@ -287,7 +293,9 @@ export function CalendarView({
               "#8b5cf6",
           };
         })
-      : generateDynamicEvents(todayDate);
+      : isSolDemoGalaxy
+      ? generateDynamicEvents(todayDate)
+      : [];
 
   // Filter events by member
   const filteredEvents =

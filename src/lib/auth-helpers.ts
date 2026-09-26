@@ -1,6 +1,71 @@
 import { db } from "@/db";
-import { galaxies, galaxyMembers } from "@/db/schema";
+import { users, galaxies, galaxyMembers } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+
+/**
+ * Ensures a user record exists in the SQLite users table for foreign key integrity.
+ * If the user logged in via OAuth or JWT, this guarantees that galaxies.ownerId and
+ * galaxyMembers.userId references will succeed.
+ */
+export async function ensureDbUser(sessionUser?: {
+  id?: string | null;
+  email?: string | null;
+  name?: string | null;
+  image?: string | null;
+} | null): Promise<string | null> {
+  if (!sessionUser) return null;
+  const email = sessionUser.email;
+  const id = sessionUser.id;
+
+  if (!email && !id) return null;
+
+  try {
+    // 1. Check if user exists by email
+    if (email) {
+      const byEmail = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+      if (byEmail.length > 0) {
+        return byEmail[0].id;
+      }
+    }
+
+    // 2. Check if user exists by ID
+    if (id) {
+      const byId = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, id))
+        .limit(1);
+      if (byId.length > 0) {
+        return byId[0].id;
+      }
+    }
+
+    // 3. Not in database yet -> insert user
+    const newId = id || crypto.randomUUID();
+    await db.insert(users).values({
+      id: newId,
+      email: email || `${newId}@jlight.local`,
+      name: sessionUser.name || "Captain",
+      image: sessionUser.image || null,
+    });
+    return newId;
+  } catch (err) {
+    console.error("Error in ensureDbUser:", err);
+    if (email) {
+      const retry = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+      if (retry.length > 0) return retry[0].id;
+    }
+    return id || null;
+  }
+}
 
 /**
  * Checks whether a given user has access to view/modify a galaxy's data.
@@ -9,7 +74,8 @@ import { eq, and } from "drizzle-orm";
  */
 export async function verifyGalaxyAccess(
   galaxyId: string,
-  userId?: string | null
+  userId?: string | null,
+  userEmail?: string | null
 ): Promise<boolean> {
   if (!galaxyId) return false;
 
@@ -23,7 +89,25 @@ export async function verifyGalaxyAccess(
     return true;
   }
 
-  if (!userId) {
+  let dbUserId = userId;
+
+  // Resolve DB user id if email is available and userId is not found in DB
+  if (userEmail && (!dbUserId || dbUserId.length < 10)) {
+    try {
+      const dbUser = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, userEmail))
+        .limit(1);
+      if (dbUser.length > 0) {
+        dbUserId = dbUser[0].id;
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  if (!dbUserId) {
     return false;
   }
 
@@ -38,7 +122,7 @@ export async function verifyGalaxyAccess(
     return false;
   }
 
-  if (galaxy[0].ownerId === userId) {
+  if (galaxy[0].ownerId === dbUserId) {
     return true;
   }
 
@@ -49,7 +133,7 @@ export async function verifyGalaxyAccess(
     .where(
       and(
         eq(galaxyMembers.galaxyId, galaxyId),
-        eq(galaxyMembers.userId, userId)
+        eq(galaxyMembers.userId, dbUserId)
       )
     )
     .limit(1);

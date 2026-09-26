@@ -13,6 +13,7 @@ All autonomous agents working on this codebase **must strictly adhere** to the g
 3. **Always Work in a Git Worktree**: All feature, bugfix, or refactor work must take place in an isolated git worktree on a dedicated branch (`feat/*`, `fix/*`, `chore/*`).
 4. **Document Every Architecture Decision**: Any new architectural pattern, external dependency, or protocol shift must have a corresponding Architecture Decision Record in `docs/adr/`.
 5. **Human-Operable Staging Tests**: Every Pull Request must include a clear, step-by-step test plan that a human can execute in staging with zero guesswork.
+6. **Check PR Status Before Pushing**: Never push follow-up commits to an already-merged branch/PR. If a PR has been merged on GitHub, pull latest `main`, create a new branch/worktree (`fix/*`, `feat/*`), and open a fresh PR.
 
 ---
 
@@ -52,8 +53,9 @@ Follow the Conventional Commits specification:
 - `docs: add ADR 0005 for real-time SSE sync`
 - `test: add unit tests for chore completion state machine`
 
-### **Step 4: Prepare the "Show and Tell" PR**
-Push the branch and generate a Pull Request following the format in `docs/workflow/pr-template.md`.
+### **Step 4: Check PR status and prepare the "Show and Tell" PR**
+- **Always verify the PR is not already merged**: Before pushing additional commits or expecting reviews on an existing branch, check whether the branch's PR was already merged on GitHub (`gh pr view`). If merged, never reuse that branch—pull `main`, branch afresh, and create a new PR.
+- Push the branch and generate a Pull Request following the format in `docs/workflow/pr-template.md`.
 
 ### **Step 5: Clean up the worktree after merge**
 ```powershell

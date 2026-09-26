@@ -63,24 +63,27 @@ export default function HomePage() {
   }, []);
 
   // Fetch Galaxies from API
-  const fetchGalaxies = async () => {
+  const fetchGalaxies = async (targetGalaxyId?: string) => {
     try {
       const url = !session?.user && isDemoMode ? "/api/galaxies?demo=true" : "/api/galaxies";
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        if (data.galaxies && data.galaxies.length > 0) {
-          setGalaxies(data.galaxies);
-          if (!activeGalaxyId || !data.galaxies.some((g: GalaxyItem) => g.id === activeGalaxyId)) {
-            setActiveGalaxyId(data.galaxies[0].id);
-          }
-        } else if (session?.user) {
+        const list: GalaxyItem[] = data.galaxies || [];
+        setGalaxies(list);
+        if (targetGalaxyId && list.some((g) => g.id === targetGalaxyId)) {
+          setActiveGalaxyId(targetGalaxyId);
+        } else if (list.length > 0 && (!activeGalaxyId || !list.some((g) => g.id === activeGalaxyId))) {
+          setActiveGalaxyId(list[0].id);
+        } else if (session?.user && list.length === 0) {
           setGalaxies([]);
         }
+        return list;
       }
     } catch (err) {
       console.error("Failed to load galaxies:", err);
     }
+    return [];
   };
 
   // Fetch Inhabitants for Active Galaxy
@@ -231,15 +234,19 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(galaxyData),
       });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create galaxy.");
+      }
+      if (data.galaxy?.id) {
+        await fetchGalaxies(data.galaxy.id);
+        setActiveGalaxyId(data.galaxy.id);
+      } else {
         await fetchGalaxies();
-        if (data.galaxy?.id) {
-          setActiveGalaxyId(data.galaxy.id);
-        }
       }
     } catch (err) {
       console.error("Failed to create galaxy:", err);
+      throw err;
     }
   };
 
@@ -258,12 +265,20 @@ export default function HomePage() {
 
   const currentGalaxy =
     galaxies.find((g) => g.id === activeGalaxyId) ||
-    galaxies[0] || {
-      id: "default",
-      name: "Family Galaxy",
-      theme: "milky-way",
-      icon: "sparkles",
-    };
+    galaxies[0] ||
+    (session?.user
+      ? {
+          id: activeGalaxyId || "",
+          name: `${session.user.name || "My"}'s Galaxy`,
+          theme: "milky-way",
+          icon: "sparkles",
+        }
+      : {
+          id: "galaxy_sol_family",
+          name: "The Sol Family Galaxy",
+          theme: "milky-way",
+          icon: "sparkles",
+        });
 
   return (
     <main className="h-[100dvh] w-full max-w-[100vw] flex flex-col overflow-hidden bg-cosmos-void text-slate-100 select-none relative">
