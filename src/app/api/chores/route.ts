@@ -322,3 +322,65 @@ export async function DELETE(request: Request) {
     );
   }
 }
+
+export async function PUT(request: Request) {
+  try {
+    const session = await auth();
+    const body = await request.json();
+    const {
+      choreId,
+      title,
+      memberId,
+      points,
+      recurrenceType,
+      dueTime,
+    } = body;
+
+    if (!choreId || !title || !memberId) {
+      return NextResponse.json(
+        { error: "choreId, title, and memberId are required" },
+        { status: 400 }
+      );
+    }
+
+    const [chore] = await db
+      .select()
+      .from(chores)
+      .where(eq(chores.id, choreId))
+      .limit(1);
+
+    if (!chore) {
+      return NextResponse.json({ error: "Chore not found" }, { status: 404 });
+    }
+
+    const hasAccess = await verifyGalaxyAccess(
+      chore.galaxyId,
+      session?.user?.id
+    );
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have permission to edit this chore." },
+        { status: 403 }
+      );
+    }
+
+    await db
+      .update(chores)
+      .set({
+        title: title.trim(),
+        memberId,
+        points: Number(points) || 1,
+        recurrenceType: recurrenceType || "daily",
+        dueTime: dueTime || null,
+      })
+      .where(eq(chores.id, choreId));
+
+    return NextResponse.json({ success: true, choreId });
+  } catch (error) {
+    console.error("Failed to update chore:", error);
+    return NextResponse.json(
+      { error: "Failed to update chore" },
+      { status: 500 }
+    );
+  }
+}

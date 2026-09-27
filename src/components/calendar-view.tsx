@@ -57,6 +57,48 @@ export interface CalendarEvent {
   color: string;
 }
 
+export function getEventSortKey(event: CalendarEvent): number {
+  if (event.isAllDay || event.time?.toLowerCase() === "all day") {
+    return -1;
+  }
+  if (event.time) {
+    const match12 = event.time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match12) {
+      let hours = parseInt(match12[1], 10);
+      const mins = parseInt(match12[2], 10);
+      const ampm = match12[3].toUpperCase();
+      if (ampm === "PM" && hours < 12) hours += 12;
+      if (ampm === "AM" && hours === 12) hours = 0;
+      return hours * 60 + mins;
+    }
+    const match24 = event.time.match(/^(\d{1,2}):(\d{2})$/);
+    if (match24) {
+      const hours = parseInt(match24[1], 10);
+      const mins = parseInt(match24[2], 10);
+      return hours * 60 + mins;
+    }
+  }
+  if (event.startTime) {
+    const d = new Date(event.startTime);
+    if (!isNaN(d.getTime())) {
+      return d.getHours() * 60 + d.getMinutes();
+    }
+  }
+  return 0;
+}
+
+export function compareEventsByTime(a: CalendarEvent, b: CalendarEvent): number {
+  if (a.date !== b.date) {
+    return a.date.localeCompare(b.date);
+  }
+  const keyA = getEventSortKey(a);
+  const keyB = getEventSortKey(b);
+  if (keyA !== keyB) {
+    return keyA - keyB;
+  }
+  return a.title.localeCompare(b.title);
+}
+
 // Generate dynamic sample events centered on current date
 function generateDynamicEvents(baseDate: Date): CalendarEvent[] {
   const y = baseDate.getFullYear();
@@ -473,7 +515,7 @@ export function CalendarView({
 
   // Events for selected modal date
   const selectedDateEvents = selectedDayModal
-    ? calendarEvents.filter((e) => e.date === selectedDayModal)
+    ? calendarEvents.filter((e) => e.date === selectedDayModal).sort(compareEventsByTime)
     : [];
 
   const formatModalHeaderDate = (dateStr: string) => {
@@ -719,9 +761,9 @@ export function CalendarView({
             } gap-px bg-cosmos-border/70 overflow-hidden`}
           >
             {calendarCells.map((cell) => {
-              const dayEvents = filteredEvents.filter(
-                (e) => e.date === cell.dateStr
-              );
+              const dayEvents = filteredEvents
+                .filter((e) => e.date === cell.dateStr)
+                .sort(compareEventsByTime);
 
               return (
                 <div
@@ -833,6 +875,7 @@ export function CalendarView({
           ) : (
             filteredEvents
               .filter((e) => e.date === toDateStr(currentDate))
+              .sort(compareEventsByTime)
               .map((evt) => (
                 <div
                   key={evt.id}
@@ -885,7 +928,9 @@ export function CalendarView({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-3">
             {weekDays.map((day) => {
-              const dayEvts = filteredEvents.filter((e) => e.date === day.dateStr);
+              const dayEvts = filteredEvents
+                .filter((e) => e.date === day.dateStr)
+                .sort(compareEventsByTime);
 
               return (
                 <div
@@ -945,7 +990,7 @@ export function CalendarView({
       {/* VIEW 4: Schedule View */}
       {viewType === "schedule" && (
         <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-          {filteredEvents.map((evt) => (
+          {[...filteredEvents].sort(compareEventsByTime).map((evt) => (
             <div
               key={evt.id}
               onClick={(e) => handleOpenEditEvent(evt, e)}
