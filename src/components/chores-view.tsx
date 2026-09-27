@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Star, CheckCircle, Circle, Plus, Sparkles, X, User, Trash2 } from "lucide-react";
+import { Star, CheckCircle, Circle, Plus, Sparkles, X, User, Trash2, Pencil } from "lucide-react";
 import { AccessMode } from "./kiosk-header";
 
 interface ChoreItem {
@@ -36,12 +36,14 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
   const [selectedMemberId, setSelectedMemberId] = useState<string>("all");
   const [loading, setLoading] = useState(true);
 
-  // Add Chore Modal state
+  // Add / Edit Chore Modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingChore, setEditingChore] = useState<ChoreItem | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [newMemberId, setNewMemberId] = useState("");
   const [newPoints, setNewPoints] = useState(1);
   const [newRecurrence, setNewRecurrence] = useState("daily");
+  const [newDueTime, setNewDueTime] = useState("");
 
   const fetchChores = async () => {
     try {
@@ -109,30 +111,81 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
     }
   };
 
-  const handleAddChore = async (e: React.FormEvent) => {
+  const handleOpenAdd = () => {
+    setEditingChore(null);
+    setNewTitle("");
+    setNewPoints(1);
+    setNewRecurrence("daily");
+    setNewDueTime("");
+    if (members.length > 0) {
+      setNewMemberId(members[0].id);
+    }
+    setIsAddModalOpen(true);
+  };
+
+  const handleOpenEdit = (chore: ChoreItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingChore(chore);
+    setNewTitle(chore.title);
+    setNewMemberId(chore.memberId);
+    setNewPoints(chore.points);
+    setNewRecurrence(
+      chore.recurrenceType ||
+      (chore.frequency === "One-Time Task"
+        ? "one_time"
+        : chore.frequency === "Weekly Routine"
+        ? "weekly"
+        : "daily")
+    );
+    setNewDueTime(chore.dueTime || "");
+    setIsAddModalOpen(true);
+  };
+
+  const handleSaveChore = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newMemberId) return;
 
     try {
-      const res = await fetch("/api/chores", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          memberId: newMemberId,
-          title: newTitle.trim(),
-          points: newPoints,
-          recurrenceType: newRecurrence,
-          galaxyId: activeGalaxyId,
-        }),
-      });
+      if (editingChore) {
+        const res = await fetch("/api/chores", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            choreId: editingChore.id,
+            memberId: newMemberId,
+            title: newTitle.trim(),
+            points: newPoints,
+            recurrenceType: newRecurrence,
+            dueTime: newDueTime || null,
+          }),
+        });
 
-      if (res.ok) {
-        setNewTitle("");
-        setIsAddModalOpen(false);
-        fetchChores();
+        if (res.ok) {
+          setIsAddModalOpen(false);
+          setEditingChore(null);
+          fetchChores();
+        }
+      } else {
+        const res = await fetch("/api/chores", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            memberId: newMemberId,
+            title: newTitle.trim(),
+            points: newPoints,
+            recurrenceType: newRecurrence,
+            dueTime: newDueTime || null,
+            galaxyId: activeGalaxyId,
+          }),
+        });
+
+        if (res.ok) {
+          setIsAddModalOpen(false);
+          fetchChores();
+        }
       }
     } catch (err) {
-      console.error("Failed to add chore:", err);
+      console.error("Failed to save chore:", err);
     }
   };
 
@@ -151,10 +204,23 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
     }
   };
 
-  const filteredChores =
+  const filteredChores = (
     selectedMemberId === "all"
       ? chores
-      : chores.filter((c) => c.memberId === selectedMemberId);
+      : chores.filter((c) => c.memberId === selectedMemberId)
+  )
+    .slice()
+    .sort((a, b) => {
+      if (a.completed !== b.completed) {
+        return a.completed ? 1 : -1;
+      }
+      if (a.dueTime && b.dueTime) {
+        return a.dueTime.localeCompare(b.dueTime);
+      }
+      if (a.dueTime && !b.dueTime) return -1;
+      if (!a.dueTime && b.dueTime) return 1;
+      return 0;
+    });
 
   return (
     <div className="flex-1 flex flex-col h-full bg-cosmos-void/90 p-3 sm:p-4 md:p-6 overflow-hidden">
@@ -228,7 +294,7 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
 
         {accessMode !== "kid" && (
           <button
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={handleOpenAdd}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-md transition min-h-[44px] shrink-0 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -297,12 +363,23 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
                 </div>
               </div>
 
-              {/* Right: Points Badge & Delete */}
-              <div className="flex items-center gap-2">
+              {/* Right: Points Badge, Edit & Delete */}
+              <div className="flex items-center gap-1.5">
                 <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 font-black text-xs shrink-0">
                   <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
                   <span>+{chore.points}</span>
                 </div>
+
+                {accessMode !== "kid" && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleOpenEdit(chore, e)}
+                    title="Edit chore"
+                    className="p-2.5 rounded-xl text-slate-500 hover:text-purple-300 hover:bg-purple-500/10 border border-transparent hover:border-purple-500/30 transition min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 cursor-pointer"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                )}
 
                 {accessMode !== "kid" && (
                   <button
@@ -325,16 +402,22 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
           <div className="bg-cosmos-card border border-cosmos-borderLight rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-3 border-b border-cosmos-border">
-              <h3 className="text-lg font-black text-white">Add New Chore</h3>
+              <h3 className="text-lg font-black text-white">
+                {editingChore ? "Edit Chore" : "Add New Chore"}
+              </h3>
               <button
-                onClick={() => setIsAddModalOpen(false)}
+                type="button"
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  setEditingChore(null);
+                }}
                 className="p-2 rounded-xl text-slate-400 hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddChore} className="space-y-4 py-4">
+            <form onSubmit={handleSaveChore} className="space-y-4 py-4">
               <div>
                 <label className="text-xs font-bold text-slate-300 block mb-1">
                   Chore Title
@@ -399,19 +482,34 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
                 </div>
               </div>
 
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">
+                  Due Time (Optional)
+                </label>
+                <input
+                  type="time"
+                  value={newDueTime}
+                  onChange={(e) => setNewDueTime(e.target.value)}
+                  className="w-full h-12 bg-cosmos-surface border border-cosmos-border rounded-xl px-4 text-white text-sm focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
               <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsAddModalOpen(false)}
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    setEditingChore(null);
+                  }}
                   className="px-4 py-2.5 rounded-xl bg-cosmos-surface border border-cosmos-border text-xs font-bold text-slate-300 hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-xs font-bold text-white shadow-md"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-xs font-bold text-white shadow-md cursor-pointer"
                 >
-                  Save Chore
+                  {editingChore ? "Save Changes" : "Save Chore"}
                 </button>
               </div>
             </form>
