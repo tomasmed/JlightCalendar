@@ -33,6 +33,7 @@ interface EventModalProps {
   onClose: () => void;
   eventToEdit?: CalendarEventData | null;
   selectedDate?: string; // YYYY-MM-DD
+  initialTime?: string; // HH:mm
   activeGalaxyId: string;
   inhabitants: Inhabitant[];
   accessMode: AccessMode;
@@ -56,6 +57,7 @@ export function EventModal({
   onClose,
   eventToEdit,
   selectedDate,
+  initialTime,
   activeGalaxyId,
   inhabitants,
   accessMode,
@@ -109,7 +111,7 @@ export function EventModal({
     } else {
       setTitle("");
       setDate(selectedDate || new Date().toISOString().split("T")[0]);
-      setTime("09:00");
+      setTime(initialTime || "09:00");
       setDurationMinutes(60);
       setIsAllDay(false);
       setLocation("");
@@ -117,7 +119,7 @@ export function EventModal({
       setMemberId("all");
       setColor(COLOR_PRESETS[1]);
     }
-  }, [eventToEdit, selectedDate, isOpen]);
+  }, [eventToEdit, selectedDate, initialTime, isOpen]);
 
   if (!isOpen) return null;
 
