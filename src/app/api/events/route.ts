@@ -54,6 +54,7 @@ export async function POST(req: Request) {
       startTime,
       endTime,
       isAllDay = false,
+      rrule,
       colorOverride,
     } = body;
 
@@ -101,6 +102,7 @@ export async function POST(req: Request) {
       startTime,
       endTime,
       isAllDay: Boolean(isAllDay),
+      rrule: rrule || null,
       colorOverride: colorOverride || null,
     });
 
@@ -117,6 +119,7 @@ export async function POST(req: Request) {
         startTime,
         endTime,
         isAllDay,
+        rrule: rrule || null,
         colorOverride,
       },
     });
