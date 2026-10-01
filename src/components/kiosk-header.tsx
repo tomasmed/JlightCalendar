@@ -246,7 +246,7 @@ export function KioskHeader({
   };
 
   return (
-    <header className="h-16 md:h-20 bg-cosmos-deep/95 border-b border-cosmos-border px-3 sm:px-4 md:px-6 flex items-center justify-between select-none backdrop-blur-xl relative z-40 max-w-full">
+    <header className="h-16 md:h-20 bg-cosmos-deep/95 border-b border-cosmos-border px-2.5 sm:px-4 md:px-4 lg:px-6 flex items-center justify-between select-none backdrop-blur-xl relative z-40 max-w-full">
       {/* LEFT: Clock & Calendar Galaxy Switcher */}
       <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
         {/* Time & Date */}
