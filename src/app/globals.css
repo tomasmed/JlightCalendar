@@ -5,13 +5,13 @@
 :root {
   --background: #050711;
   --foreground: #f8fafc;
-  --cosmos-void: #050711;
-  --cosmos-deep: #090b1c;
-  --cosmos-surface: #0e122b;
-  --cosmos-card: #131838;
-  --cosmos-cardHover: #1a214c;
-  --cosmos-border: #262e5e;
-  --cosmos-borderLight: #384384;
+  --cosmos-void: 5 7 17;
+  --cosmos-deep: 9 11 28;
+  --cosmos-surface: 14 18 43;
+  --cosmos-card: 19 24 56;
+  --cosmos-cardHover: 26 33 76;
+  --cosmos-border: 38 46 94;
+  --cosmos-borderLight: 56 67 132;
   --starlight-default: #ffd166;
   --scrollbar-thumb: rgba(56, 67, 132, 0.6);
   --scrollbar-thumb-hover: rgba(168, 85, 247, 0.8);
@@ -20,13 +20,13 @@
 [data-theme="halloween"] {
   --background: #09060f;
   --foreground: #fef2f2;
-  --cosmos-void: #09060f;
-  --cosmos-deep: #120c1d;
-  --cosmos-surface: #1b122c;
-  --cosmos-card: #24183a;
-  --cosmos-cardHover: #31214e;
-  --cosmos-border: #4d2b69;
-  --cosmos-borderLight: #6d3a94;
+  --cosmos-void: 9 6 15;
+  --cosmos-deep: 18 12 29;
+  --cosmos-surface: 27 18 44;
+  --cosmos-card: 36 24 58;
+  --cosmos-cardHover: 49 33 78;
+  --cosmos-border: 77 43 105;
+  --cosmos-borderLight: 109 58 148;
   --starlight-default: #f97316; /* Glowing pumpkin orange */
   --scrollbar-thumb: rgba(109, 58, 148, 0.7);
   --scrollbar-thumb-hover: rgba(249, 115, 22, 0.85);
