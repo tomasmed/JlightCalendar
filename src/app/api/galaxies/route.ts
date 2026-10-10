@@ -274,3 +274,43 @@ export async function POST(req: Request) {
     );
   }
 }
+
+export async function PATCH(req: Request) {
+  try {
+    await ensureDatabaseSchema();
+    const session = await auth();
+    let userId = session?.user?.id;
+    if (session?.user) {
+      const ensuredId = await ensureDbUser(session.user);
+      if (ensuredId) userId = ensuredId;
+    }
+
+    const body = await req.json();
+    const { galaxyId, name, familyColor, familyAvatar, theme, icon } = body;
+
+    if (!galaxyId) {
+      return NextResponse.json({ error: "galaxyId is required" }, { status: 400 });
+    }
+
+    const updates: Record<string, any> = {};
+    if (name) updates.name = name.trim();
+    if (familyColor) updates.familyColor = familyColor;
+    if (familyAvatar) updates.familyAvatar = familyAvatar;
+    if (theme) updates.theme = theme;
+    if (icon) updates.icon = icon;
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+    }
+
+    await db.update(galaxies).set(updates).where(eq(galaxies.id, galaxyId));
+
+    return NextResponse.json({ success: true, updates });
+  } catch (error) {
+    console.error("Failed to update galaxy:", error);
+    return NextResponse.json(
+      { error: "Failed to update galaxy" },
+      { status: 500 }
+    );
+  }
+}

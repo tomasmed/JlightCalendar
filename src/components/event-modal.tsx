@@ -10,9 +10,10 @@ import {
   Trash2,
   Check,
   User,
+  Users,
   Repeat,
 } from "lucide-react";
-import { Inhabitant } from "./inhabitants-modal";
+import { Inhabitant, getCosmicAvatarIcon } from "./inhabitants-modal";
 import { AccessMode } from "./kiosk-header";
 import {
   RecurrenceFrequency,
@@ -28,6 +29,7 @@ export interface CalendarEventData {
   galaxyId: string;
   calendarId?: string;
   memberId?: string | null;
+  memberIds?: string[] | string | null;
   title: string;
   description?: string | null;
   location?: string | null;
@@ -47,6 +49,8 @@ interface EventModalProps {
   activeGalaxyId: string;
   inhabitants: Inhabitant[];
   accessMode: AccessMode;
+  familyColor?: string;
+  familyAvatar?: string;
   onSaveEvent: (event: CalendarEventData) => Promise<void>;
   onDeleteEvent?: (id: string) => Promise<void>;
 }
@@ -71,6 +75,8 @@ export function EventModal({
   activeGalaxyId,
   inhabitants,
   accessMode,
+  familyColor = "#ef4444",
+  familyAvatar = "planet",
   onSaveEvent,
   onDeleteEvent,
 }: EventModalProps) {
@@ -81,8 +87,8 @@ export function EventModal({
   const [isAllDay, setIsAllDay] = useState(false);
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
-  const [memberId, setMemberId] = useState<string>("all");
-  const [color, setColor] = useState(COLOR_PRESETS[1]);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [color, setColor] = useState(familyColor);
   const [recurrenceFreq, setRecurrenceFreq] = useState<RecurrenceFrequency>("none");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -116,8 +122,28 @@ export function EventModal({
 
       setLocation(eventToEdit.location || "");
       setDescription(eventToEdit.description || "");
-      setMemberId(eventToEdit.memberId || "all");
-      setColor(eventToEdit.colorOverride || COLOR_PRESETS[1]);
+
+      // Parse multi-members or fallback to single memberId
+      let initialMemberIds: string[] = [];
+      if (eventToEdit.memberIds) {
+        try {
+          const parsed = typeof eventToEdit.memberIds === "string" 
+            ? JSON.parse(eventToEdit.memberIds) 
+            : eventToEdit.memberIds;
+          if (Array.isArray(parsed)) {
+            initialMemberIds = parsed;
+          }
+        } catch (e) {
+          if (typeof eventToEdit.memberIds === "string") {
+            initialMemberIds = [eventToEdit.memberIds];
+          }
+        }
+      } else if (eventToEdit.memberId) {
+        initialMemberIds = [eventToEdit.memberId];
+      }
+      setSelectedMemberIds(initialMemberIds);
+
+      setColor(eventToEdit.colorOverride || (initialMemberIds.length === 1 ? inhabitants.find(i => i.id === initialMemberIds[0])?.color || familyColor : familyColor));
     } else {
       setTitle("");
       setDate(selectedDate || new Date().toISOString().split("T")[0]);
@@ -127,15 +153,39 @@ export function EventModal({
       setRecurrenceFreq("none");
       setLocation("");
       setDescription("");
-      setMemberId("all");
-      setColor(COLOR_PRESETS[1]);
+      setSelectedMemberIds([]);
+      setColor(familyColor);
     }
-  }, [eventToEdit, selectedDate, initialTime, isOpen]);
+  }, [eventToEdit, selectedDate, initialTime, isOpen, familyColor]);
 
   if (!isOpen) return null;
 
   const isReadOnly = accessMode === "kid";
   const canDelete = !isReadOnly && accessMode === "admin" && Boolean(eventToEdit?.id);
+
+  // Toggle member chip
+  const handleToggleMember = (mId: string) => {
+    let next: string[];
+    if (selectedMemberIds.includes(mId)) {
+      next = selectedMemberIds.filter((id) => id !== mId);
+    } else {
+      next = [...selectedMemberIds, mId];
+    }
+    setSelectedMemberIds(next);
+
+    // If 1 member selected and no custom color override was set, sync color to that member's color
+    if (next.length === 1) {
+      const inh = inhabitants.find((i) => i.id === next[0]);
+      if (inh) setColor(inh.color);
+    } else if (next.length === 0) {
+      setColor(familyColor);
+    }
+  };
+
+  const handleSelectWholeFamily = () => {
+    setSelectedMemberIds([]);
+    setColor(familyColor);
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,7 +203,8 @@ export function EventModal({
       await onSaveEvent({
         id: eventToEdit?.id,
         galaxyId: activeGalaxyId,
-        memberId: memberId === "all" ? null : memberId,
+        memberId: selectedMemberIds.length === 1 ? selectedMemberIds[0] : null,
+        memberIds: selectedMemberIds.length > 0 ? selectedMemberIds : null,
         title: title.trim(),
         location: location.trim() || null,
         description: description.trim() || null,
@@ -343,31 +394,74 @@ export function EventModal({
             </select>
           </div>
 
-          {/* Assigned Inhabitant (Crew Member / Pet) */}
+          {/* Assigned Inhabitants (Multi-Select Chips + Whole Family) */}
           <div>
-            <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
-              Assigned Inhabitant / Companion
-            </label>
-            <select
-              disabled={isReadOnly}
-              value={memberId}
-              onChange={(e) => {
-                const selected = e.target.value;
-                setMemberId(selected);
-                if (selected !== "all") {
-                  const found = inhabitants.find((i) => i.id === selected);
-                  if (found) setColor(found.color);
-                }
-              }}
-              className="w-full px-4 py-3 rounded-xl bg-cosmos-surface border border-cosmos-border text-white text-sm font-medium focus:outline-none focus:border-purple-500 disabled:opacity-60 min-h-[48px]"
-            >
-              <option value="all">🌟 All Galaxy / Whole Family</option>
-              {inhabitants.map((inhabitant) => (
-                <option key={inhabitant.id} value={inhabitant.id}>
-                  {inhabitant.displayName} ({inhabitant.role})
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
+                Assigned Inhabitants
+              </label>
+              <span className="text-[10px] text-slate-400">
+                {selectedMemberIds.length === 0
+                  ? "🌟 Whole Family event"
+                  : selectedMemberIds.length === 1
+                  ? "Single crew assignment"
+                  : `Shared event (${selectedMemberIds.length} members)`}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {/* Whole Family Chip */}
+              <button
+                type="button"
+                disabled={isReadOnly}
+                onClick={handleSelectWholeFamily}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition min-h-[44px] cursor-pointer ${
+                  selectedMemberIds.length === 0
+                    ? "bg-red-500/20 text-white border-red-500 ring-2 ring-red-400/40 shadow-md"
+                    : "bg-cosmos-surface border-cosmos-border text-slate-400 hover:text-white hover:bg-cosmos-cardHover"
+                }`}
+              >
+                {React.createElement(getCosmicAvatarIcon(familyAvatar), {
+                  className: "w-3.5 h-3.5",
+                  style: { color: familyColor },
+                })}
+                <span>Whole Family</span>
+              </button>
+
+              {/* Individual Member Chips */}
+              {inhabitants.map((inh) => {
+                const isSelected = selectedMemberIds.includes(inh.id);
+                return (
+                  <button
+                    key={inh.id}
+                    type="button"
+                    disabled={isReadOnly}
+                    onClick={() => handleToggleMember(inh.id)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition min-h-[44px] cursor-pointer ${
+                      isSelected
+                        ? "text-white shadow-md ring-2"
+                        : "bg-cosmos-surface border-cosmos-border text-slate-400 hover:text-white hover:bg-cosmos-cardHover"
+                    }`}
+                    style={
+                      isSelected
+                        ? {
+                            backgroundColor: `${inh.color}25`,
+                            borderColor: inh.color,
+                            boxShadow: `0 0 10px ${inh.color}30`,
+                          }
+                        : {}
+                    }
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: inh.color }}
+                    />
+                    <span>{inh.displayName}</span>
+                    {isSelected && <Check className="w-3 h-3 text-white ml-0.5" />}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Location */}

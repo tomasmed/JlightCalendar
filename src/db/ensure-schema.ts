@@ -1,4 +1,4 @@
-﻿import { client } from "./index";
+import { client } from "./index";
 import { generateJoinCode } from "./schema";
 
 let isEnsured = false;
@@ -74,6 +74,32 @@ export async function ensureDatabaseSchema(): Promise<void> {
           console.log("🛠️ Adding missing column 'default_galaxy_id' to 'users' table...");
           await client.execute("ALTER TABLE users ADD COLUMN default_galaxy_id text;");
           console.log("✅ Added 'default_galaxy_id' column to 'users'.");
+        }
+      }
+
+      // 5. Ensure family_color & family_avatar columns in galaxies
+      if (!galaxyCols.has("family_color")) {
+        console.log("🛠️ Adding missing column 'family_color' to 'galaxies' table...");
+        await client.execute("ALTER TABLE galaxies ADD COLUMN family_color text NOT NULL DEFAULT '#ef4444';");
+        console.log("✅ Added 'family_color' column to 'galaxies'.");
+      }
+      if (!galaxyCols.has("family_avatar")) {
+        console.log("🛠️ Adding missing column 'family_avatar' to 'galaxies' table...");
+        await client.execute("ALTER TABLE galaxies ADD COLUMN family_avatar text NOT NULL DEFAULT 'planet';");
+        console.log("✅ Added 'family_avatar' column to 'galaxies'.");
+      }
+
+      // 6. Ensure member_ids column in events
+      const eventCheck = await client.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='events';"
+      );
+      if (eventCheck.rows.length > 0) {
+        const eventInfo = await client.execute("PRAGMA table_info(events);");
+        const eventCols = new Set(eventInfo.rows.map((r) => String(r.name)));
+        if (!eventCols.has("member_ids")) {
+          console.log("🛠️ Adding missing column 'member_ids' to 'events' table...");
+          await client.execute("ALTER TABLE events ADD COLUMN member_ids text;");
+          console.log("✅ Added 'member_ids' column to 'events'.");
         }
       }
 

@@ -16,8 +16,34 @@ import {
   Lock,
   Pencil,
   Check,
+  Globe2,
+  Flame,
+  Sun,
+  Moon,
+  Rocket,
+  Palette,
 } from "lucide-react";
 import { AccessMode } from "./kiosk-header";
+
+export interface CosmicAvatarOption {
+  id: "planet" | "comet" | "constellation" | "sun" | "moon" | "shooting-star";
+  label: string;
+  icon: React.ElementType;
+}
+
+export const COSMIC_FAMILY_AVATARS: CosmicAvatarOption[] = [
+  { id: "planet", label: "Planet", icon: Globe2 },
+  { id: "comet", label: "Comet", icon: Flame },
+  { id: "constellation", label: "Constellation", icon: Sparkles },
+  { id: "sun", label: "Sun", icon: Sun },
+  { id: "moon", label: "Crescent Moon", icon: Moon },
+  { id: "shooting-star", label: "Shooting Star", icon: Rocket },
+];
+
+export function getCosmicAvatarIcon(id?: string | null): React.ElementType {
+  const match = COSMIC_FAMILY_AVATARS.find((a) => a.id === id);
+  return match ? match.icon : Globe2;
+}
 
 export interface Inhabitant {
   id: string;
@@ -35,6 +61,9 @@ interface InhabitantsModalProps {
   galaxyName: string;
   inhabitants: Inhabitant[];
   accessMode?: AccessMode;
+  familyColor?: string;
+  familyAvatar?: string;
+  onUpdateFamilyIdentity?: (data: { familyColor: string; familyAvatar: string }) => Promise<void>;
   onAddInhabitant: (newInhabitant: {
     displayName: string;
     role: "admin" | "member" | "kid" | "pet";
@@ -69,6 +98,9 @@ export function InhabitantsModal({
   galaxyName,
   inhabitants,
   accessMode = "standard",
+  familyColor = "#ef4444",
+  familyAvatar = "planet",
+  onUpdateFamilyIdentity,
   onAddInhabitant,
   onUpdateInhabitant,
   onRemoveInhabitant,
@@ -78,6 +110,33 @@ export function InhabitantsModal({
   const [avatar, setAvatar] = useState("user");
   const [selectedColor, setSelectedColor] = useState(COLOR_PRESETS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Family Identity State (Admin manageable)
+  const [currentFamilyColor, setCurrentFamilyColor] = useState(familyColor);
+  const [currentFamilyAvatar, setCurrentFamilyAvatar] = useState(familyAvatar);
+  const [isSavingFamilyIdentity, setIsSavingFamilyIdentity] = useState(false);
+  const [familyIdentitySaved, setFamilyIdentitySaved] = useState(false);
+
+  // Update family identity local state when props change
+  React.useEffect(() => {
+    setCurrentFamilyColor(familyColor);
+    setCurrentFamilyAvatar(familyAvatar);
+  }, [familyColor, familyAvatar]);
+
+  const handleSaveFamilyIdentity = async () => {
+    if (!onUpdateFamilyIdentity || isSavingFamilyIdentity) return;
+    setIsSavingFamilyIdentity(true);
+    try {
+      await onUpdateFamilyIdentity({
+        familyColor: currentFamilyColor,
+        familyAvatar: currentFamilyAvatar,
+      });
+      setFamilyIdentitySaved(true);
+      setTimeout(() => setFamilyIdentitySaved(false), 2500);
+    } finally {
+      setIsSavingFamilyIdentity(false);
+    }
+  };
 
   // Edit member modal state
   const [editingMember, setEditingMember] = useState<Inhabitant | null>(null);
@@ -213,6 +272,111 @@ export function InhabitantsModal({
 
         {/* Content */}
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
+          {/* Family Identity (Admin Mode Only) */}
+          {accessMode === "admin" && (
+            <div className="p-4 rounded-2xl bg-cosmos-deep/80 border border-cosmos-borderLight/60 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-md"
+                    style={{ backgroundColor: currentFamilyColor }}
+                  >
+                    {React.createElement(getCosmicAvatarIcon(currentFamilyAvatar), {
+                      className: "w-4 h-4",
+                    })}
+                  </div>
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-white block">
+                      Whole-Family Identity
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      Applied to family-wide events and shared schedules
+                    </span>
+                  </div>
+                </div>
+
+                {onUpdateFamilyIdentity && (
+                  <button
+                    type="button"
+                    onClick={handleSaveFamilyIdentity}
+                    disabled={isSavingFamilyIdentity}
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs transition shadow-md flex items-center gap-1.5 min-h-[44px] cursor-pointer"
+                  >
+                    {isSavingFamilyIdentity ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : familyIdentitySaved ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-300" />
+                        <span>Saved!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Save Identity</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {/* Cosmic Avatar Selector */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
+                  Cosmic Family Icon (Galaxy Emblem)
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {COSMIC_FAMILY_AVATARS.map((cosmic) => {
+                    const CosmicIcon = cosmic.icon;
+                    const isSelected = currentFamilyAvatar === cosmic.id;
+                    return (
+                      <button
+                        key={cosmic.id}
+                        type="button"
+                        onClick={() => setCurrentFamilyAvatar(cosmic.id)}
+                        className={`flex flex-col items-center justify-center gap-1 p-2 rounded-xl border transition min-h-[48px] ${
+                          isSelected
+                            ? "bg-purple-600/30 border-purple-400 text-white ring-2 ring-starlight/50 shadow-md"
+                            : "bg-cosmos-surface border-cosmos-border text-slate-400 hover:text-white hover:bg-cosmos-cardHover"
+                        }`}
+                      >
+                        <CosmicIcon className="w-4 h-4 text-starlight" />
+                        <span className="text-[9px] font-bold truncate max-w-full">
+                          {cosmic.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Family Color Preset Selector (Default Red #ef4444) */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
+                  Family Color (Default: Red)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {COLOR_PRESETS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setCurrentFamilyColor(color)}
+                      style={{ backgroundColor: color }}
+                      className={`w-8 h-8 rounded-xl border-2 transition min-w-[32px] min-h-[32px] ${
+                        currentFamilyColor.toLowerCase() === color.toLowerCase()
+                          ? "border-white scale-110 shadow-lg ring-2 ring-starlight"
+                          : "border-transparent opacity-80 hover:opacity-100 hover:scale-105"
+                      }`}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Current Inhabitants List */}
           <div>
             <div className="flex items-center justify-between mb-3">
