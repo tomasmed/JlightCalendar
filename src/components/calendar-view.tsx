@@ -260,7 +260,7 @@ export const HOURS = Array.from({ length: 24 }, (_, i) => {
   };
 });
 
-export const HOUR_HEIGHT = 56;
+export const HOUR_HEIGHT = 64;
 
 // Generate dynamic sample events centered on current date's Monday - Sunday
 function generateDynamicEvents(baseDate: Date): CalendarEvent[] {
@@ -1342,14 +1342,14 @@ export function CalendarView({
                 ref={weekGridRef}
                 className="flex-1 overflow-y-auto relative select-none"
               >
-                <div className="flex min-h-[1344px] relative">
+                <div className="flex min-h-[1536px] relative">
               {/* Left Column: 24 Hour Labels */}
-              <div className="w-14 sm:w-16 md:w-20 shrink-0 border-r border-cosmos-border bg-cosmos-surface/40 select-none">
+              <div className="w-14 sm:w-16 md:w-20 shrink-0 border-r border-cosmos-border/40 bg-cosmos-surface/30 select-none">
                 {HOURS.map((h) => (
                   <div
                     key={h.hour24}
                     style={{ height: `${HOUR_HEIGHT}px` }}
-                    className="border-b border-cosmos-border/40 pr-1.5 sm:pr-2.5 pt-1 text-right text-[10px] sm:text-xs font-mono font-bold text-slate-400 flex flex-col justify-start items-end"
+                    className="border-b border-cosmos-border/20 pr-1.5 sm:pr-2.5 pt-1 text-right text-[10px] sm:text-xs font-mono font-bold text-slate-400 flex flex-col justify-start items-end"
                   >
                     <span>{h.label}</span>
                   </div>
@@ -1369,7 +1369,7 @@ export function CalendarView({
                   return (
                     <div
                       key={day.dateStr}
-                      className={`relative border-r border-cosmos-border last:border-r-0 ${
+                      className={`relative border-r border-cosmos-border/30 last:border-r-0 ${
                         day.isToday ? "bg-purple-950/15" : ""
                       }`}
                     >
@@ -1379,15 +1379,15 @@ export function CalendarView({
                           key={h.hour24}
                           onClick={() => handleOpenAddEventOnDate(day.dateStr, h.timeStr)}
                           style={{ height: `${HOUR_HEIGHT}px` }}
-                          className="border-b border-cosmos-border/30 relative group/slot cursor-pointer transition hover:bg-purple-500/10"
+                          className="border-b border-cosmos-border/20 relative group/slot cursor-pointer transition hover:bg-purple-500/10"
                           title={
                             accessMode === "kid"
                               ? `View ${day.shortStr} schedule`
                               : `Schedule event on ${day.dayLabel} at ${h.label}`
                           }
                         >
-                          {/* Faint half-hour divider */}
-                          <div className="absolute left-0 right-0 top-1/2 border-b border-cosmos-border/15 pointer-events-none" />
+                          {/* Subtle dashed half-hour divider */}
+                          <div className="absolute left-0 right-0 top-1/2 border-b border-dashed border-cosmos-border/10 pointer-events-none" />
 
                           {/* Hover "+" cue for desktop / mouse */}
                           {accessMode !== "kid" && (

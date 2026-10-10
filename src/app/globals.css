@@ -5,6 +5,31 @@
 :root {
   --background: #050711;
   --foreground: #f8fafc;
+  --cosmos-void: 5 7 17;
+  --cosmos-deep: 9 11 28;
+  --cosmos-surface: 14 18 43;
+  --cosmos-card: 19 24 56;
+  --cosmos-cardHover: 26 33 76;
+  --cosmos-border: 38 46 94;
+  --cosmos-borderLight: 56 67 132;
+  --starlight-default: #ffd166;
+  --scrollbar-thumb: rgba(56, 67, 132, 0.6);
+  --scrollbar-thumb-hover: rgba(168, 85, 247, 0.8);
+}
+
+[data-theme="halloween"] {
+  --background: #09060f;
+  --foreground: #fef2f2;
+  --cosmos-void: 9 6 15;
+  --cosmos-deep: 18 12 29;
+  --cosmos-surface: 27 18 44;
+  --cosmos-card: 36 24 58;
+  --cosmos-cardHover: 49 33 78;
+  --cosmos-border: 77 43 105;
+  --cosmos-borderLight: 109 58 148;
+  --starlight-default: #f97316; /* Glowing pumpkin orange */
+  --scrollbar-thumb: rgba(109, 58, 148, 0.7);
+  --scrollbar-thumb-hover: rgba(249, 115, 22, 0.85);
 }
 
 body {
@@ -32,6 +57,24 @@ body {
   -webkit-user-select: none;
   touch-action: manipulation;
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+[data-theme="halloween"] body {
+  background-image: 
+    radial-gradient(1.5px 1.5px at 20px 30px, #ffffff, rgba(0,0,0,0)),
+    radial-gradient(1.5px 1.5px at 40px 70px, rgba(249, 115, 22, 0.8), rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 90px 40px, #ffffff, rgba(0,0,0,0)),
+    radial-gradient(1.5px 1.5px at 160px 120px, rgba(168, 85, 247, 0.9), rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 230px 190px, #ffffff, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 290px 80px, rgba(34, 197, 94, 0.8), rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 340px 150px, #ffffff, rgba(0,0,0,0)),
+    radial-gradient(1.5px 1.5px at 410px 60px, rgba(249, 115, 22, 0.7), rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 480px 210px, #ffffff, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 560px 130px, rgba(168, 85, 247, 0.85), rgba(0,0,0,0)),
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(249, 115, 22, 0.2), transparent 70%),
+    radial-gradient(circle at 85% 75%, rgba(139, 92, 246, 0.2), transparent 50%),
+    radial-gradient(circle at 10% 40%, rgba(34, 197, 94, 0.12), transparent 45%);
 }
 
 /* Kiosk mode touch ergonomics */
@@ -40,18 +83,18 @@ button, a {
   min-width: 48px;
 }
 
-/* Cosmic Scrollbar */
+/* Cosmic & Halloween Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(5, 7, 17, 0.8);
+  background: var(--cosmos-void);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(56, 67, 132, 0.6);
+  background: var(--scrollbar-thumb);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(168, 85, 247, 0.8);
+  background: var(--scrollbar-thumb-hover);
 }
