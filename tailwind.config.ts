@@ -30,6 +30,9 @@ const config: Config = {
           pumpkin: "#f97316",
         },
       },
+      fontFamily: {
+        halloween: ["var(--font-creepster)", "cursive"],
+      },
       backgroundImage: {
         "milky-way":
           "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(120, 119, 198, 0.25), transparent 70%), radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.12), transparent 50%), radial-gradient(circle at 15% 50%, rgba(168, 85, 247, 0.15), transparent 45%)",

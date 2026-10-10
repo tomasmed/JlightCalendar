@@ -268,10 +268,18 @@ export function KioskHeader({
       <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
         {/* Time & Date */}
         <div className="flex flex-col leading-none">
-          <span className="text-lg sm:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-100 to-starlight tabular-nums drop-shadow-sm">
+          <span
+            className={`text-lg sm:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-100 to-starlight tabular-nums drop-shadow-sm ${
+              currentTheme === "halloween" ? "font-halloween tracking-wider text-xl sm:text-3xl" : ""
+            }`}
+          >
             {time || "--:--"}
           </span>
-          <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mt-0.5">
+          <span
+            className={`text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mt-0.5 ${
+              currentTheme === "halloween" ? "text-orange-400/90 font-bold" : ""
+            }`}
+          >
             {date || "Loading..."}
           </span>
         </div>

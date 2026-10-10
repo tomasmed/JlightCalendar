@@ -31,6 +31,7 @@ pnpm-debug.log*
 *.db-wal
 *.db-shm
 local.db*
+.backups/
 
 # Agent worktrees & scratch directories
 .worktrees/

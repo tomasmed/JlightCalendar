@@ -20,6 +20,7 @@ import { CreateGalaxyModal } from "@/components/create-galaxy-modal";
 import { JoinGalaxyModal } from "@/components/join-galaxy-modal";
 import { LandingPage } from "@/components/landing-page";
 import { CalendarEventData } from "@/components/event-modal";
+import { HalloweenWhimsy } from "@/components/halloween-whimsy";
 import { useSession, signIn } from "next-auth/react";
 import { Sparkles, ArrowRight } from "lucide-react";
 
@@ -329,6 +330,9 @@ export default function HomePage() {
 
   return (
     <main className="h-[100dvh] w-full max-w-[100vw] flex flex-col overflow-hidden bg-cosmos-void text-slate-100 select-none relative">
+      {/* Halloween Festive Whimsy & Spooky Overlay */}
+      <HalloweenWhimsy />
+
       {/* 24/7 Night Sleep Mode Overlay */}
       <NightSleepOverlay
         isSleeping={isSleeping}
