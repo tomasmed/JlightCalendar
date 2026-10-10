@@ -407,7 +407,15 @@ export default function HomePage() {
             onTabChange={(tab) => setActiveTab(tab)}
             accessMode={accessMode}
             onOpenModeModal={() => setIsModeModalOpen(true)}
-            onToggleSleep={() => setIsSleeping(true)}
+            onToggleSleep={() => {
+              setIsSleeping(true);
+              // Trigger automated background snapshot upon night sleep
+              fetch("/api/backup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ label: "night-sleep" }),
+              }).catch(() => {});
+            }}
             galaxies={galaxies}
             activeGalaxyId={activeGalaxyId}
             onSelectGalaxy={(id) => setActiveGalaxyId(id)}

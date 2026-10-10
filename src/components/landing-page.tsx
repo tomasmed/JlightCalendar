@@ -14,8 +14,10 @@ import {
   Eye,
   Star,
   Users,
+  Info,
 } from "lucide-react";
 import { signIn } from "next-auth/react";
+import { ChangelogModal } from "./changelog-modal";
 
 interface LandingPageProps {
   onExploreDemo: () => void;
@@ -24,6 +26,7 @@ interface LandingPageProps {
 
 export function LandingPage({ onExploreDemo, onJoinCodeSubmit }: LandingPageProps) {
   const [quickJoinCode, setQuickJoinCode] = useState("");
+  const [isChangelogOpen, setIsChangelogOpen] = useState(false);
 
   const handleQuickJoin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +41,9 @@ export function LandingPage({ onExploreDemo, onJoinCodeSubmit }: LandingPageProp
 
   return (
     <div className="min-h-screen w-full bg-cosmos-void text-slate-100 flex flex-col overflow-y-auto selection:bg-purple-600 selection:text-white">
+      {/* Changelog Modal */}
+      <ChangelogModal isOpen={isChangelogOpen} onClose={() => setIsChangelogOpen(false)} />
+
       {/* Ambient Celestial Glows */}
       <div className="fixed top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-purple-600/15 rounded-full blur-[130px] pointer-events-none" />
       <div className="fixed top-[40%] left-[-10%] w-[500px] h-[400px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
@@ -59,7 +65,18 @@ export function LandingPage({ onExploreDemo, onJoinCodeSubmit }: LandingPageProp
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          {/* Changelog Info Button */}
+          <button
+            onClick={() => setIsChangelogOpen(true)}
+            aria-label="View latest changelog and updates"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-xs font-bold text-slate-300 hover:text-white transition min-h-[44px]"
+            title="What's New / Changelog"
+          >
+            <Info className="w-4 h-4 text-starlight" />
+            <span className="hidden md:inline">What&apos;s New</span>
+          </button>
+
           <button
             onClick={onExploreDemo}
             className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-xs font-bold text-slate-300 hover:text-white transition min-h-[44px]"

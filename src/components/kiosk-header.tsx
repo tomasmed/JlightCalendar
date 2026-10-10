@@ -28,8 +28,13 @@ import {
   Copy,
   Check,
   UserPlus,
+  Info,
+  Palette,
+  Ghost,
 } from "lucide-react";
 import { signIn, signOut } from "next-auth/react";
+import { ChangelogModal } from "./changelog-modal";
+import { getSavedTheme, applyTheme, AppTheme } from "@/lib/theme";
 
 export type AccessMode = "admin" | "standard" | "kid";
 export type ActiveTab = "calendar" | "chores" | "meals" | "lists" | "photos";
@@ -92,6 +97,18 @@ export function KioskHeader({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [isChangelogOpen, setIsChangelogOpen] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState<AppTheme>("halloween");
+
+  useEffect(() => {
+    setCurrentTheme(getSavedTheme());
+  }, []);
+
+  const handleToggleTheme = () => {
+    const nextTheme: AppTheme = currentTheme === "halloween" ? "milky-way" : "halloween";
+    setCurrentTheme(nextTheme);
+    applyTheme(nextTheme);
+  };
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -520,6 +537,30 @@ export function KioskHeader({
           </button>
         )}
 
+        {/* Theme Toggle Button (Halloween / Cosmic) */}
+        <button
+          onClick={handleToggleTheme}
+          title={`Active Theme: ${currentTheme === "halloween" ? "Spooky Halloween 🎃" : "Cosmic Milky Way 🌌"}. Click to toggle.`}
+          aria-label="Toggle Halloween and Cosmic themes"
+          className="p-2 sm:p-2.5 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover text-slate-300 hover:text-starlight border border-cosmos-border transition min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
+        >
+          {currentTheme === "halloween" ? (
+            <span className="text-base leading-none select-none" role="img" aria-label="Halloween">🎃</span>
+          ) : (
+            <Sparkles className="w-4 h-4 text-starlight" />
+          )}
+        </button>
+
+        {/* What's New Changelog Info Button */}
+        <button
+          onClick={() => setIsChangelogOpen(true)}
+          title="What's New / Latest Changelog"
+          aria-label="Open latest updates and changelog"
+          className="p-2 sm:p-2.5 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover text-slate-300 hover:text-starlight border border-cosmos-border transition min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
+        >
+          <Info className="w-4 h-4 text-starlight" />
+        </button>
+
         {/* Night Sleep Button (OLED Protection) */}
         <button
           onClick={onToggleSleep}
@@ -552,6 +593,12 @@ export function KioskHeader({
           <span className="hidden sm:inline">{accessMode} Mode</span>
         </button>
       </div>
+
+      {/* Changelog Modal */}
+      <ChangelogModal
+        isOpen={isChangelogOpen}
+        onClose={() => setIsChangelogOpen(false)}
+      />
     </header>
   );
 }
