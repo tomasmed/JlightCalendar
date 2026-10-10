@@ -477,6 +477,7 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
                   >
                     <option value="daily" className="bg-cosmos-card">Daily</option>
                     <option value="weekly" className="bg-cosmos-card">Weekly</option>
+                    <option value="biweekly" className="bg-cosmos-card">Every 2 Weeks (Biweekly)</option>
                     <option value="one_time" className="bg-cosmos-card">One-Time (Non-repeating)</option>
                   </select>
                 </div>

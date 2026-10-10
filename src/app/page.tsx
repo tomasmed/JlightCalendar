@@ -162,10 +162,14 @@ export default function HomePage() {
     }
   };
 
-  // Handle Event Delete
-  const handleDeleteEvent = async (id: string) => {
+  // Handle Event Delete (Single Occurrence vs Full Series)
+  const handleDeleteEvent = async (id: string, exdate?: string) => {
     try {
-      const res = await fetch(`/api/events?id=${id}`, {
+      const url = exdate
+        ? `/api/events?id=${encodeURIComponent(id)}&exdate=${encodeURIComponent(exdate)}`
+        : `/api/events?id=${encodeURIComponent(id)}`;
+
+      const res = await fetch(url, {
         method: "DELETE",
       });
       if (res.ok) {

@@ -84,4 +84,30 @@ const expandedWeekly = expandRecurringEvents([weeklyEvent], rangeStart, monthEnd
 // Oct 1, 8, 15, 22, 29 = 5 Thursdays
 assert(expandedWeekly.length === 5, `Expected 5 weekly occurrences, got ${expandedWeekly.length}`);
 
+// Biweekly recurrence (Every 2 weeks on Thursday: Oct 1, Oct 15, Oct 29)
+const biweeklyEvent: BaseCalendarEventItem = {
+  id: "evt-payday",
+  date: "2026-10-01", // Thursday
+  time: "09:00 AM",
+  startTime: "2026-10-01T09:00:00",
+  endTime: "2026-10-01T09:30:00",
+  rrule: "FREQ=WEEKLY;INTERVAL=2",
+  title: "Biweekly Payday Orbit",
+};
+const expandedBiweekly = expandRecurringEvents([biweeklyEvent], rangeStart, monthEnd);
+// Oct 1, Oct 15, Oct 29 = 3 occurrences
+assert(expandedBiweekly.length === 3, `Expected 3 biweekly occurrences in October, got ${expandedBiweekly.length}`);
+assert(expandedBiweekly[0].date === "2026-10-01", "Biweekly occurrence 1 is Oct 1");
+assert(expandedBiweekly[1].date === "2026-10-15", "Biweekly occurrence 2 is Oct 15");
+assert(expandedBiweekly[2].date === "2026-10-29", "Biweekly occurrence 3 is Oct 29");
+
+// Exdates test: exclude Oct 15 occurrence
+const biweeklyWithExdate: BaseCalendarEventItem = {
+  ...biweeklyEvent,
+  exdates: ["2026-10-15"],
+};
+const expandedWithExdate = expandRecurringEvents([biweeklyWithExdate], rangeStart, monthEnd);
+assert(expandedWithExdate.length === 2, `Expected 2 occurrences after exdate exclusion, got ${expandedWithExdate.length}`);
+assert(expandedWithExdate.every((e) => e.date !== "2026-10-15"), "Excluded occurrence Oct 15 is not present");
+
 console.log("\nAll recurrence and duration unit tests passed successfully!");

@@ -37,6 +37,8 @@ export interface CalendarEventData {
   endTime: string;
   isAllDay?: boolean;
   rrule?: string | null;
+  exdates?: string[] | string | null;
+  occurrenceDate?: string; // Specific occurrence date clicked (YYYY-MM-DD)
   colorOverride?: string | null;
 }
 
@@ -52,7 +54,7 @@ interface EventModalProps {
   familyColor?: string;
   familyAvatar?: string;
   onSaveEvent: (event: CalendarEventData) => Promise<void>;
-  onDeleteEvent?: (id: string) => Promise<void>;
+  onDeleteEvent?: (id: string, exdate?: string) => Promise<void>;
 }
 
 const COLOR_PRESETS = [
@@ -220,8 +222,16 @@ export function EventModal({
     }
   };
 
+  const [showDeleteChoice, setShowDeleteChoice] = useState(false);
+
   const handleDelete = async () => {
     if (!canDelete || !eventToEdit?.id || !onDeleteEvent) return;
+    const isRecurring = Boolean(eventToEdit.rrule && eventToEdit.rrule !== "none");
+    if (isRecurring) {
+      setShowDeleteChoice(true);
+      return;
+    }
+
     if (confirm("Are you sure you want to remove this event from the galaxy orbit?")) {
       setIsSubmitting(true);
       try {
@@ -230,6 +240,31 @@ export function EventModal({
       } finally {
         setIsSubmitting(false);
       }
+    }
+  };
+
+  const handleConfirmDeleteSingleOccurrence = async () => {
+    if (!eventToEdit?.id || !onDeleteEvent) return;
+    const targetDate = eventToEdit.occurrenceDate || date;
+    setIsSubmitting(true);
+    try {
+      await onDeleteEvent(eventToEdit.id, targetDate);
+      setShowDeleteChoice(false);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmDeleteWholeSeries = async () => {
+    if (!eventToEdit?.id || !onDeleteEvent) return;
+    setIsSubmitting(true);
+    try {
+      await onDeleteEvent(eventToEdit.id);
+      setShowDeleteChoice(false);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -544,6 +579,59 @@ export function EventModal({
           </div>
         </form>
       </div>
+
+      {/* Recurring Event Deletion Choice Dialog */}
+      {showDeleteChoice && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="bg-cosmos-card border border-rose-500/40 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-white">Delete Recurring Event</h3>
+                <p className="text-xs text-slate-400">This event repeats on the calendar.</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-300">
+              Would you like to delete only this occurrence on{" "}
+              <strong className="text-white font-mono">{eventToEdit?.occurrenceDate || date}</strong>,
+              or remove the entire recurring series?
+            </p>
+
+            <div className="space-y-2 pt-2">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={handleConfirmDeleteSingleOccurrence}
+                className="w-full py-3 px-4 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-starlight text-sm font-bold transition flex items-center justify-between min-h-[48px]"
+              >
+                <span>Just this one</span>
+                <span className="text-xs text-slate-400 font-normal">Delete single date</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={handleConfirmDeleteWholeSeries}
+                className="w-full py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm font-black transition flex items-center justify-between min-h-[48px] shadow-lg shadow-rose-600/30"
+              >
+                <span>The whole series</span>
+                <span className="text-xs text-rose-200 font-normal">Delete all dates</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowDeleteChoice(false)}
+                className="w-full py-2.5 rounded-xl text-slate-400 hover:text-white text-xs font-bold transition min-h-[44px]"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
