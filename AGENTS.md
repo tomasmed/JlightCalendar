@@ -9,11 +9,12 @@ All autonomous agents working on this codebase **must strictly adhere** to the g
 ## 1. Core Operating Principles
 
 1. **Human-in-the-Loop First**: Every non-trivial change requires human review. Write code, documentation, and PRs so that a human maintainer without AI tools can easily read, test, and understand what was done.
-2. **Never Commit Directly to `main`**: The `main` branch is production-ready at all times.
-3. **Always Work in a Git Worktree**: All feature, bugfix, or refactor work must take place in an isolated git worktree on a dedicated branch (`feat/*`, `fix/*`, `chore/*`).
-4. **Document Every Architecture Decision**: Any new architectural pattern, external dependency, or protocol shift must have a corresponding Architecture Decision Record in `docs/adr/`.
-5. **Human-Operable Staging Tests**: Every Pull Request must include a clear, step-by-step test plan that a human can execute in staging with zero guesswork.
-6. **Check PR Status Before Pushing**: Never push follow-up commits to an already-merged branch/PR. If a PR has been merged on GitHub, pull latest `main`, create a new branch/worktree (`fix/*`, `feat/*`), and open a fresh PR.
+2. **Mandatory Local Manual Verification & User Sign-Off**: Before submitting any PR or finalizing a worktree, the agent MUST run the app locally (or verify in the active dev server) and require human user sign-off. Never open or finalize a PR without explicit user confirmation of local manual testing.
+3. **Never Commit Directly to `main`**: The `main` branch is production-ready at all times.
+4. **Always Work in a Git Worktree**: All feature, bugfix, or refactor work must take place in an isolated git worktree on a dedicated branch (`feat/*`, `fix/*`, `chore/*`).
+5. **Document Every Architecture Decision**: Any new architectural pattern, external dependency, or protocol shift must have a corresponding Architecture Decision Record in `docs/adr/`.
+6. **Human-Operable Staging Tests**: Every Pull Request must include a clear, step-by-step test plan that a human can execute in staging with zero guesswork.
+7. **Check PR Status Before Pushing**: Never push follow-up commits to an already-merged branch/PR. If a PR has been merged on GitHub, pull latest `main`, create a new branch/worktree (`fix/*`, `feat/*`), and open a fresh PR.
 
 ---
 
@@ -53,11 +54,16 @@ Follow the Conventional Commits specification:
 - `docs: add ADR 0005 for real-time SSE sync`
 - `test: add unit tests for chore completion state machine`
 
-### **Step 4: Check PR status and prepare the "Show and Tell" PR**
+### **Step 4: Local Manual Check & User Sign-Off (MANDATORY)**
+- Verify all changes running locally in the development server or kiosk display.
+- Present the changes to the user and request explicit manual test sign-off.
+- Only proceed to open or finalize the PR after user approval is received.
+
+### **Step 5: Check PR status and prepare the "Show and Tell" PR**
 - **Always verify the PR is not already merged**: Before pushing additional commits or expecting reviews on an existing branch, check whether the branch's PR was already merged on GitHub (`gh pr view`). If merged, never reuse that branch—pull `main`, branch afresh, and create a new PR.
 - Push the branch and generate a Pull Request following the format in `docs/workflow/pr-template.md`.
 
-### **Step 5: Clean up the worktree after merge**
+### **Step 6: Clean up the worktree after merge**
 ```powershell
 git worktree remove .worktrees/feat-<feature-name>
 git branch -d feat/<feature-name>
