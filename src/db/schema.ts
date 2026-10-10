@@ -183,6 +183,7 @@ export const events = sqliteTable("events", {
   endTime: text("end_time").notNull(),
   isAllDay: integer("is_all_day", { mode: "boolean" }).notNull().default(false),
   rrule: text("rrule"),
+  exdates: text("exdates"), // JSON array or comma-separated list of YYYY-MM-DD excluded dates
   colorOverride: text("color_override"),
   createdAt: text("created_at")
     .notNull()
@@ -204,7 +205,7 @@ export const chores = sqliteTable("chores", {
   title: text("title").notNull(),
   points: integer("points").notNull().default(1),
   recurrenceType: text("recurrence_type", {
-    enum: ["daily", "weekly", "custom", "one_time"],
+    enum: ["daily", "weekly", "biweekly", "custom", "one_time"],
   })
     .notNull()
     .default("daily"),

@@ -76,6 +76,8 @@ export async function GET(request: Request) {
         frequency:
           chore.recurrenceType === "one_time"
             ? "One-Time Task"
+            : chore.recurrenceType === "biweekly"
+            ? "Biweekly Routine"
             : chore.recurrenceType === "weekly"
             ? "Weekly Routine"
             : "Daily Routine",

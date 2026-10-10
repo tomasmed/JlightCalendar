@@ -101,6 +101,11 @@ export async function ensureDatabaseSchema(): Promise<void> {
           await client.execute("ALTER TABLE events ADD COLUMN member_ids text;");
           console.log("✅ Added 'member_ids' column to 'events'.");
         }
+        if (!eventCols.has("exdates")) {
+          console.log("🛠️ Adding missing column 'exdates' to 'events' table...");
+          await client.execute("ALTER TABLE events ADD COLUMN exdates text;");
+          console.log("✅ Added 'exdates' column to 'events'.");
+        }
       }
 
       isEnsured = true;

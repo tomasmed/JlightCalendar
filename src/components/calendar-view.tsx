@@ -65,6 +65,7 @@ export interface CalendarEvent {
   endTime?: string;
   isAllDay?: boolean;
   rrule?: string | null;
+  exdates?: string[] | string | null;
   duration: string;
   location?: string | null;
   description?: string | null;
@@ -499,7 +500,7 @@ interface CalendarViewProps {
   inhabitants?: Inhabitant[];
   events?: CalendarEventData[];
   onSaveEvent?: (event: CalendarEventData) => Promise<void>;
-  onDeleteEvent?: (id: string) => Promise<void>;
+  onDeleteEvent?: (id: string, exdate?: string) => Promise<void>;
   onUpdateFamilyIdentity?: (data: { familyColor: string; familyAvatar: string }) => Promise<void>;
   onAddInhabitant?: (inhabitant: {
     displayName: string;
@@ -665,6 +666,7 @@ export function CalendarView({
             endTime: pe.endTime,
             isAllDay,
             rrule: pe.rrule || null,
+            exdates: pe.exdates || null,
             duration: durationStr,
             location: pe.location,
             description: pe.description,
@@ -947,6 +949,8 @@ export function CalendarView({
         (evt.isAllDay ? `${evt.date}T23:59:59` : `${evt.date}T10:00:00`),
       isAllDay: evt.isAllDay,
       rrule: basePropEvent?.rrule || evt.rrule || null,
+      exdates: basePropEvent?.exdates || evt.exdates || null,
+      occurrenceDate: evt.date,
       colorOverride: evt.color,
     });
     setIsEventModalOpen(true);

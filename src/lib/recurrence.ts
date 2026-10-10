@@ -1,4 +1,4 @@
-export type RecurrenceFrequency = "none" | "daily" | "weekday" | "weekly" | "monthly";
+export type RecurrenceFrequency = "none" | "daily" | "weekday" | "weekly" | "biweekly" | "monthly";
 
 export interface RecurrenceOption {
   value: RecurrenceFrequency;
@@ -11,6 +11,7 @@ export const RECURRENCE_OPTIONS: RecurrenceOption[] = [
   { value: "daily", label: "Daily", rrule: "FREQ=DAILY" },
   { value: "weekday", label: "Every weekday (Mon - Fri)", rrule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR" },
   { value: "weekly", label: "Weekly", rrule: "FREQ=WEEKLY" },
+  { value: "biweekly", label: "Every 2 weeks (Biweekly)", rrule: "FREQ=WEEKLY;INTERVAL=2" },
   { value: "monthly", label: "Monthly", rrule: "FREQ=MONTHLY" },
 ];
 
@@ -23,6 +24,9 @@ export function rruleToFrequency(rrule?: string | null): RecurrenceFrequency {
   if (rule === "NONE" || rule === "") return "none";
   if (rule.includes("BYDAY=MO,TU,WE,TH,FR") || rule.includes("WEEKDAY")) {
     return "weekday";
+  }
+  if (rule.includes("INTERVAL=2") || rule.includes("BIWEEKLY")) {
+    return "biweekly";
   }
   if (rule.includes("FREQ=DAILY") || rule === "DAILY") {
     return "daily";
@@ -56,11 +60,35 @@ export function getRecurrenceLabel(rrule?: string | null): string {
       return "Repeats every weekday (Mon-Fri)";
     case "weekly":
       return "Repeats weekly";
+    case "biweekly":
+      return "Repeats every 2 weeks";
     case "monthly":
       return "Repeats monthly";
     default:
       return "Does not repeat";
   }
+}
+
+/**
+ * Parses an exdates string or JSON array into an array of YYYY-MM-DD date strings.
+ */
+export function parseExdates(raw?: string[] | string | null): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.filter(Boolean);
+      } catch {
+        // Fall back to comma-separated
+      }
+    }
+    return trimmed.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  return [];
 }
 
 /**
@@ -156,6 +184,7 @@ export interface BaseCalendarEventItem {
   endTime?: string;
   isAllDay?: boolean;
   rrule?: string | null;
+  exdates?: string[] | string | null;
   duration?: string;
   title?: string;
   location?: string | null;
@@ -168,6 +197,7 @@ export interface BaseCalendarEventItem {
 /**
  * Expands recurring calendar events across a given date range.
  * Non-recurring events are preserved as-is.
+ * Events with matching exdates (deleted single occurrences) are skipped.
  */
 export function expandRecurringEvents<T extends BaseCalendarEventItem>(
   events: T[],
@@ -180,9 +210,12 @@ export function expandRecurringEvents<T extends BaseCalendarEventItem>(
 
   for (const event of events) {
     const freq = rruleToFrequency(event.rrule);
+    const excludedDates = new Set(parseExdates(event.exdates));
 
     if (freq === "none") {
-      result.push(event);
+      if (!excludedDates.has(event.date)) {
+        result.push(event);
+      }
       continue;
     }
 
@@ -225,6 +258,16 @@ export function expandRecurringEvents<T extends BaseCalendarEventItem>(
           matches = current.getDay() === baseDate.getDay();
           break;
         }
+        case "biweekly": {
+          if (current.getDay() === baseDate.getDay()) {
+            // Difference in weeks from baseDate must be even (0, 2, 4...)
+            const msDiff = current.getTime() - baseDate.getTime();
+            const daysDiff = Math.round(msDiff / (1000 * 60 * 60 * 24));
+            const weeksDiff = Math.round(daysDiff / 7);
+            matches = weeksDiff >= 0 && weeksDiff % 2 === 0;
+          }
+          break;
+        }
         case "monthly": {
           matches = current.getDate() === baseDate.getDate();
           break;
@@ -234,27 +277,30 @@ export function expandRecurringEvents<T extends BaseCalendarEventItem>(
       if (matches) {
         const occurrenceDateStr = formatLocalDate(current);
 
-        if (occurrenceDateStr === event.date) {
-          result.push({
-            ...event,
-            baseEventId: event.id,
-          });
-        } else {
-          const computed = computeEventTimes(
-            occurrenceDateStr,
-            timeOnly,
-            durationMins,
-            Boolean(event.isAllDay)
-          );
+        // Check if this occurrence was deleted as an individual exception
+        if (!excludedDates.has(occurrenceDateStr)) {
+          if (occurrenceDateStr === event.date) {
+            result.push({
+              ...event,
+              baseEventId: event.id,
+            });
+          } else {
+            const computed = computeEventTimes(
+              occurrenceDateStr,
+              timeOnly,
+              durationMins,
+              Boolean(event.isAllDay)
+            );
 
-          result.push({
-            ...event,
-            id: `${event.id}_${occurrenceDateStr}`,
-            baseEventId: event.id,
-            date: occurrenceDateStr,
-            startTime: computed.startTimeISO,
-            endTime: computed.endTimeISO,
-          });
+            result.push({
+              ...event,
+              id: `${event.id}_${occurrenceDateStr}`,
+              baseEventId: event.id,
+              date: occurrenceDateStr,
+              startTime: computed.startTimeISO,
+              endTime: computed.endTimeISO,
+            });
+          }
         }
       }
 

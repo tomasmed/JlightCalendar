@@ -56,6 +56,7 @@ export async function POST(req: Request) {
       endTime,
       isAllDay = false,
       rrule,
+      exdates,
       colorOverride,
     } = body;
 
@@ -99,6 +100,12 @@ export async function POST(req: Request) {
       ? JSON.stringify([memberId])
       : null;
 
+    const exdatesString = Array.isArray(exdates)
+      ? JSON.stringify(exdates)
+      : typeof exdates === "string"
+      ? exdates
+      : null;
+
     const id = crypto.randomUUID();
     await db.insert(events).values({
       id,
@@ -113,6 +120,7 @@ export async function POST(req: Request) {
       endTime,
       isAllDay: Boolean(isAllDay),
       rrule: rrule || null,
+      exdates: exdatesString,
       colorOverride: colorOverride || null,
     });
 
@@ -131,6 +139,7 @@ export async function POST(req: Request) {
         endTime,
         isAllDay,
         rrule: rrule || null,
+        exdates: exdatesString,
         colorOverride,
       },
     });
@@ -183,6 +192,14 @@ export async function PATCH(req: Request) {
       }
     }
 
+    if ("exdates" in updatePayload) {
+      if (Array.isArray(updatePayload.exdates)) {
+        updatePayload.exdates = JSON.stringify(updatePayload.exdates);
+      } else if (typeof updatePayload.exdates !== "string" && updatePayload.exdates !== null) {
+        updatePayload.exdates = null;
+      }
+    }
+
     await db.update(events).set(updatePayload).where(eq(events.id, id));
 
     return NextResponse.json({ success: true });
@@ -200,6 +217,7 @@ export async function DELETE(req: Request) {
     const session = await auth();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+    const exdate = searchParams.get("exdate"); // YYYY-MM-DD for single occurrence deletion
 
     if (!id) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -215,8 +233,9 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
+    const eventRecord = existing[0];
     const hasAccess = await verifyGalaxyAccess(
-      existing[0].galaxyId,
+      eventRecord.galaxyId,
       session?.user?.id
     );
     if (!hasAccess) {
@@ -226,9 +245,39 @@ export async function DELETE(req: Request) {
       );
     }
 
+    // Single occurrence deletion for recurring event
+    if (exdate && eventRecord.rrule) {
+      let currentExdates: string[] = [];
+      if (eventRecord.exdates) {
+        try {
+          const parsed = JSON.parse(eventRecord.exdates);
+          if (Array.isArray(parsed)) currentExdates = parsed;
+          else currentExdates = [String(eventRecord.exdates)];
+        } catch {
+          currentExdates = eventRecord.exdates.split(",").map((s) => s.trim()).filter(Boolean);
+        }
+      }
+
+      if (!currentExdates.includes(exdate)) {
+        currentExdates.push(exdate);
+      }
+
+      await db
+        .update(events)
+        .set({ exdates: JSON.stringify(currentExdates) })
+        .where(eq(events.id, id));
+
+      return NextResponse.json({
+        success: true,
+        deletedOccurrence: exdate,
+        exdates: currentExdates,
+      });
+    }
+
+    // Delete entire event / series
     await db.delete(events).where(eq(events.id, id));
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, deletedSeries: true });
   } catch (error) {
     console.error("Failed to delete event:", error);
     return NextResponse.json(
