@@ -21,7 +21,11 @@ import {
   Repeat,
 } from "lucide-react";
 import { AccessMode } from "./kiosk-header";
-import { Inhabitant, InhabitantsModal } from "./inhabitants-modal";
+import {
+  Inhabitant,
+  InhabitantsModal,
+  getCosmicAvatarIcon,
+} from "./inhabitants-modal";
 import { EventModal, CalendarEventData } from "./event-modal";
 import {
   expandRecurringEvents,
@@ -53,6 +57,7 @@ export interface CalendarEvent {
   galaxyId?: string;
   calendarId?: string;
   memberId: string | null;
+  memberIds?: string[] | null;
   title: string;
   date: string; // YYYY-MM-DD
   time: string;
@@ -64,6 +69,80 @@ export interface CalendarEvent {
   location?: string | null;
   description?: string | null;
   color: string;
+}
+
+export function parseMemberIds(raw: string[] | string | null | undefined): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+      return [raw];
+    } catch {
+      return [raw];
+    }
+  }
+  return [];
+}
+
+export function getEventColors(
+  event: { memberId?: string | null; memberIds?: string[] | null; color?: string },
+  inhabitants: { id: string; color: string }[],
+  fallbackFamilyColor: string = "#ef4444"
+): string[] {
+  const ids = event.memberIds && event.memberIds.length > 0
+    ? event.memberIds
+    : event.memberId
+    ? [event.memberId]
+    : [];
+
+  if (ids.length === 0) {
+    return [event.color || fallbackFamilyColor];
+  }
+
+  const colors = ids.map((id) => {
+    const member = inhabitants.find((m) => m.id === id);
+    return member?.color || event.color || fallbackFamilyColor;
+  });
+
+  return colors.length > 0 ? colors : [fallbackFamilyColor];
+}
+
+export function getEventBackgroundStyle(
+  colors: string[],
+  alphaHex: string = "25"
+): { background: string; borderColor: string; primaryColor: string } {
+  const primaryColor = colors[0] || "#ef4444";
+  if (colors.length <= 1) {
+    return {
+      background: `${primaryColor}${alphaHex}`,
+      borderColor: `${primaryColor}80`,
+      primaryColor,
+    };
+  }
+
+  if (colors.length === 2) {
+    return {
+      background: `linear-gradient(135deg, ${colors[0]}${alphaHex} 0%, ${colors[0]}${alphaHex} 50%, ${colors[1]}${alphaHex} 50%, ${colors[1]}${alphaHex} 100%)`,
+      borderColor: `${colors[0]}90`,
+      primaryColor: colors[0],
+    };
+  }
+
+  // 3 or more members: evenly segmented diagonal bands
+  const step = 100 / colors.length;
+  const stops = colors.map((c, i) => {
+    const start = (i * step).toFixed(1);
+    const end = ((i + 1) * step).toFixed(1);
+    return `${c}${alphaHex} ${start}%, ${c}${alphaHex} ${end}%`;
+  });
+
+  return {
+    background: `linear-gradient(135deg, ${stops.join(", ")})`,
+    borderColor: `${colors[0]}90`,
+    primaryColor: colors[0],
+  };
 }
 
 export function getEventSortKey(event: CalendarEvent): number {
@@ -415,10 +494,13 @@ interface CalendarViewProps {
   accessMode: AccessMode;
   activeGalaxyId?: string;
   activeGalaxyName?: string;
+  familyColor?: string;
+  familyAvatar?: string;
   inhabitants?: Inhabitant[];
   events?: CalendarEventData[];
   onSaveEvent?: (event: CalendarEventData) => Promise<void>;
   onDeleteEvent?: (id: string) => Promise<void>;
+  onUpdateFamilyIdentity?: (data: { familyColor: string; familyAvatar: string }) => Promise<void>;
   onAddInhabitant?: (inhabitant: {
     displayName: string;
     role: "admin" | "member" | "kid" | "pet";
@@ -439,10 +521,13 @@ export function CalendarView({
   accessMode,
   activeGalaxyId = "galaxy_sol_family",
   activeGalaxyName = "The Sol Family Galaxy",
+  familyColor = "#ef4444",
+  familyAvatar = "planet",
   inhabitants = [],
   events: propEvents,
   onSaveEvent,
   onDeleteEvent,
+  onUpdateFamilyIdentity,
   onAddInhabitant,
   onUpdateInhabitant,
   onRemoveInhabitant,
@@ -505,7 +590,7 @@ export function CalendarView({
 
   // Normalize Inhabitants: If DB provided, map to member items; else fallback to SAMPLE_MEMBERS ONLY for demo
   const memberList: Member[] = [
-    { id: "all", name: "All Family", color: "#ffd166", avatarIcon: "sparkles" },
+    { id: "all", name: "All Family", color: familyColor || "#ef4444", avatarIcon: familyAvatar || "planet" },
     ...(inhabitants.length > 0
       ? inhabitants.map((inh) => ({
           id: inh.id,
@@ -562,12 +647,17 @@ export function CalendarView({
             }
           }
 
+          const parsedIds = parseMemberIds(pe.memberIds);
+          const primaryMemberId = parsedIds.length > 0 ? parsedIds[0] : pe.memberId || null;
+          const assignedMember = inhabitants.find((i) => i.id === primaryMemberId);
+
           return {
             id: pe.id || crypto.randomUUID(),
             baseEventId: pe.id,
             galaxyId: pe.galaxyId,
             calendarId: pe.calendarId,
-            memberId: pe.memberId || null,
+            memberId: primaryMemberId,
+            memberIds: parsedIds.length > 0 ? parsedIds : pe.memberId ? [pe.memberId] : null,
             title: pe.title,
             date: dateStr,
             time: timeStr,
@@ -580,8 +670,8 @@ export function CalendarView({
             description: pe.description,
             color:
               pe.colorOverride ||
-              inhabitants.find((i) => i.id === pe.memberId)?.color ||
-              "#8b5cf6",
+              assignedMember?.color ||
+              (parsedIds.length === 0 ? familyColor : "#8b5cf6"),
           };
         })
       : isSolDemoGalaxy
@@ -593,11 +683,19 @@ export function CalendarView({
   const windowEnd = new Date(currentYear, currentMonth + 3, 0);
   const calendarEvents = expandRecurringEvents(rawCalendarEvents, windowStart, windowEnd);
 
-  // Filter events by member
+  // Filter events by member: if 'all', show everything; if specific member, show if event's memberIds include it or event has no members (family-wide)
   const filteredEvents =
     selectedMemberId === "all"
       ? calendarEvents
-      : calendarEvents.filter((e) => e.memberId === selectedMemberId || e.memberId === null);
+      : calendarEvents.filter((e) => {
+          const ids = e.memberIds && e.memberIds.length > 0
+            ? e.memberIds
+            : e.memberId
+            ? [e.memberId]
+            : [];
+          if (ids.length === 0) return true; // Whole-family event shows for everyone
+          return ids.includes(selectedMemberId);
+        });
 
   // Unified lateral navigation
   const prevPeriod = () => {
@@ -833,6 +931,7 @@ export function CalendarView({
       galaxyId: evt.galaxyId || activeGalaxyId,
       calendarId: evt.calendarId,
       memberId: evt.memberId,
+      memberIds: evt.memberIds || (evt.memberId ? [evt.memberId] : null),
       title: evt.title,
       description: evt.description,
       location: evt.location,
@@ -872,6 +971,8 @@ export function CalendarView({
         eventToEdit={eventToEdit}
         inhabitants={modalInhabitants}
         accessMode={accessMode}
+        familyColor={familyColor}
+        familyAvatar={familyAvatar}
         onSaveEvent={onSaveEvent || (async () => {})}
         onDeleteEvent={onDeleteEvent}
       />
@@ -883,6 +984,9 @@ export function CalendarView({
         galaxyName={activeGalaxyName}
         inhabitants={modalInhabitants}
         accessMode={accessMode}
+        familyColor={familyColor}
+        familyAvatar={familyAvatar}
+        onUpdateFamilyIdentity={onUpdateFamilyIdentity}
         onAddInhabitant={onAddInhabitant || (async () => {})}
         onUpdateInhabitant={onUpdateInhabitant}
         onRemoveInhabitant={onRemoveInhabitant}
@@ -894,7 +998,9 @@ export function CalendarView({
         <div className="flex items-center gap-1.5 md:gap-2 overflow-x-auto pb-1 max-w-full">
           {memberList.map((member) => {
             const isSelected = selectedMemberId === member.id;
-            const Icon = getInhabitantIcon(member.avatarIcon);
+            const Icon = member.id === "all"
+              ? getCosmicAvatarIcon(member.avatarIcon)
+              : getInhabitantIcon(member.avatarIcon);
 
             return (
               <button
@@ -1067,26 +1173,48 @@ export function CalendarView({
 
                   {/* Tablet & Desktop: Event Pills */}
                   <div className="hidden sm:flex flex-1 flex-col gap-1 overflow-hidden">
-                    {dayEvents.slice(0, 3).map((evt) => (
-                      <div
-                        key={evt.id}
-                        onClick={(e) => handleOpenEditEvent(evt, e)}
-                        className="truncate text-[10px] md:text-[11px] font-bold px-1.5 py-0.5 rounded-md border text-white transition hover:scale-[1.02]"
-                        style={{
-                          backgroundColor: `${evt.color}25`,
-                          borderColor: `${evt.color}60`,
-                          color: evt.color,
-                        }}
-                      >
-                        <span className="opacity-70 font-mono text-[9px] mr-1">
-                          {evt.isAllDay ? "ALL DAY" : evt.time.replace(":00", "").toLowerCase()}
-                        </span>
-                        {evt.rrule && evt.rrule !== "none" && (
-                          <Repeat className="w-2.5 h-2.5 inline-block mr-1 opacity-80 shrink-0" />
-                        )}
-                        <span>{evt.title}</span>
-                      </div>
-                    ))}
+                    {dayEvents.slice(0, 3).map((evt) => {
+                      const colors = getEventColors(evt, inhabitants, familyColor);
+                      const bgStyle = getEventBackgroundStyle(colors, "30");
+
+                      return (
+                        <div
+                          key={evt.id}
+                          onClick={(e) => handleOpenEditEvent(evt, e)}
+                          className="truncate text-[10px] md:text-[11px] font-bold px-1.5 py-0.5 rounded-md border text-white transition hover:scale-[1.02] flex items-center gap-1"
+                          style={{
+                            background: bgStyle.background,
+                            borderColor: bgStyle.borderColor,
+                          }}
+                        >
+                          {/* Multi-member mini colored dots */}
+                          {colors.length > 1 ? (
+                            <div className="flex -space-x-1 shrink-0">
+                              {colors.map((c, i) => (
+                                <span
+                                  key={i}
+                                  className="w-1.5 h-1.5 rounded-full ring-1 ring-black/40"
+                                  style={{ backgroundColor: c }}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <span
+                              className="w-1.5 h-1.5 rounded-full shrink-0"
+                              style={{ backgroundColor: colors[0] }}
+                            />
+                          )}
+
+                          <span className="opacity-75 font-mono text-[9px]">
+                            {evt.isAllDay ? "ALL DAY" : evt.time.replace(":00", "").toLowerCase()}
+                          </span>
+                          {evt.rrule && evt.rrule !== "none" && (
+                            <Repeat className="w-2.5 h-2.5 inline-block opacity-80 shrink-0" />
+                          )}
+                          <span className="truncate">{evt.title}</span>
+                        </div>
+                      );
+                    })}
 
                     {dayEvents.length > 3 && (
                       <span className="text-[10px] font-extrabold text-starlight-cyan px-1">
@@ -1097,16 +1225,32 @@ export function CalendarView({
 
                   {/* Mobile (~Galaxy S26): Constellation Event Indicator Dots */}
                   <div className="sm:hidden flex flex-wrap gap-1 mt-auto items-center">
-                    {dayEvents.slice(0, 3).map((evt) => (
-                      <div
-                        key={evt.id}
-                        className="w-2 h-2 rounded-full shrink-0 shadow-sm"
-                        style={{
-                          backgroundColor: evt.color,
-                          boxShadow: `0 0 4px ${evt.color}`,
-                        }}
-                      />
-                    ))}
+                    {dayEvents.slice(0, 3).map((evt) => {
+                      const colors = getEventColors(evt, inhabitants, familyColor);
+                      return colors.length > 1 ? (
+                        <div key={evt.id} className="flex -space-x-1 shrink-0">
+                          {colors.map((c, i) => (
+                            <div
+                              key={i}
+                              className="w-2 h-2 rounded-full ring-1 ring-black/50"
+                              style={{
+                                backgroundColor: c,
+                                boxShadow: `0 0 3px ${c}`,
+                              }}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div
+                          key={evt.id}
+                          className="w-2 h-2 rounded-full shrink-0 shadow-sm"
+                          style={{
+                            backgroundColor: colors[0],
+                            boxShadow: `0 0 4px ${colors[0]}`,
+                          }}
+                        />
+                      );
+                    })}
                     {dayEvents.length > 3 && (
                       <span className="text-[8px] font-extrabold text-starlight leading-none">
                         +{dayEvents.length - 3}
@@ -1174,41 +1318,73 @@ export function CalendarView({
             filteredEvents
               .filter((e) => e.date === toDateStr(currentDate))
               .sort(compareEventsByTime)
-              .map((evt) => (
-                <div
-                  key={evt.id}
-                  onClick={(e) => handleOpenEditEvent(evt, e)}
-                  className="p-4 rounded-2xl bg-cosmos-card border border-cosmos-border flex items-center justify-between shadow-lg cursor-pointer hover:bg-cosmos-cardHover transition"
-                  style={{ borderLeftWidth: "6px", borderLeftColor: evt.color }}
-                >
-                  <div>
-                    <span className="text-base md:text-lg font-bold text-white flex items-center gap-1.5">
-                      {evt.rrule && evt.rrule !== "none" && (
-                        <Repeat className="w-4 h-4 text-purple-400 shrink-0" />
-                      )}
-                      <span>{evt.title}</span>
-                    </span>
-                    <div className="flex items-center gap-4 mt-1 text-xs text-slate-400">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-slate-500" />
-                        {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
+              .map((evt) => {
+                const colors = getEventColors(evt, inhabitants, familyColor);
+                const bgStyle = getEventBackgroundStyle(colors, "25");
+                const assignedNames = (evt.memberIds && evt.memberIds.length > 0)
+                  ? evt.memberIds.map((id) => memberList.find((m) => m.id === id)?.name || id).join(", ")
+                  : evt.memberId
+                  ? memberList.find((m) => m.id === evt.memberId)?.name || "Family"
+                  : "🌟 Whole Family";
+
+                return (
+                  <div
+                    key={evt.id}
+                    onClick={(e) => handleOpenEditEvent(evt, e)}
+                    className="p-4 rounded-2xl border flex items-center justify-between shadow-lg cursor-pointer hover:brightness-110 transition"
+                    style={{
+                      background: bgStyle.background,
+                      borderColor: bgStyle.borderColor,
+                      borderLeftWidth: "6px",
+                      borderLeftColor: bgStyle.primaryColor,
+                    }}
+                  >
+                    <div>
+                      <span className="text-base md:text-lg font-bold text-white flex items-center gap-1.5">
+                        {evt.rrule && evt.rrule !== "none" && (
+                          <Repeat className="w-4 h-4 text-purple-400 shrink-0" />
+                        )}
+                        <span>{evt.title}</span>
                       </span>
-                      {evt.location && (
+                      <div className="flex items-center gap-4 mt-1 text-xs text-slate-300">
                         <span className="flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                          {evt.location}
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
                         </span>
+                        {evt.location && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                            {evt.location}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {colors.length > 1 && (
+                        <div className="flex -space-x-1.5">
+                          {colors.map((c, i) => (
+                            <span
+                              key={i}
+                              className="w-3.5 h-3.5 rounded-full ring-2 ring-cosmos-deep shadow-sm"
+                              style={{ backgroundColor: c }}
+                            />
+                          ))}
+                        </div>
                       )}
+                      <span
+                        className="text-xs px-3 py-1 rounded-full font-bold"
+                        style={{
+                          backgroundColor: `${bgStyle.primaryColor}30`,
+                          color: bgStyle.primaryColor,
+                        }}
+                      >
+                        {assignedNames}
+                      </span>
                     </div>
                   </div>
-                  <span
-                    className="text-xs px-3 py-1 rounded-full font-bold"
-                    style={{ backgroundColor: `${evt.color}22`, color: evt.color }}
-                  >
-                    {memberList.find((m) => m.id === evt.memberId)?.name || "Family"}
-                  </span>
-                </div>
-              ))
+                );
+              })
           )}
           </div>
         </div>
@@ -1312,24 +1488,44 @@ export function CalendarView({
                           key={day.dateStr}
                           className="p-1 border-r border-cosmos-border last:border-r-0 space-y-1 min-h-[32px] flex flex-col justify-center"
                         >
-                          {allDayEvents.map((evt) => (
-                            <div
-                              key={evt.id}
-                              onClick={(e) => handleOpenEditEvent(evt, e)}
-                              className="text-[10px] font-bold px-1.5 py-0.5 rounded-md truncate cursor-pointer transition hover:scale-[1.02] shadow-sm border flex items-center gap-1"
-                              style={{
-                                backgroundColor: `${evt.color}30`,
-                                borderColor: `${evt.color}80`,
-                                color: evt.color,
-                              }}
-                              title={`${evt.title} (All Day)`}
-                            >
-                              {evt.rrule && evt.rrule !== "none" && (
-                                <Repeat className="w-2.5 h-2.5 shrink-0 opacity-80" />
-                              )}
-                              <span className="truncate">{evt.title}</span>
-                            </div>
-                          ))}
+                          {allDayEvents.map((evt) => {
+                            const colors = getEventColors(evt, inhabitants, familyColor);
+                            const bgStyle = getEventBackgroundStyle(colors, "30");
+
+                            return (
+                              <div
+                                key={evt.id}
+                                onClick={(e) => handleOpenEditEvent(evt, e)}
+                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-md truncate cursor-pointer transition hover:scale-[1.02] shadow-sm border flex items-center gap-1"
+                                style={{
+                                  background: bgStyle.background,
+                                  borderColor: bgStyle.borderColor,
+                                }}
+                                title={`${evt.title} (All Day)`}
+                              >
+                                {colors.length > 1 ? (
+                                  <div className="flex -space-x-1 shrink-0">
+                                    {colors.map((c, i) => (
+                                      <span
+                                        key={i}
+                                        className="w-1.5 h-1.5 rounded-full ring-1 ring-black/40"
+                                        style={{ backgroundColor: c }}
+                                      />
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span
+                                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                                    style={{ backgroundColor: colors[0] }}
+                                  />
+                                )}
+                                {evt.rrule && evt.rrule !== "none" && (
+                                  <Repeat className="w-2.5 h-2.5 shrink-0 opacity-80" />
+                                )}
+                                <span className="truncate">{evt.title}</span>
+                              </div>
+                            );
+                          })}
                         </div>
                       );
                     })}
@@ -1412,10 +1608,16 @@ export function CalendarView({
                       {/* Positioned Timed Events (with visual vertical hour spanning) */}
                       {positionedEvents.map((pos) => {
                         const evt = pos.event;
-                        const InhabitantIcon = getInhabitantIcon(
-                          inhabitants.find((i) => i.id === evt.memberId)?.avatarIcon ||
-                          SAMPLE_MEMBERS.find((m) => m.id === evt.memberId)?.avatarIcon
-                        );
+                        const colors = getEventColors(evt, inhabitants, familyColor);
+                        const bgStyle = getEventBackgroundStyle(colors, "30");
+                        const isWholeFamily = (!evt.memberIds || evt.memberIds.length === 0) && !evt.memberId;
+                        const FamilyAvatarIcon = getCosmicAvatarIcon(familyAvatar);
+                        const InhabitantIcon = isWholeFamily
+                          ? FamilyAvatarIcon
+                          : getInhabitantIcon(
+                              inhabitants.find((i) => i.id === evt.memberId)?.avatarIcon ||
+                              SAMPLE_MEMBERS.find((m) => m.id === evt.memberId)?.avatarIcon
+                            );
 
                         return (
                           <div
@@ -1426,9 +1628,9 @@ export function CalendarView({
                               height: `${pos.height}px`,
                               left: `calc(${pos.colIndex} * (100% / ${pos.totalCols}) + 2px)`,
                               width: `calc(100% / ${pos.totalCols} - 4px)`,
-                              backgroundColor: `${evt.color}25`,
-                              borderColor: `${evt.color}80`,
-                              borderLeftColor: evt.color,
+                              background: bgStyle.background,
+                              borderColor: bgStyle.borderColor,
+                              borderLeftColor: bgStyle.primaryColor,
                               zIndex: 10 + pos.colIndex,
                             }}
                             className="absolute rounded-xl border border-l-4 p-1.5 sm:p-2 cursor-pointer shadow-md overflow-hidden transition-all duration-150 hover:scale-[1.01] hover:shadow-xl hover:brightness-110 flex flex-col justify-between backdrop-blur-sm group/evt"
@@ -1436,10 +1638,22 @@ export function CalendarView({
                           >
                             <div className="overflow-hidden">
                               <div className="flex items-center gap-1 leading-tight">
-                                <span
-                                  className="w-2 h-2 rounded-full shrink-0"
-                                  style={{ backgroundColor: evt.color }}
-                                />
+                                {colors.length > 1 ? (
+                                  <div className="flex -space-x-1 shrink-0">
+                                    {colors.map((c, i) => (
+                                      <span
+                                        key={i}
+                                        className="w-2 h-2 rounded-full ring-1 ring-black/40"
+                                        style={{ backgroundColor: c }}
+                                      />
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span
+                                    className="w-2 h-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: colors[0] }}
+                                  />
+                                )}
                                 {evt.rrule && evt.rrule !== "none" && (
                                   <Repeat className="w-2.5 h-2.5 text-purple-300 shrink-0 opacity-90" />
                                 )}
@@ -1470,13 +1684,17 @@ export function CalendarView({
                                 <span
                                   className="text-[9px] font-bold px-1.5 py-0.5 rounded-full truncate flex items-center gap-1"
                                   style={{
-                                    backgroundColor: `${evt.color}30`,
-                                    color: evt.color,
+                                    backgroundColor: `${bgStyle.primaryColor}30`,
+                                    color: bgStyle.primaryColor,
                                   }}
                                 >
                                   <InhabitantIcon className="w-2.5 h-2.5 shrink-0" />
                                   <span className="truncate">
-                                    {memberList.find((m) => m.id === evt.memberId)?.name || "Family"}
+                                    {(evt.memberIds && evt.memberIds.length > 0)
+                                      ? evt.memberIds.map((id) => memberList.find((m) => m.id === id)?.name || id).join(", ")
+                                      : evt.memberId
+                                      ? memberList.find((m) => m.id === evt.memberId)?.name || "Family"
+                                      : "🌟 Whole Family"}
                                   </span>
                                 </span>
                               </div>
@@ -1498,37 +1716,66 @@ export function CalendarView({
       {/* VIEW 4: Schedule View */}
       {viewType === "schedule" && (
         <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-          {[...filteredEvents].sort(compareEventsByTime).map((evt) => (
-            <div
-              key={evt.id}
-              onClick={(e) => handleOpenEditEvent(evt, e)}
-              className="p-4 rounded-2xl bg-cosmos-card border border-cosmos-border flex items-center justify-between cursor-pointer hover:bg-cosmos-cardHover transition"
-            >
-              <div className="flex items-center gap-4">
-                <div
-                  className="w-3 h-10 rounded-full"
-                  style={{ backgroundColor: evt.color }}
-                />
-                <div>
-                  <span className="text-base font-bold text-white flex items-center gap-1.5">
-                    {evt.rrule && evt.rrule !== "none" && (
-                      <Repeat className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                    )}
-                    <span>{evt.title}</span>
-                  </span>
-                  <span className="text-xs text-slate-400 block">
-                    {evt.date} • {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
-                  </span>
-                </div>
-              </div>
-              <span
-                className="text-xs px-3 py-1 rounded-full font-bold"
-                style={{ backgroundColor: `${evt.color}22`, color: evt.color }}
+          {[...filteredEvents].sort(compareEventsByTime).map((evt) => {
+            const colors = getEventColors(evt, inhabitants, familyColor);
+            const bgStyle = getEventBackgroundStyle(colors, "25");
+            const assignedNames = (evt.memberIds && evt.memberIds.length > 0)
+              ? evt.memberIds.map((id) => memberList.find((m) => m.id === id)?.name || id).join(", ")
+              : evt.memberId
+              ? memberList.find((m) => m.id === evt.memberId)?.name || "Family"
+              : "🌟 Whole Family";
+
+            return (
+              <div
+                key={evt.id}
+                onClick={(e) => handleOpenEditEvent(evt, e)}
+                className="p-4 rounded-2xl border flex items-center justify-between cursor-pointer hover:brightness-110 transition shadow-md"
+                style={{
+                  background: bgStyle.background,
+                  borderColor: bgStyle.borderColor,
+                }}
               >
-                {memberList.find((m) => m.id === evt.memberId)?.name || "Family"}
-              </span>
-            </div>
-          ))}
+                <div className="flex items-center gap-4">
+                  {colors.length > 1 ? (
+                    <div className="flex -space-x-1 shrink-0">
+                      {colors.map((c, i) => (
+                        <div
+                          key={i}
+                          className="w-3.5 h-10 rounded-full shadow-sm ring-1 ring-black/40"
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div
+                      className="w-3 h-10 rounded-full"
+                      style={{ backgroundColor: colors[0] }}
+                    />
+                  )}
+                  <div>
+                    <span className="text-base font-bold text-white flex items-center gap-1.5">
+                      {evt.rrule && evt.rrule !== "none" && (
+                        <Repeat className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                      )}
+                      <span>{evt.title}</span>
+                    </span>
+                    <span className="text-xs text-slate-300 block">
+                      {evt.date} • {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
+                    </span>
+                  </div>
+                </div>
+                <span
+                  className="text-xs px-3 py-1 rounded-full font-bold"
+                  style={{
+                    backgroundColor: `${bgStyle.primaryColor}30`,
+                    color: bgStyle.primaryColor,
+                  }}
+                >
+                  {assignedNames}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -1565,44 +1812,62 @@ export function CalendarView({
                   </p>
                 </div>
               ) : (
-                selectedDateEvents.map((evt) => (
-                  <div
-                    key={evt.id}
-                    onClick={(e) => {
-                      setSelectedDayModal(null);
-                      handleOpenEditEvent(evt, e);
-                    }}
-                    className="p-3.5 rounded-2xl bg-cosmos-surface border border-cosmos-border flex items-center justify-between cursor-pointer hover:bg-cosmos-cardHover transition"
-                    style={{ borderLeftWidth: "5px", borderLeftColor: evt.color }}
-                  >
-                    <div>
-                      <span className="text-sm font-bold text-white flex items-center gap-1.5">
-                        {evt.rrule && evt.rrule !== "none" && (
-                          <Repeat className="w-3 h-3 text-purple-400 shrink-0" />
-                        )}
-                        <span>{evt.title}</span>
-                      </span>
-                      <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-slate-500" />
-                          {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
-                        </span>
-                        {evt.location && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3 text-slate-500" />
-                            {evt.location}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <span
-                      className="text-xs px-2.5 py-1 rounded-full font-bold"
-                      style={{ backgroundColor: `${evt.color}20`, color: evt.color }}
+                selectedDateEvents.map((evt) => {
+                  const colors = getEventColors(evt, inhabitants, familyColor);
+                  const bgStyle = getEventBackgroundStyle(colors, "25");
+                  const assignedNames = (evt.memberIds && evt.memberIds.length > 0)
+                    ? evt.memberIds.map((id) => memberList.find((m) => m.id === id)?.name || id).join(", ")
+                    : evt.memberId
+                    ? memberList.find((m) => m.id === evt.memberId)?.name || "Family"
+                    : "🌟 Whole Family";
+
+                  return (
+                    <div
+                      key={evt.id}
+                      onClick={(e) => {
+                        setSelectedDayModal(null);
+                        handleOpenEditEvent(evt, e);
+                      }}
+                      className="p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer hover:brightness-110 transition shadow-sm"
+                      style={{
+                        background: bgStyle.background,
+                        borderColor: bgStyle.borderColor,
+                        borderLeftWidth: "5px",
+                        borderLeftColor: bgStyle.primaryColor,
+                      }}
                     >
-                      {memberList.find((m) => m.id === evt.memberId)?.name || "Family"}
-                    </span>
-                  </div>
-                ))
+                      <div>
+                        <span className="text-sm font-bold text-white flex items-center gap-1.5">
+                          {evt.rrule && evt.rrule !== "none" && (
+                            <Repeat className="w-3 h-3 text-purple-400 shrink-0" />
+                          )}
+                          <span>{evt.title}</span>
+                        </span>
+                        <div className="flex items-center gap-3 text-xs text-slate-300 mt-0.5">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-400" />
+                            {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
+                          </span>
+                          {evt.location && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-slate-400" />
+                              {evt.location}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span
+                        className="text-xs px-2.5 py-1 rounded-full font-bold"
+                        style={{
+                          backgroundColor: `${bgStyle.primaryColor}30`,
+                          color: bgStyle.primaryColor,
+                        }}
+                      >
+                        {assignedNames}
+                      </span>
+                    </div>
+                  );
+                })
               )}
             </div>
 

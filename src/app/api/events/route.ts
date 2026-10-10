@@ -48,6 +48,7 @@ export async function POST(req: Request) {
       galaxyId,
       calendarId,
       memberId,
+      memberIds,
       title,
       description,
       location,
@@ -90,12 +91,21 @@ export async function POST(req: Request) {
       }
     }
 
+    const memberIdsString = Array.isArray(memberIds)
+      ? JSON.stringify(memberIds)
+      : typeof memberIds === "string"
+      ? memberIds
+      : memberId
+      ? JSON.stringify([memberId])
+      : null;
+
     const id = crypto.randomUUID();
     await db.insert(events).values({
       id,
       galaxyId,
       calendarId: assignedCalendarId,
       memberId: memberId || null,
+      memberIds: memberIdsString,
       title,
       description: description || null,
       location: location || null,
@@ -113,6 +123,7 @@ export async function POST(req: Request) {
         galaxyId,
         calendarId: assignedCalendarId,
         memberId: memberId || null,
+        memberIds: memberIdsString,
         title,
         description,
         location,
@@ -163,7 +174,16 @@ export async function PATCH(req: Request) {
       );
     }
 
-    await db.update(events).set(updates).where(eq(events.id, id));
+    const updatePayload = { ...updates };
+    if ("memberIds" in updatePayload) {
+      if (Array.isArray(updatePayload.memberIds)) {
+        updatePayload.memberIds = JSON.stringify(updatePayload.memberIds);
+      } else if (typeof updatePayload.memberIds !== "string" && updatePayload.memberIds !== null) {
+        updatePayload.memberIds = null;
+      }
+    }
+
+    await db.update(events).set(updatePayload).where(eq(events.id, id));
 
     return NextResponse.json({ success: true });
   } catch (error) {

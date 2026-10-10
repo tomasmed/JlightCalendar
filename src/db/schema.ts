@@ -89,6 +89,8 @@ export const galaxies = sqliteTable("galaxies", {
     onDelete: "set null",
   }),
   joinCode: text("join_code").unique(),
+  familyColor: text("family_color").notNull().default("#ef4444"),
+  familyAvatar: text("family_avatar").notNull().default("planet"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
@@ -172,6 +174,7 @@ export const events = sqliteTable("events", {
   memberId: text("member_id").references(() => galaxyMembers.id, {
     onDelete: "set null",
   }),
+  memberIds: text("member_ids"), // JSON array of member IDs, e.g. ["mem_leo", "mem_mia"]
   externalUid: text("external_uid"),
   title: text("title").notNull(),
   description: text("description"),

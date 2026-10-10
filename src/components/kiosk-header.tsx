@@ -44,6 +44,8 @@ export interface GalaxyItem {
   name: string;
   theme: string;
   icon: string;
+  familyColor?: string | null;
+  familyAvatar?: string | null;
   joinCode?: string | null;
   members?: { id: string; displayName: string; avatarIcon: string; role: string }[];
   calendars?: { id: string; name: string; isPrimary: boolean }[];

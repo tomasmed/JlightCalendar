@@ -298,6 +298,33 @@ export default function HomePage() {
     }
   };
 
+  // Handle Update Whole-Family Identity (Color & Avatar)
+  const handleUpdateFamilyIdentity = async (identity: {
+    familyColor: string;
+    familyAvatar: string;
+  }) => {
+    if (!activeGalaxyId) return;
+    try {
+      const res = await fetch("/api/galaxies", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          galaxyId: activeGalaxyId,
+          familyColor: identity.familyColor,
+          familyAvatar: identity.familyAvatar,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update family identity.");
+      }
+      await fetchGalaxies();
+    } catch (err) {
+      console.error("Failed to update family identity:", err);
+      throw err;
+    }
+  };
+
   // If user is unauthenticated and not exploring demo kiosk, display the Landing Page
   if (status !== "loading" && !session?.user && !isDemoMode) {
     return (
@@ -320,12 +347,16 @@ export default function HomePage() {
           name: `${session.user.name || "My"}'s Galaxy`,
           theme: "milky-way",
           icon: "sparkles",
+          familyColor: "#ef4444",
+          familyAvatar: "planet",
         }
       : {
           id: "galaxy_sol_family",
           name: "The Sol Family Galaxy",
           theme: "milky-way",
           icon: "sparkles",
+          familyColor: "#ef4444",
+          familyAvatar: "planet",
         });
 
   return (
@@ -354,6 +385,9 @@ export default function HomePage() {
         galaxyName={currentGalaxy?.name || "Family Galaxy"}
         inhabitants={inhabitants}
         accessMode={accessMode}
+        familyColor={currentGalaxy?.familyColor || "#ef4444"}
+        familyAvatar={currentGalaxy?.familyAvatar || "planet"}
+        onUpdateFamilyIdentity={handleUpdateFamilyIdentity}
         onAddInhabitant={handleAddInhabitant}
         onUpdateInhabitant={handleUpdateInhabitant}
         onRemoveInhabitant={handleRemoveInhabitant}
@@ -436,10 +470,13 @@ export default function HomePage() {
                 accessMode={accessMode}
                 activeGalaxyId={activeGalaxyId}
                 activeGalaxyName={currentGalaxy?.name}
+                familyColor={currentGalaxy?.familyColor || "#ef4444"}
+                familyAvatar={currentGalaxy?.familyAvatar || "planet"}
                 inhabitants={inhabitants}
                 events={events}
                 onSaveEvent={handleSaveEvent}
                 onDeleteEvent={handleDeleteEvent}
+                onUpdateFamilyIdentity={handleUpdateFamilyIdentity}
                 onAddInhabitant={handleAddInhabitant}
                 onUpdateInhabitant={handleUpdateInhabitant}
                 onRemoveInhabitant={handleRemoveInhabitant}
