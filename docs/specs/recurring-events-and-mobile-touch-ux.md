@@ -39,7 +39,11 @@
 
 ## 4. Tablet, Kiosk, and Desktop Ergonomics
 - **Breakpoints**:
-  - `< md` (< 768px): Mobile timetable layout with Quick Day Selector and unified horizontal scrolling (`min-w-[770px]`).
-  - `>= md` (>= 768px): Tablet, Kiosk, and Desktop full-width timetable (`md:min-w-0`), fitting all 7 days evenly without horizontal scrollbars.
+  - `< md` (< 768px): Mobile timetable layout with Quick Day Selector and unified horizontal scrolling (`min-w-[770px]`), plus a **Two-Row Mobile Top Banner** (`KioskHeader`).
+  - `>= md` (>= 768px): Tablet, Kiosk, and Desktop single-row header (`md:h-20 md:flex-row`) and full-width timetable (`md:min-w-0`), fitting all 7 days evenly without horizontal scrollbars.
+- **Two-Row Mobile Top Banner (`KioskHeader`)**:
+  - **Row 1 (`kiosk-header-row-1`)**: Displays the live Clock & Date alongside the compact Weather pill on the left, and the Galaxy Switcher Dropdown on the right (with right-aligned dropdown menu `right-0 md:left-0` so it never overflows the mobile viewport).
+  - **Row 2 (`kiosk-header-row-2`)**: Separated by a subtle top border (`border-t border-cosmos-border/50 md:border-t-0`), displays the 3-Tier Access Mode button with an always-visible text label (`{accessMode} Mode`) and the User OAuth / Login button on the left, and the quick utility icon buttons (Theme Toggle, What's New Changelog, Night Sleep) on the right.
 - **Touch Hit Target Compliance**:
-  - All interactive buttons, inputs, day pills, and selectors adhere to the `>= 48px x 48px` kiosk touch ergonomics requirement.
+  - All interactive buttons, inputs, day pills, and selectors adhere to the `>= 44px-48px` kiosk touch ergonomics requirement.
+

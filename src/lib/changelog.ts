@@ -30,6 +30,10 @@ export const CHANGELOG_HISTORY: ChangelogItem[] = [
       },
       {
         category: "Improvement",
+        text: "Two-Row Mobile Top Banner: Redesigned mobile header into two spacious rows with a full-text Access Mode badge, Galaxy switcher, and quick utility actions.",
+      },
+      {
+        category: "Improvement",
         text: "Database Safety & Rolling Snapshots: Automatic local database backups protect schedules and chores across server restarts.",
       },
     ],
