@@ -16,7 +16,29 @@ import { eq } from "drizzle-orm";
 
 import { ensureDbUser } from "@/lib/auth-helpers";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export interface MockTestSession {
+  user: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+  };
+}
+
+let mockTestSession: MockTestSession | null | undefined = undefined;
+
+/**
+ * Sets a mocked session for automated system tests.
+ * Strictly restricted to JLIGHT_TEST_MODE="true".
+ */
+export function setMockTestSession(session: MockTestSession | null | undefined) {
+  if (process.env.JLIGHT_TEST_MODE !== "true") {
+    throw new Error("setMockTestSession is only permitted when JLIGHT_TEST_MODE=true");
+  }
+  mockTestSession = session;
+}
+
+const nextAuth = NextAuth({
   trustHost: true,
   secret:
     process.env.AUTH_SECRET ||
@@ -121,3 +143,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
 });
+
+export const { handlers, signIn, signOut } = nextAuth;
+
+export const auth: typeof nextAuth.auth = ((...args: any[]) => {
+  if (process.env.JLIGHT_TEST_MODE === "true" && mockTestSession !== undefined) {
+    return Promise.resolve(mockTestSession as any);
+  }
+  return (nextAuth.auth as any)(...args);
+}) as typeof nextAuth.auth;

@@ -3,11 +3,13 @@ import { drizzle } from "drizzle-orm/libsql";
 import * as dotenv from "dotenv";
 import * as schema from "./schema";
 
-dotenv.config({ path: ".env.local" });
-dotenv.config();
+if (process.env.JLIGHT_TEST_MODE !== "true") {
+  dotenv.config({ path: ".env.local" });
+  dotenv.config();
+}
 
 const url = process.env.DATABASE_URL || "file:./local.db";
-const authToken = process.env.DATABASE_AUTH_TOKEN;
+const authToken = url.startsWith("file:") ? undefined : process.env.DATABASE_AUTH_TOKEN;
 
 export const client = createClient({
   url,
