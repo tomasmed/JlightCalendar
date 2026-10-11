@@ -42,8 +42,20 @@
   - `< md` (< 768px): Mobile timetable layout with Quick Day Selector and unified horizontal scrolling (`min-w-[770px]`), plus a **Two-Row Mobile Top Banner** (`KioskHeader`).
   - `>= md` (>= 768px): Tablet, Kiosk, and Desktop single-row header (`md:h-20 md:flex-row`) and full-width timetable (`md:min-w-0`), fitting all 7 days evenly without horizontal scrollbars.
 - **Two-Row Mobile Top Banner (`KioskHeader`)**:
-  - **Row 1 (`kiosk-header-row-1`)**: Displays the live Clock & Date alongside the compact Weather pill on the left, and the Galaxy Switcher Dropdown on the right (with right-aligned dropdown menu `right-0 md:left-0` so it never overflows the mobile viewport).
+  - **Row 1 (`kiosk-header-row-1`)**: Hides the redundant kiosk live clock on `<640px` phones (`hidden sm:flex` on `kiosk-clock-display` since mobile OS status bars already display the live time), showing the compact Weather pill on the left and the Galaxy Switcher Dropdown on the right (`right-0 md:left-0`).
   - **Row 2 (`kiosk-header-row-2`)**: Separated by a subtle top border (`border-t border-cosmos-border/50 md:border-t-0`), displays the 3-Tier Access Mode button with an always-visible text label (`{accessMode} Mode`) and the User OAuth / Login button on the left, and the quick utility icon buttons (Theme Toggle, What's New Changelog, Night Sleep) on the right.
+- **Mobile Split Month + Live Agenda View (`CalendarView`)**:
+  - On narrow mobile viewports (`< 640px`), `CalendarView` defaults to `"month"` view and renders a split-screen layout:
+    - **Upper Pane**: Compact 7-column monthly grid with constellation member indicator dots and a glowing highlight ring on the active selected date (`selectedAgendaDate`).
+    - **Lower Pane (`mobile-month-agenda`)**: Live-synced scrollable day agenda showing full multi-member gradient event cards for the selected date, a quick jump to `Day View`, and an inline `+ Add Event` empty-state button—eliminating blocking modal popups when browsing dates.
+- **2-Row Compact Calendar Toolbar & Sticky Week Time Axis**:
+  - **Toolbar Row 1 (`calendar-toolbar-row-1`)**: Combines compact lateral navigation (`<`, `Today`, `>`), dynamic date range title, and the View Switcher (`Month`, `Week`, `Day`, `List`/`Schedule`).
+  - **Toolbar Row 2 (`calendar-toolbar-row-2`)**: Full-width horizontally scrollable Family Member Constellation Filter strip (`.scrollbar-none`).
+  - **Sticky Week Time Column**: In 7-day Week view, the left `TIME`, `ALL DAY`, and 24-hour label columns use `sticky left-0 z-20` so hour labels remain pinned while panning horizontally across days.
+- **Thumb-Zone Floating Action Buttons (FAB) & Unified Chores Strip**:
+  - On mobile (`< 640px`), top-bar `Add Event` and `Add Chore` buttons are replaced by thumb-friendly cosmic Floating Action Buttons (`mobile-add-event-fab` and `mobile-add-chore-fab`) anchored at `bottom-20 right-4` (automatically hidden in `kid` mode).
+  - In `ChoresView`, member filter pills and star reward balances are merged into a single interactive strip (`chores-unified-filter-strip`) and chore cards display inline mobile star badges to maximize horizontal space for chore titles.
 - **Touch Hit Target Compliance**:
   - All interactive buttons, inputs, day pills, and selectors adhere to the `>= 44px-48px` kiosk touch ergonomics requirement.
+
 

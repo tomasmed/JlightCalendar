@@ -32,6 +32,7 @@ import {
   computeDurationMinutes,
   computeEventTimes,
   rruleToFrequency,
+  formatLocalDate,
 } from "@/lib/recurrence";
 
 export interface Member {
@@ -540,6 +541,9 @@ export function CalendarView({
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
   const [todayDate, setTodayDate] = useState<Date>(() => new Date());
   const [selectedDayModal, setSelectedDayModal] = useState<string | null>(null);
+  const [selectedAgendaDate, setSelectedAgendaDate] = useState<string>(() =>
+    formatLocalDate(new Date())
+  );
 
   // Touch gesture state
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -556,11 +560,15 @@ export function CalendarView({
   const weekGridRef = useRef<HTMLDivElement>(null);
   const weekHorizontalScrollRef = useRef<HTMLDivElement>(null);
 
-  // Sync date on mount
+  // Sync date on mount and default mobile (<640px) to Split Month + Live Agenda view
   useEffect(() => {
     const now = new Date();
     setCurrentDate(now);
     setTodayDate(now);
+    setSelectedAgendaDate(formatLocalDate(now));
+    if (typeof window !== "undefined" && window.innerWidth < 640) {
+      setViewType("month");
+    }
   }, []);
 
   // Auto-scroll to morning hours (7 AM or current hour) when viewing week
@@ -702,25 +710,27 @@ export function CalendarView({
   // Unified lateral navigation
   const prevPeriod = () => {
     setCurrentDate((prev) => {
-      if (viewType === "week") {
-        return new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() - 7);
-      } else if (viewType === "day") {
-        return new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() - 1);
-      } else {
-        return new Date(prev.getFullYear(), prev.getMonth() - 1, 1);
-      }
+      const next =
+        viewType === "week"
+          ? new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() - 7)
+          : viewType === "day"
+          ? new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() - 1)
+          : new Date(prev.getFullYear(), prev.getMonth() - 1, 1);
+      setSelectedAgendaDate(toDateStr(next));
+      return next;
     });
   };
 
   const nextPeriod = () => {
     setCurrentDate((prev) => {
-      if (viewType === "week") {
-        return new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + 7);
-      } else if (viewType === "day") {
-        return new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + 1);
-      } else {
-        return new Date(prev.getFullYear(), prev.getMonth() + 1, 1);
-      }
+      const next =
+        viewType === "week"
+          ? new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + 7)
+          : viewType === "day"
+          ? new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + 1)
+          : new Date(prev.getFullYear(), prev.getMonth() + 1, 1);
+      setSelectedAgendaDate(toDateStr(next));
+      return next;
     });
   };
 
@@ -728,6 +738,7 @@ export function CalendarView({
     const now = new Date();
     setCurrentDate(now);
     setTodayDate(now);
+    setSelectedAgendaDate(toDateStr(now));
   };
 
   // Touch Swipe Gesture Handlers
@@ -863,10 +874,14 @@ export function CalendarView({
     }
   }, [viewType, currentDate]);
 
-  // Events for selected modal date
+  // Events for selected modal date (tablet/desktop) and mobile split-month agenda date
   const selectedDateEvents = selectedDayModal
     ? calendarEvents.filter((e) => e.date === selectedDayModal).sort(compareEventsByTime)
     : [];
+
+  const mobileAgendaEvents = filteredEvents
+    .filter((e) => e.date === selectedAgendaDate)
+    .sort(compareEventsByTime);
 
   const formatModalHeaderDate = (dateStr: string) => {
     try {
@@ -878,6 +893,21 @@ export function CalendarView({
         day: "numeric",
         year: "numeric",
       });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const formatCompactAgendaDate = (dateStr: string) => {
+    try {
+      const [y, m, d] = dateStr.split("-").map(Number);
+      const date = new Date(y, m - 1, d);
+      const formatted = date.toLocaleDateString([], {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
+      return dateStr === todayStr ? `Today • ${formatted}` : formatted;
     } catch {
       return dateStr;
     }
@@ -960,7 +990,7 @@ export function CalendarView({
     <div
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="flex-1 flex flex-col h-full bg-cosmos-void/90 p-2 sm:p-4 md:p-6 overflow-hidden"
+      className="flex-1 flex flex-col h-full bg-cosmos-void/90 p-2 sm:p-4 md:p-6 overflow-hidden relative"
     >
       {/* Event Add/Modify Modal */}
       <EventModal
@@ -996,21 +1026,127 @@ export function CalendarView({
         onRemoveInhabitant={onRemoveInhabitant}
       />
 
-      {/* Top Filter Bar: Family Members & Cosmic View Switcher */}
-      <div className="flex flex-wrap items-center justify-between gap-2 md:gap-4 pb-2 md:pb-4 border-b border-cosmos-border">
-        {/* Family Member Constellation Filter */}
-        <div className="flex items-center gap-1.5 md:gap-2 overflow-x-auto pb-1 max-w-full">
+      {/* Compact 2-Row Calendar Toolbar */}
+      <div
+        data-testid="calendar-toolbar"
+        className="flex flex-col gap-1.5 sm:gap-2.5 pb-1.5 sm:pb-3 border-b border-cosmos-border shrink-0"
+      >
+        {/* TOOLBAR ROW 1: Date Navigator & View Switcher (+ Desktop Add Event) */}
+        <div
+          data-testid="calendar-toolbar-row-1"
+          className="flex items-center justify-between gap-1.5 sm:gap-3 min-w-0"
+        >
+          {/* Left: Date Title & Compact Lateral Navigation Controls */}
+          <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+            <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+              <button
+                onClick={prevPeriod}
+                className="min-w-[36px] sm:min-w-[44px] min-h-[38px] sm:min-h-[44px] flex items-center justify-center rounded-xl bg-cosmos-surface border border-cosmos-border text-slate-300 hover:text-white hover:bg-cosmos-cardHover transition cursor-pointer"
+                title="Previous (or Swipe Left)"
+              >
+                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+              <button
+                onClick={goToToday}
+                className="min-w-0 min-h-[38px] sm:min-h-[44px] px-2 sm:px-3 rounded-xl bg-cosmos-surface border border-cosmos-border text-[11px] sm:text-xs font-bold text-starlight hover:text-white hover:bg-cosmos-cardHover transition cursor-pointer"
+              >
+                Today
+              </button>
+              <button
+                onClick={nextPeriod}
+                className="min-w-[36px] sm:min-w-[44px] min-h-[38px] sm:min-h-[44px] flex items-center justify-center rounded-xl bg-cosmos-surface border border-cosmos-border text-slate-300 hover:text-white hover:bg-cosmos-cardHover transition cursor-pointer"
+                title="Next (or Swipe Right)"
+              >
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            </div>
+
+            <h2 className="text-sm sm:text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-purple-200 to-starlight truncate">
+              {viewType === "week" ? (
+                <>
+                  <span className="sm:hidden">
+                    {weekDays[0].shortStr} – {weekDays[6].shortStr}
+                  </span>
+                  <span className="hidden sm:inline">{weekRangeTitle}</span>
+                </>
+              ) : viewType === "day" ? (
+                currentDate.toLocaleDateString([], {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                })
+              ) : (
+                <>
+                  <span className="sm:hidden">
+                    {monthNames[currentMonth].slice(0, 3)} {currentYear}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {monthNames[currentMonth]} {currentYear}
+                  </span>
+                </>
+              )}
+            </h2>
+
+            <span className="hidden lg:flex text-xs px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-300 font-bold border border-purple-500/30 items-center gap-1 shrink-0">
+              <Sparkles className="w-3 h-3 text-starlight" />
+              {filteredEvents.length} Events
+            </span>
+          </div>
+
+          {/* Right: View Switcher & Desktop Add Event Button */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <div className="flex bg-cosmos-surface p-0.5 sm:p-1 rounded-xl border border-cosmos-border text-[11px] sm:text-xs font-bold">
+              {(["month", "week", "day", "schedule"] as const).map((vt) => (
+                <button
+                  key={vt}
+                  onClick={() => setViewType(vt)}
+                  className={`min-w-0 min-h-[36px] sm:min-h-[42px] px-2 sm:px-3 py-1 rounded-lg capitalize transition flex items-center justify-center ${
+                    viewType === vt
+                      ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/30"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {vt === "schedule" ? (
+                    <>
+                      <span className="sm:hidden">List</span>
+                      <span className="hidden sm:inline">schedule</span>
+                    </>
+                  ) : (
+                    vt
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {accessMode !== "kid" && (
+              <button
+                onClick={() => handleOpenAddEventOnDate(todayStr)}
+                className="hidden sm:flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-lg shadow-purple-500/25 transition min-h-[44px]"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Event</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* TOOLBAR ROW 2: Family Member Constellation Filter Strip */}
+        <div
+          data-testid="calendar-toolbar-row-2"
+          className="flex items-center gap-1.5 md:gap-2 overflow-x-auto scrollbar-none max-w-full"
+        >
           {memberList.map((member) => {
             const isSelected = selectedMemberId === member.id;
-            const Icon = member.id === "all"
-              ? getCosmicAvatarIcon(member.avatarIcon)
-              : getInhabitantIcon(member.avatarIcon);
+            const Icon =
+              member.id === "all"
+                ? getCosmicAvatarIcon(member.avatarIcon)
+                : getInhabitantIcon(member.avatarIcon);
 
             return (
               <button
                 key={member.id}
                 onClick={() => setSelectedMemberId(member.id)}
-                className={`flex items-center gap-1.5 md:gap-2 px-3 py-1.5 rounded-2xl font-bold text-xs tracking-wide transition-all min-h-[44px] shrink-0 ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-2xl font-bold text-[11px] sm:text-xs tracking-wide transition-all min-h-[38px] sm:min-h-[44px] min-w-0 shrink-0 ${
                   isSelected
                     ? "bg-cosmos-card text-white border-2 shadow-lg shadow-purple-500/20"
                     : "bg-cosmos-surface/80 text-slate-400 border border-cosmos-border hover:bg-cosmos-cardHover hover:text-slate-200"
@@ -1037,233 +1173,300 @@ export function CalendarView({
             <button
               onClick={() => setIsInhabitantsModalOpen(true)}
               title="Manage Galaxy Inhabitants"
-              className="px-2.5 py-1.5 rounded-2xl border border-dashed border-cosmos-border text-slate-400 hover:text-starlight hover:border-purple-400 transition text-xs font-bold flex items-center gap-1 min-h-[44px] shrink-0"
+              className="px-2.5 py-1 sm:py-1.5 rounded-2xl border border-dashed border-cosmos-border text-slate-400 hover:text-starlight hover:border-purple-400 transition text-[11px] sm:text-xs font-bold flex items-center gap-1 min-h-[38px] sm:min-h-[44px] min-w-0 shrink-0"
             >
               <Users className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Manage</span>
             </button>
           )}
         </div>
-
-        {/* View Switcher & Add Event */}
-        <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-          <div className="flex bg-cosmos-surface p-1 rounded-xl border border-cosmos-border text-xs font-bold">
-            {(["month", "week", "day", "schedule"] as const).map((vt) => (
-              <button
-                key={vt}
-                onClick={() => setViewType(vt)}
-                className={`px-3 md:px-3.5 py-1.5 rounded-lg capitalize transition min-h-[44px] sm:min-h-[48px] flex items-center justify-center ${
-                  viewType === vt
-                    ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/30"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                {vt}
-              </button>
-            ))}
-          </div>
-
-          {accessMode !== "kid" && (
-            <button
-              onClick={() => handleOpenAddEventOnDate(todayStr)}
-              className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-lg shadow-purple-500/25 transition min-h-[44px] sm:min-h-[48px]"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Add Event</span>
-            </button>
-          )}
-        </div>
       </div>
 
-      {/* Dynamic Navigator Header */}
-      <div className="flex items-center justify-between py-2 md:py-3 gap-2 min-w-0">
-        <div className="flex items-center gap-2 md:gap-3 min-w-0">
-          <h2 className="text-base sm:text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-purple-200 to-starlight truncate">
-            {viewType === "week"
-              ? weekRangeTitle
-              : viewType === "day"
-              ? currentDate.toLocaleDateString([], {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })
-              : `${monthNames[currentMonth]} ${currentYear}`}
-          </h2>
-          <span className="hidden sm:flex text-xs px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-300 font-bold border border-purple-500/30 items-center gap-1">
-            <Sparkles className="w-3 h-3 text-starlight" />
-            {filteredEvents.length} Events
-          </span>
-        </div>
-
-        {/* Lateral Navigation Controls (with 48px touch targets) */}
-        <div className="flex items-center gap-1 md:gap-1.5">
-          <button
-            onClick={prevPeriod}
-            className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl bg-cosmos-surface border border-cosmos-border text-slate-300 hover:text-white hover:bg-cosmos-cardHover transition cursor-pointer"
-            title="Previous (or Swipe Left)"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button
-            onClick={goToToday}
-            className="min-h-[48px] px-3.5 rounded-xl bg-cosmos-surface border border-cosmos-border text-xs font-bold text-starlight hover:text-white hover:bg-cosmos-cardHover transition cursor-pointer"
-          >
-            Today
-          </button>
-          <button
-            onClick={nextPeriod}
-            className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl bg-cosmos-surface border border-cosmos-border text-slate-300 hover:text-white hover:bg-cosmos-cardHover transition cursor-pointer"
-            title="Next (or Swipe Right)"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* VIEW 1: Physical Calendar Monthly Grid (DEFAULT) */}
+      {/* VIEW 1: Physical Calendar Monthly Grid + Mobile Split Live Agenda */}
       {viewType === "month" && (
-        <div className="flex-1 flex flex-col min-h-0 border border-cosmos-border rounded-2xl overflow-hidden bg-cosmos-deep/70 backdrop-blur-md">
-          {/* Day of week headers */}
-          <div className="grid grid-cols-7 border-b border-cosmos-border bg-cosmos-surface/90 text-center text-[10px] sm:text-xs font-black text-slate-400 py-1.5 sm:py-2.5 tracking-wider">
-            {dayLabels.map((day) => (
-              <div key={day} className="truncate">
-                {day}
-              </div>
-            ))}
+        <div className="flex-1 flex flex-col min-h-0 gap-2 sm:gap-0 pt-1.5 sm:pt-2 overflow-hidden">
+          {/* Upper Pane (Mobile) / Full Grid (Tablet & Desktop) */}
+          <div className="h-[46%] min-h-[200px] max-h-[265px] sm:h-auto sm:max-h-none sm:flex-1 flex flex-col min-h-0 border border-cosmos-border rounded-2xl overflow-hidden bg-cosmos-deep/70 backdrop-blur-md shrink-0 sm:shrink">
+            {/* Day of week headers */}
+            <div className="grid grid-cols-7 border-b border-cosmos-border bg-cosmos-surface/90 text-center text-[10px] sm:text-xs font-black text-slate-400 py-1 sm:py-2.5 tracking-wider">
+              {dayLabels.map((day) => (
+                <div key={day} className="truncate">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* 7-Column Days Grid */}
+            <div
+              className={`flex-1 grid grid-cols-7 ${
+                calendarCells.length > 35 ? "grid-rows-6" : "grid-rows-5"
+              } gap-px bg-cosmos-border/70 overflow-hidden`}
+            >
+              {calendarCells.map((cell) => {
+                const dayEvents = filteredEvents
+                  .filter((e) => e.date === cell.dateStr)
+                  .sort(compareEventsByTime);
+                const isSelectedAgendaDay = cell.dateStr === selectedAgendaDate;
+
+                return (
+                  <div
+                    key={cell.dateStr}
+                    onClick={() => {
+                      setSelectedAgendaDate(cell.dateStr);
+                      if (typeof window !== "undefined" && window.innerWidth >= 640) {
+                        setSelectedDayModal(cell.dateStr);
+                      }
+                    }}
+                    className={`cursor-pointer p-1 sm:p-1.5 flex flex-col justify-start overflow-hidden transition-all select-none relative group ${
+                      isSelectedAgendaDay
+                        ? "bg-purple-950/50 sm:bg-cosmos-deep ring-2 ring-inset ring-starlight sm:ring-0"
+                        : cell.isCurrentMonth
+                        ? "bg-cosmos-deep hover:bg-cosmos-card/80"
+                        : "bg-cosmos-void/60 text-slate-600 hover:bg-cosmos-deep/50"
+                    }`}
+                  >
+                    {/* Top Bar: Date Number */}
+                    <div className="flex items-center justify-between mb-0.5 sm:mb-1">
+                      <span
+                        className={`text-[11px] sm:text-xs font-black px-1 sm:px-1.5 py-0.5 rounded-md ${
+                          cell.isToday
+                            ? "bg-purple-600 text-white font-extrabold shadow-md shadow-purple-500/50 ring-1 sm:ring-2 ring-starlight"
+                            : isSelectedAgendaDay
+                            ? "text-starlight sm:text-slate-300"
+                            : cell.isCurrentMonth
+                            ? "text-slate-300 group-hover:text-white"
+                            : "text-slate-600"
+                        }`}
+                      >
+                        {cell.dayNum}
+                      </span>
+
+                      {cell.isToday && (
+                        <span className="text-[9px] font-bold text-starlight uppercase tracking-tight hidden md:inline">
+                          Today
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Tablet & Desktop: Event Pills */}
+                    <div className="hidden sm:flex flex-1 flex-col gap-1 overflow-hidden">
+                      {dayEvents.slice(0, 3).map((evt) => {
+                        const colors = getEventColors(evt, inhabitants, familyColor);
+                        const bgStyle = getEventBackgroundStyle(colors, "30");
+
+                        return (
+                          <div
+                            key={evt.id}
+                            onClick={(e) => handleOpenEditEvent(evt, e)}
+                            className="truncate text-[10px] md:text-[11px] font-bold px-1.5 py-0.5 rounded-md border text-white transition hover:scale-[1.02] flex items-center gap-1"
+                            style={{
+                              background: bgStyle.background,
+                              borderColor: bgStyle.borderColor,
+                            }}
+                          >
+                            {/* Multi-member mini colored dots */}
+                            {colors.length > 1 ? (
+                              <div className="flex -space-x-1 shrink-0">
+                                {colors.map((c, i) => (
+                                  <span
+                                    key={i}
+                                    className="w-1.5 h-1.5 rounded-full ring-1 ring-black/40"
+                                    style={{ backgroundColor: c }}
+                                  />
+                                ))}
+                              </div>
+                            ) : (
+                              <span
+                                className="w-1.5 h-1.5 rounded-full shrink-0"
+                                style={{ backgroundColor: colors[0] }}
+                              />
+                            )}
+
+                            <span className="opacity-75 font-mono text-[9px]">
+                              {evt.isAllDay ? "ALL DAY" : evt.time.replace(":00", "").toLowerCase()}
+                            </span>
+                            {evt.rrule && evt.rrule !== "none" && (
+                              <Repeat className="w-2.5 h-2.5 inline-block opacity-80 shrink-0" />
+                            )}
+                            <span className="truncate">{evt.title}</span>
+                          </div>
+                        );
+                      })}
+
+                      {dayEvents.length > 3 && (
+                        <span className="text-[10px] font-extrabold text-starlight-cyan px-1">
+                          +{dayEvents.length - 3} more
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Mobile (<640px): Constellation Event Indicator Dots */}
+                    <div className="sm:hidden flex flex-wrap gap-0.5 mt-auto items-center justify-center">
+                      {dayEvents.slice(0, 3).map((evt) => {
+                        const colors = getEventColors(evt, inhabitants, familyColor);
+                        return colors.length > 1 ? (
+                          <div key={evt.id} className="flex -space-x-1 shrink-0">
+                            {colors.map((c, i) => (
+                              <div
+                                key={i}
+                                className="w-1.5 h-1.5 rounded-full ring-1 ring-black/50"
+                                style={{
+                                  backgroundColor: c,
+                                  boxShadow: `0 0 3px ${c}`,
+                                }}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div
+                            key={evt.id}
+                            className="w-1.5 h-1.5 rounded-full shrink-0 shadow-sm"
+                            style={{
+                              backgroundColor: colors[0],
+                              boxShadow: `0 0 4px ${colors[0]}`,
+                            }}
+                          />
+                        );
+                      })}
+                      {dayEvents.length > 3 && (
+                        <span className="text-[8px] font-extrabold text-starlight leading-none">
+                          +{dayEvents.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* 7-Column Days Grid */}
+          {/* Lower Pane (Mobile <640px Only): Live Selected-Day Agenda Split View */}
           <div
-            className={`flex-1 grid grid-cols-7 ${
-              calendarCells.length > 35 ? "grid-rows-6" : "grid-rows-5"
-            } gap-px bg-cosmos-border/70 overflow-hidden`}
+            data-testid="mobile-month-agenda"
+            className="sm:hidden flex-1 flex flex-col min-h-0 border border-cosmos-border rounded-2xl bg-cosmos-deep/85 backdrop-blur-md overflow-hidden"
           >
-            {calendarCells.map((cell) => {
-              const dayEvents = filteredEvents
-                .filter((e) => e.date === cell.dateStr)
-                .sort(compareEventsByTime);
+            {/* Sticky Day Agenda Header */}
+            <div className="px-3 py-2 border-b border-cosmos-border bg-cosmos-surface/90 flex items-center justify-between gap-2 shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs font-black text-white truncate">
+                  {formatCompactAgendaDate(selectedAgendaDate)}
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-starlight border border-purple-500/30 shrink-0">
+                  {mobileAgendaEvents.length}{" "}
+                  {mobileAgendaEvents.length === 1 ? "Event" : "Events"}
+                </span>
+              </div>
 
-              return (
-                <div
-                  key={cell.dateStr}
-                  onClick={() => setSelectedDayModal(cell.dateStr)}
-                  className={`cursor-pointer p-1 sm:p-1.5 flex flex-col justify-start overflow-hidden transition-all select-none relative group ${
-                    cell.isCurrentMonth
-                      ? "bg-cosmos-deep hover:bg-cosmos-card/80"
-                      : "bg-cosmos-void/60 text-slate-600 hover:bg-cosmos-deep/50"
-                  }`}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const [y, m, d] = selectedAgendaDate.split("-").map(Number);
+                    setCurrentDate(new Date(y, m - 1, d));
+                    setViewType("day");
+                  }}
+                  className="min-w-0 min-h-[34px] px-2.5 py-1 rounded-xl bg-cosmos-card hover:bg-cosmos-cardHover border border-cosmos-border text-[10px] font-bold text-slate-300 flex items-center gap-1"
                 >
-                  {/* Top Bar: Date Number */}
-                  <div className="flex items-center justify-between mb-0.5 sm:mb-1">
-                    <span
-                      className={`text-xs font-black px-1 sm:px-1.5 py-0.5 rounded-md ${
-                        cell.isToday
-                          ? "bg-purple-600 text-white font-extrabold shadow-md shadow-purple-500/50 ring-2 ring-starlight scale-105"
-                          : cell.isCurrentMonth
-                          ? "text-slate-300 group-hover:text-white"
-                          : "text-slate-600"
-                      }`}
+                  <Columns className="w-3 h-3 text-starlight-cyan" />
+                  <span>Day View</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Selected Day Event Cards Stream */}
+            <div className="flex-1 overflow-y-auto p-2.5 pb-16 space-y-2">
+              {mobileAgendaEvents.length === 0 ? (
+                <div className="h-full min-h-[110px] flex flex-col items-center justify-center text-center py-4 px-3 text-slate-400">
+                  <CalendarIcon className="w-7 h-7 mb-1.5 opacity-40 text-purple-400" />
+                  <p className="text-xs font-bold text-slate-300">
+                    No events scheduled for this date
+                  </p>
+                  {accessMode !== "kid" && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleOpenAddEventOnDate(selectedAgendaDate, e)}
+                      className="mt-2 min-w-0 min-h-[38px] px-3.5 py-1.5 rounded-xl bg-purple-600/25 hover:bg-purple-600/40 border border-purple-500/40 text-xs font-bold text-starlight flex items-center gap-1.5 transition"
                     >
-                      {cell.dayNum}
-                    </span>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Event</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                mobileAgendaEvents.map((evt) => {
+                  const colors = getEventColors(evt, inhabitants, familyColor);
+                  const bgStyle = getEventBackgroundStyle(colors, "25");
+                  const assignedNames =
+                    evt.memberIds && evt.memberIds.length > 0
+                      ? evt.memberIds
+                          .map((id) => memberList.find((m) => m.id === id)?.name || id)
+                          .join(", ")
+                      : evt.memberId
+                      ? memberList.find((m) => m.id === evt.memberId)?.name || "Family"
+                      : "🌟 Whole Family";
 
-                    {cell.isToday && (
-                      <span className="text-[9px] font-bold text-starlight uppercase tracking-tight hidden md:inline">
-                        Today
-                      </span>
-                    )}
-                  </div>
+                  return (
+                    <div
+                      key={evt.id}
+                      onClick={(e) => handleOpenEditEvent(evt, e)}
+                      className="p-3 rounded-2xl border flex items-center justify-between gap-2 cursor-pointer active:scale-[0.99] transition shadow-sm"
+                      style={{
+                        background: bgStyle.background,
+                        borderColor: bgStyle.borderColor,
+                        borderLeftWidth: "5px",
+                        borderLeftColor: bgStyle.primaryColor,
+                      }}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          {evt.rrule && evt.rrule !== "none" && (
+                            <Repeat className="w-3 h-3 text-purple-300 shrink-0" />
+                          )}
+                          <span className="text-xs font-bold text-white truncate">
+                            {evt.title}
+                          </span>
+                        </div>
+                        <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-300 mt-0.5">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                            {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
+                          </span>
+                          {evt.location && (
+                            <span className="flex items-center gap-1 truncate max-w-[150px]">
+                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate">{evt.location}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-                  {/* Tablet & Desktop: Event Pills */}
-                  <div className="hidden sm:flex flex-1 flex-col gap-1 overflow-hidden">
-                    {dayEvents.slice(0, 3).map((evt) => {
-                      const colors = getEventColors(evt, inhabitants, familyColor);
-                      const bgStyle = getEventBackgroundStyle(colors, "30");
-
-                      return (
-                        <div
-                          key={evt.id}
-                          onClick={(e) => handleOpenEditEvent(evt, e)}
-                          className="truncate text-[10px] md:text-[11px] font-bold px-1.5 py-0.5 rounded-md border text-white transition hover:scale-[1.02] flex items-center gap-1"
+                      <div className="flex items-center gap-1 shrink-0">
+                        {colors.length > 1 && (
+                          <div className="flex -space-x-1 shrink-0">
+                            {colors.map((c, i) => (
+                              <span
+                                key={i}
+                                className="w-2.5 h-2.5 rounded-full ring-1 ring-cosmos-deep"
+                                style={{ backgroundColor: c }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        <span
+                          className="text-[10px] px-2 py-0.5 rounded-full font-bold truncate max-w-[95px]"
                           style={{
-                            background: bgStyle.background,
-                            borderColor: bgStyle.borderColor,
+                            backgroundColor: `${bgStyle.primaryColor}30`,
+                            color: bgStyle.primaryColor,
                           }}
                         >
-                          {/* Multi-member mini colored dots */}
-                          {colors.length > 1 ? (
-                            <div className="flex -space-x-1 shrink-0">
-                              {colors.map((c, i) => (
-                                <span
-                                  key={i}
-                                  className="w-1.5 h-1.5 rounded-full ring-1 ring-black/40"
-                                  style={{ backgroundColor: c }}
-                                />
-                              ))}
-                            </div>
-                          ) : (
-                            <span
-                              className="w-1.5 h-1.5 rounded-full shrink-0"
-                              style={{ backgroundColor: colors[0] }}
-                            />
-                          )}
-
-                          <span className="opacity-75 font-mono text-[9px]">
-                            {evt.isAllDay ? "ALL DAY" : evt.time.replace(":00", "").toLowerCase()}
-                          </span>
-                          {evt.rrule && evt.rrule !== "none" && (
-                            <Repeat className="w-2.5 h-2.5 inline-block opacity-80 shrink-0" />
-                          )}
-                          <span className="truncate">{evt.title}</span>
-                        </div>
-                      );
-                    })}
-
-                    {dayEvents.length > 3 && (
-                      <span className="text-[10px] font-extrabold text-starlight-cyan px-1">
-                        +{dayEvents.length - 3} more
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Mobile (~Galaxy S26): Constellation Event Indicator Dots */}
-                  <div className="sm:hidden flex flex-wrap gap-1 mt-auto items-center">
-                    {dayEvents.slice(0, 3).map((evt) => {
-                      const colors = getEventColors(evt, inhabitants, familyColor);
-                      return colors.length > 1 ? (
-                        <div key={evt.id} className="flex -space-x-1 shrink-0">
-                          {colors.map((c, i) => (
-                            <div
-                              key={i}
-                              className="w-2 h-2 rounded-full ring-1 ring-black/50"
-                              style={{
-                                backgroundColor: c,
-                                boxShadow: `0 0 3px ${c}`,
-                              }}
-                            />
-                          ))}
-                        </div>
-                      ) : (
-                        <div
-                          key={evt.id}
-                          className="w-2 h-2 rounded-full shrink-0 shadow-sm"
-                          style={{
-                            backgroundColor: colors[0],
-                            boxShadow: `0 0 4px ${colors[0]}`,
-                          }}
-                        />
-                      );
-                    })}
-                    {dayEvents.length > 3 && (
-                      <span className="text-[8px] font-extrabold text-starlight leading-none">
-                        +{dayEvents.length - 3}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                          {assignedNames}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1280,7 +1483,7 @@ export function CalendarView({
                   key={day.dateStr}
                   type="button"
                   onClick={() => setCurrentDate(day.date)}
-                  className={`flex-1 min-h-[44px] py-1 px-1 rounded-xl flex flex-col items-center justify-center transition ${
+                  className={`flex-1 min-w-0 min-h-[44px] py-1 px-1 rounded-xl flex flex-col items-center justify-center transition ${
                     isSelectedDay
                       ? "bg-purple-600 text-white font-black shadow-md ring-1 ring-purple-300"
                       : day.isToday
@@ -1296,7 +1499,7 @@ export function CalendarView({
             })}
           </div>
 
-          <div className="flex-1 flex flex-col overflow-y-auto space-y-3 pr-2">
+          <div className="flex-1 flex flex-col overflow-y-auto space-y-3 pr-2 pb-16 sm:pb-2">
             <div className="flex items-center justify-between pb-2">
               <h3 className="text-lg md:text-xl font-bold text-white">
                 {currentDate.toLocaleDateString([], {
@@ -1396,7 +1599,7 @@ export function CalendarView({
 
       {/* VIEW 3: 7-Day Hour-by-Hour Week Timetable */}
       {viewType === "week" && (
-        <div className="flex-1 flex flex-col min-h-0 border border-cosmos-border rounded-2xl overflow-hidden bg-cosmos-deep/80 backdrop-blur-md shadow-2xl">
+        <div className="flex-1 flex flex-col min-h-0 border border-cosmos-border rounded-2xl overflow-hidden bg-cosmos-deep/80 backdrop-blur-md shadow-2xl mt-1.5 sm:mt-2">
           {/* Mobile Quick Day Selector Strip (Galaxy S24, Galaxy S26+, small mobile screens) */}
           <div className="md:hidden flex items-center justify-between px-2 py-1.5 bg-cosmos-surface/95 border-b border-cosmos-border gap-1 overflow-x-auto scrollbar-none shrink-0">
             {weekDays.map((day, idx) => (
@@ -1404,7 +1607,7 @@ export function CalendarView({
                 key={day.dateStr}
                 type="button"
                 onClick={() => scrollToDayColumn(idx)}
-                className={`flex-1 min-h-[44px] py-1 px-1 rounded-xl flex flex-col items-center justify-center transition ${
+                className={`flex-1 min-w-0 min-h-[42px] py-1 px-1 rounded-xl flex flex-col items-center justify-center transition ${
                   day.isToday
                     ? "bg-purple-600 text-white font-black shadow-md ring-1 ring-purple-300"
                     : "bg-cosmos-card/60 text-slate-300 hover:text-white"
@@ -1426,7 +1629,7 @@ export function CalendarView({
               {/* Header Row: Days of Week (Mon - Sun) */}
               <div className="flex border-b border-cosmos-border bg-cosmos-surface/90 shrink-0">
                 {/* Time Axis Placeholder / Header */}
-                <div className="w-14 sm:w-16 md:w-20 shrink-0 border-r border-cosmos-border py-2 px-1 flex flex-col items-center justify-center text-[10px] text-slate-400 font-bold select-none">
+                <div className="sticky left-0 z-20 bg-cosmos-surface w-14 sm:w-16 md:w-20 shrink-0 border-r border-cosmos-border py-2 px-1 flex flex-col items-center justify-center text-[10px] text-slate-400 font-bold select-none">
                   <Clock className="w-3.5 h-3.5 text-purple-400 mb-0.5" />
                   <span>TIME</span>
                 </div>
@@ -1479,7 +1682,7 @@ export function CalendarView({
                 )
               ) && (
                 <div className="flex border-b border-cosmos-border bg-cosmos-surface/60 shrink-0">
-                  <div className="w-14 sm:w-16 md:w-20 shrink-0 border-r border-cosmos-border py-1.5 px-1 flex items-center justify-center text-[9px] text-slate-400 font-extrabold tracking-tighter select-none">
+                  <div className="sticky left-0 z-20 bg-cosmos-surface w-14 sm:w-16 md:w-20 shrink-0 border-r border-cosmos-border py-1.5 px-1 flex items-center justify-center text-[9px] text-slate-400 font-extrabold tracking-tighter select-none">
                     ALL DAY
                   </div>
                   <div className="flex-1 grid grid-cols-7">
@@ -1544,7 +1747,7 @@ export function CalendarView({
               >
                 <div className="flex min-h-[1536px] relative">
               {/* Left Column: 24 Hour Labels */}
-              <div className="w-14 sm:w-16 md:w-20 shrink-0 border-r border-cosmos-border/40 bg-cosmos-surface/30 select-none">
+              <div className="sticky left-0 z-20 bg-cosmos-deep/95 backdrop-blur-md w-14 sm:w-16 md:w-20 shrink-0 border-r border-cosmos-border/40 select-none">
                 {HOURS.map((h) => (
                   <div
                     key={h.hour24}
@@ -1920,6 +2123,29 @@ export function CalendarView({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Mobile Floating Action Button (FAB) for Thumb-Zone Event Creation (<640px) */}
+      {accessMode !== "kid" && (
+        <button
+          type="button"
+          data-testid="mobile-add-event-fab"
+          onClick={(e) =>
+            handleOpenAddEventOnDate(
+              viewType === "month"
+                ? selectedAgendaDate
+                : viewType === "day"
+                ? toDateStr(currentDate)
+                : todayStr,
+              e
+            )
+          }
+          aria-label="Add Event"
+          title="Add Event"
+          className="sm:hidden fixed bottom-20 right-4 z-30 w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-xl shadow-purple-600/40 border border-purple-400/40 flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
       )}
     </div>
   );

@@ -30,7 +30,7 @@ export function MobileNavBar({
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 pb-[env(safe-area-inset-bottom,0px)] bg-cosmos-deep/95 border-t border-cosmos-border/80 backdrop-blur-xl z-40 px-2 flex items-center justify-around select-none">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 min-h-16 pb-[env(safe-area-inset-bottom,0px)] bg-cosmos-deep/95 border-t border-cosmos-border/80 backdrop-blur-xl z-40 px-2 py-1 flex items-center justify-around select-none">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;

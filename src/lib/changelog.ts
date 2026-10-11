@@ -29,6 +29,14 @@ export const CHANGELOG_HISTORY: ChangelogItem[] = [
         text: "Changelog & What's New: Easily see upcoming features, recent fixes, and improvements directly from the kiosk or landing page.",
       },
       {
+        category: "New",
+        text: "Mobile Split Month + Live Agenda: Tap any date in the compact mobile month grid to immediately inspect and manage its events in a split agenda pane below without popup modals.",
+      },
+      {
+        category: "Improvement",
+        text: "Mobile Thumb-Zone FABs & Compact Toolbars: Added floating '+ Add' action buttons, a 2-row calendar toolbar, and a unified Chores Member + Star filter strip.",
+      },
+      {
         category: "Improvement",
         text: "Two-Row Mobile Top Banner: Redesigned mobile header into two spacious rows with a full-text Access Mode badge, Galaxy switcher, and quick utility actions.",
       },
