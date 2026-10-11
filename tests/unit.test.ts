@@ -378,4 +378,26 @@ assert(getEventSortKey({ ...sampleTimedEvents[0], isAllDay: true }) === -1, "All
 assert(compareEventsByTime(sampleTimedEvents[0], sampleTimedEvents[1]) < 0, "10:00 AM sorts before 10:30 AM");
 assert(parseEventTimeMinutes(sampleTimedEvents[0]).startMinutes === 600, "10:00 AM parses to 600 minutes");
 
+console.log("\n====================================================");
+console.log("🧪 6. Testing Two-Row Mobile KioskHeader Structure");
+console.log("====================================================");
+
+const kioskHeaderPath = path.resolve(__dirname, "../src/components/kiosk-header.tsx");
+const kioskHeaderSource = fs.readFileSync(kioskHeaderPath, "utf-8");
+
+assert(
+  kioskHeaderSource.includes("flex-col md:flex-row"),
+  "KioskHeader uses flex-col on mobile and md:flex-row on desktop for two-row mobile layout"
+);
+assert(
+  kioskHeaderSource.includes('data-testid="kiosk-header-row-1"') &&
+    kioskHeaderSource.includes('data-testid="kiosk-header-row-2"'),
+  "KioskHeader defines distinct row-1 and row-2 containers for mobile mode"
+);
+assert(
+  kioskHeaderSource.includes("<span>{accessMode} Mode</span>"),
+  "Access Mode button displays visible '{accessMode} Mode' text label on mobile as well as desktop"
+);
+
 console.log("\n✨ All unit and static guard tests passed successfully!");
+
