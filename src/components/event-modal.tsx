@@ -22,6 +22,7 @@ import {
   frequencyToRrule,
   computeEventTimes,
   computeDurationMinutes,
+  formatLocalDate,
 } from "@/lib/recurrence";
 
 export interface CalendarEventData {
@@ -93,8 +94,10 @@ export function EventModal({
   const [color, setColor] = useState(familyColor);
   const [recurrenceFreq, setRecurrenceFreq] = useState<RecurrenceFrequency>("none");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDeleteChoice, setShowDeleteChoice] = useState(false);
 
   useEffect(() => {
+    setShowDeleteChoice(false);
     if (eventToEdit) {
       setTitle(eventToEdit.title);
       const allDay = Boolean(eventToEdit.isAllDay);
@@ -107,7 +110,7 @@ export function EventModal({
           eventToEdit.startTime.split("T")[1]?.slice(0, 5) || "09:00"
         );
       } else {
-        setDate(selectedDate || new Date().toISOString().split("T")[0]);
+        setDate(selectedDate || formatLocalDate(new Date()));
         setTime("09:00");
       }
 
@@ -148,7 +151,7 @@ export function EventModal({
       setColor(eventToEdit.colorOverride || (initialMemberIds.length === 1 ? inhabitants.find(i => i.id === initialMemberIds[0])?.color || familyColor : familyColor));
     } else {
       setTitle("");
-      setDate(selectedDate || new Date().toISOString().split("T")[0]);
+      setDate(selectedDate || formatLocalDate(new Date()));
       setTime(initialTime || "09:00");
       setDurationMinutes(60);
       setIsAllDay(false);
@@ -221,8 +224,6 @@ export function EventModal({
       setIsSubmitting(false);
     }
   };
-
-  const [showDeleteChoice, setShowDeleteChoice] = useState(false);
 
   const handleDelete = async () => {
     if (!canDelete || !eventToEdit?.id || !onDeleteEvent) return;

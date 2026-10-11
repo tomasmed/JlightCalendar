@@ -79,6 +79,7 @@ export async function verifyGalaxyAccess(
   userId?: string | null,
   userEmail?: string | null
 ): Promise<boolean> {
+  await ensureDatabaseSchema();
   if (!galaxyId) return false;
 
   // Sandbox demo galaxies are viewable in demo mode
