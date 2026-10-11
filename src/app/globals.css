@@ -83,6 +83,20 @@ button, a {
   min-width: 48px;
 }
 
+/* Hide scrollbars cleanly on horizontal mobile chip strips */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Prevent mobile tap flash */
+html, body {
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Cosmic & Halloween Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

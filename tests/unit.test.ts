@@ -398,6 +398,49 @@ assert(
   kioskHeaderSource.includes("<span>{accessMode} Mode</span>"),
   "Access Mode button displays visible '{accessMode} Mode' text label on mobile as well as desktop"
 );
+assert(
+  kioskHeaderSource.includes('data-testid="kiosk-clock-display"') &&
+    kioskHeaderSource.includes("hidden sm:flex"),
+  "KioskHeader hides redundant kiosk clock on <640px mobile phones where OS clock is visible"
+);
+
+console.log("\n====================================================");
+console.log("🧪 7. Testing Mobile Redesign (Split Month Agenda, FABs, Unified Chores Strip)");
+console.log("====================================================");
+
+const calendarViewPath = path.resolve(__dirname, "../src/components/calendar-view.tsx");
+const calendarViewSource = fs.readFileSync(calendarViewPath, "utf-8");
+
+assert(
+  calendarViewSource.includes('data-testid="calendar-toolbar-row-1"') &&
+    calendarViewSource.includes('data-testid="calendar-toolbar-row-2"'),
+  "CalendarView condenses top controls into a 2-row toolbar (row-1 and row-2)"
+);
+assert(
+  calendarViewSource.includes('data-testid="mobile-month-agenda"') &&
+    calendarViewSource.includes("selectedAgendaDate"),
+  "CalendarView renders a Split Month + Live Agenda lower pane on mobile (<640px)"
+);
+assert(
+  calendarViewSource.includes('data-testid="mobile-add-event-fab"'),
+  "CalendarView renders a thumb-zone Floating Action Button (FAB) for adding events on mobile"
+);
+assert(
+  calendarViewSource.includes("sticky left-0 z-20"),
+  "CalendarView Week View pins the Time Axis column with sticky left-0 z-20 during horizontal scroll"
+);
+
+const choresViewPath = path.resolve(__dirname, "../src/components/chores-view.tsx");
+const choresViewSource = fs.readFileSync(choresViewPath, "utf-8");
+
+assert(
+  choresViewSource.includes('data-testid="chores-unified-filter-strip"'),
+  "ChoresView combines member filter chips and star balances into a unified interactive strip"
+);
+assert(
+  choresViewSource.includes('data-testid="mobile-add-chore-fab"'),
+  "ChoresView renders a thumb-zone Floating Action Button (FAB) for adding chores on mobile"
+);
 
 console.log("\n✨ All unit and static guard tests passed successfully!");
 

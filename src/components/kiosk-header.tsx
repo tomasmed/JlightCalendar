@@ -267,16 +267,19 @@ export function KioskHeader({
   return (
     <header
       data-testid="kiosk-header"
-      className="h-auto md:h-20 bg-cosmos-deep/95 border-b border-cosmos-border px-3 sm:px-4 md:px-4 lg:px-6 py-2 md:py-0 flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-0 select-none backdrop-blur-xl relative z-40 max-w-full"
+      className="h-auto md:h-20 bg-cosmos-deep/95 border-b border-cosmos-border px-2.5 sm:px-4 md:px-4 lg:px-6 py-1.5 md:py-0 flex flex-col md:flex-row md:items-center md:justify-between gap-1.5 md:gap-0 select-none backdrop-blur-xl relative z-40 max-w-full"
     >
-      {/* ROW 1 (Mobile) / LEFT (Desktop): Clock, Weather & Calendar Galaxy Switcher */}
+      {/* ROW 1 (Mobile) / LEFT (Desktop): Clock (tablet/kiosk), Weather & Calendar Galaxy Switcher */}
       <div
         data-testid="kiosk-header-row-1"
         className="w-full md:w-auto flex items-center justify-between md:justify-start gap-2 sm:gap-3.5 shrink-0"
       >
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          {/* Time & Date */}
-          <div className="flex flex-col leading-none shrink-0">
+          {/* Time & Date (Hidden on <640px phones where the OS status bar clock is already visible) */}
+          <div
+            data-testid="kiosk-clock-display"
+            className="hidden sm:flex flex-col leading-none shrink-0"
+          >
             <span
               className={`text-lg sm:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-100 to-starlight tabular-nums drop-shadow-sm ${
                 currentTheme === "halloween" ? "font-halloween tracking-wider text-xl sm:text-3xl" : ""
@@ -297,13 +300,13 @@ export function KioskHeader({
           <button
             onClick={openWeatherCom}
             title="Click to view forecast on Weather.com"
-            className="flex md:hidden lg:flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full bg-cosmos-surface/80 border border-cosmos-border text-slate-300 hover:border-purple-500/60 hover:bg-cosmos-cardHover transition group cursor-pointer min-h-[38px] md:min-h-[44px] shrink-0"
+            className="flex md:hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cosmos-surface/80 border border-cosmos-border text-slate-300 hover:border-purple-500/60 hover:bg-cosmos-cardHover transition group cursor-pointer min-h-[38px] md:min-h-[44px] min-w-0 shrink-0"
           >
             {renderWeatherIcon()}
             <span className="font-bold text-white text-xs">
               {weather ? `${weather.temp}°F` : "72°F"}
             </span>
-            <span className="text-[10px] text-slate-400 hidden xl:inline">
+            <span className="text-[10px] text-slate-400 sm:inline">
               {weather ? weather.condition : "Clear"}
             </span>
             <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-starlight transition hidden sm:inline" />
