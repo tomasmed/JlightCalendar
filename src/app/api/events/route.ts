@@ -18,7 +18,11 @@ export async function GET(req: Request) {
     }
 
     const session = await auth();
-    const hasAccess = await verifyGalaxyAccess(galaxyId, session?.user?.id);
+    const hasAccess = await verifyGalaxyAccess(
+      galaxyId,
+      session?.user?.id,
+      session?.user?.email
+    );
     if (!hasAccess) {
       return NextResponse.json(
         { error: "You do not have access to this galaxy's events." },
@@ -68,7 +72,11 @@ export async function POST(req: Request) {
     }
 
     const session = await auth();
-    const hasAccess = await verifyGalaxyAccess(galaxyId, session?.user?.id);
+    const hasAccess = await verifyGalaxyAccess(
+      galaxyId,
+      session?.user?.id,
+      session?.user?.email
+    );
     if (!hasAccess) {
       return NextResponse.json(
         { error: "You do not have permission to add events to this galaxy." },
@@ -174,7 +182,8 @@ export async function PATCH(req: Request) {
 
     const hasAccess = await verifyGalaxyAccess(
       existing[0].galaxyId,
-      session?.user?.id
+      session?.user?.id,
+      session?.user?.email
     );
     if (!hasAccess) {
       return NextResponse.json(
@@ -236,7 +245,8 @@ export async function DELETE(req: Request) {
     const eventRecord = existing[0];
     const hasAccess = await verifyGalaxyAccess(
       eventRecord.galaxyId,
-      session?.user?.id
+      session?.user?.id,
+      session?.user?.email
     );
     if (!hasAccess) {
       return NextResponse.json(
