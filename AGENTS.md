@@ -15,6 +15,7 @@ All autonomous agents working on this codebase **must strictly adhere** to the g
 5. **Document Every Architecture Decision**: Any new architectural pattern, external dependency, or protocol shift must have a corresponding Architecture Decision Record in `docs/adr/`.
 6. **Human-Operable Staging Tests**: Every Pull Request must include a clear, step-by-step test plan that a human can execute in staging with zero guesswork.
 7. **Check PR Status Before Pushing**: Never push follow-up commits to an already-merged branch/PR. If a PR has been merged on GitHub, pull latest `main`, create a new branch/worktree (`fix/*`, `feat/*`), and open a fresh PR.
+8. **Mandatory Automated Testing for Every Feature & Bugfix**: Whenever you add a new core feature, API route, database column, or UI workflow—or fix a bug—you **must** add corresponding automated test coverage in `tests/unit.test.ts` and/or `tests/system.test.ts` and ensure the full CI suite (`npm run test` and `npm run build`) passes before requesting user sign-off.
 
 ---
 
@@ -38,12 +39,14 @@ Never modify the root working tree directly for feature work. Always create a gi
 git worktree add .worktrees/feat-<feature-name> -b feat/<feature-name>
 ```
 
-### **Step 2: Do work inside the worktree**
+### **Step 2: Do work inside the worktree & write automated tests**
 Work exclusively within `.worktrees/feat-<feature-name>/`.
-Run tests and type checks within that directory:
+When implementing new core functionality or fixing a regression, add unit tests in `tests/unit.test.ts` and end-to-end mocked database/API tests in `tests/system.test.ts`.
+Run the full test suite and production build within that directory:
 
 ```powershell
-npm run test
+npm run test:unit
+npm run test:system
 npm run build
 ```
 
@@ -103,11 +106,13 @@ Follow these steps in your staging environment to verify this change:
 ## 4. Coding Standards & Tech Stack
 
 - **Framework**: Next.js 15 (App Router, React 19, TypeScript).
+- **React Rules of Hooks**: All React hooks (`useState`, `useEffect`, `useRef`, `useMemo`, `useCallback`, `useSession`, etc.) must be declared unconditionally at the very top of component functions—**never** after an early `if (!isOpen) return null;` return. Our AST guard in `tests/unit.test.ts` enforces this across every file in `src/`.
 - **Styling**: Tailwind CSS with Radix UI / Lucide icons.
 - **Touch Ergonomics**: All clickable elements must have a minimum hit target of `48px x 48px` to support wall touchscreen kiosks.
 - **Database**: Drizzle ORM with SQLite (local embedded) and Turso (cloud libSQL).
-  - Schema files live in `src/db/schema/`.
-  - Migrations live in `drizzle/`.
+  - Schema files live in `src/db/schema.ts`.
+  - Runtime idempotent schema migrations live in `src/db/ensure-schema.ts`.
+  - SQL migrations live in `drizzle/`.
 - **Sync**: Server-Sent Events (SSE) for low-power, lightweight updates to displays.
 - **Access Modes**:
   - Always respect the active access mode: `admin`, `standard`, or `kid`.
@@ -115,7 +120,26 @@ Follow these steps in your staging environment to verify this change:
 
 ---
 
-## 5. In-Repo Documentation Maintenance
+## 5. Automated Testing & CI Suite Standards
+
+GitHub Actions CI (`.github/workflows/ci.yml`) runs automatically on every push and pull request:
+1. **Unit & Static AST Guard (`npm run test:unit` -> `tests/unit.test.ts`)**:
+   - Scans all `.ts`/`.tsx` files in `src/` using the TypeScript AST compiler API to prevent React Rules-of-Hooks violations (e.g., hooks called after early returns).
+   - Verifies recurrence RRULE conversion, local wall-clock time/duration math, recurring event expansion, `exdates` filtering, multi-member color splitting, and overlapping day layout.
+2. **Mocked System & Database Integration Suite (`npm run test:system` -> `tests/system.test.ts`)**:
+   - Stands up a fresh, isolated SQLite database (`JLIGHT_TEST_MODE=true`), runs Drizzle migrations and `ensureDatabaseSchema()`, and uses `setMockTestSession()` to exercise real App Router API route handlers end-to-end:
+     - Creating users, provisioning galaxies, and updating family identity/inhabitants.
+     - Joining a galaxy as a second user via join code and verifying privacy/access control (`403` before join, `200` after join).
+     - Creating all event types (single timed, all-day, multi-member, daily, weekday, weekly, biweekly, monthly) and deleting both single occurrences (`exdate`) and full series.
+     - Creating, completing (star rewards), editing, and deleting chores.
+     - Creating, toggling, clearing completed, and deleting shared list items.
+3. **Whenever adding a new feature**:
+   - Add unit tests for pure logic/helpers in `tests/unit.test.ts`.
+   - Add API & DB integration assertions for any new or modified route behavior in `tests/system.test.ts`.
+
+---
+
+## 6. In-Repo Documentation Maintenance
 
 When adding or modifying features:
 1. Update `docs/specs/<feature>.md` with the latest behavioral specifications.

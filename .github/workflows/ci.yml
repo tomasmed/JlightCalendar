@@ -1,0 +1,48 @@
+name: JlightCalendar CI Suite
+
+on:
+  push:
+    branches:
+      - main
+      - "feat/**"
+      - "fix/**"
+      - "chore/**"
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci-verify:
+    name: Build, Unit & Mocked System Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      DATABASE_URL: "file:./.tmp-ci.db"
+      AUTH_SECRET: "ci-mock-auth-secret-key-for-github-actions"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Unit Tests & React Rules-of-Hooks AST Guard
+        run: npm run test:unit
+
+      - name: Run Mocked DB & End-to-End API System Tests
+        run: npm run test:system
+
+      - name: Run Production Build & TypeScript Check
+        run: npm run build

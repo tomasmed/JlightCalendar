@@ -63,12 +63,17 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 🧪 Testing in Staging
+## 🧪 Automated Testing & CI Suite
 
-Before deploying or merging PRs to `main`, follow the staging checklist:
+Every push and pull request is verified by GitHub Actions (`.github/workflows/ci.yml`). Before deploying or merging PRs to `main`, run the full verification suite locally:
+
 ```bash
-# Run unit & component tests
+# Run unit tests + React Rules-of-Hooks AST guard + mocked SQLite system tests
 npm run test
+
+# Or run suites individually:
+npm run test:unit    # Fast unit tests & TypeScript AST hook-ordering guard
+npm run test:system  # End-to-end API & mocked SQLite DB system tests (users, galaxies, events, chores, lists)
 
 # Run type check and production build
 npm run build
@@ -85,6 +90,10 @@ Detailed documentation is organized in the `docs/` folder:
   - `0003-display-hygiene-and-kiosk.md`
   - `0004-photo-sync-strategy.md`
   - `0005-energy-efficient-realtime-sync.md`
+  - `0011-idempotent-runtime-schema-migration.md`
+  - `0013-recurring-events-and-mobile-touch-ux.md`
+  - `0014-ci-and-mocked-system-test-suite.md`
+- [docs/specs/](docs/specs/): Feature & Testing Specifications (`ci-and-testing.md`, `calendar-galaxies.md`, `recurring-events-and-mobile-touch-ux.md`)
 - [docs/workflow/pr-template.md](docs/workflow/pr-template.md): The "Show and Tell" PR standard.
 - [AGENTS.md](AGENTS.md): Operational instructions for autonomous AI agents working in git worktrees.
 
@@ -93,4 +102,4 @@ Detailed documentation is organized in the `docs/` folder:
 ## 🤝 Contributing & Maintenance
 
 This repository utilizes an **Agent-Implemented, Human-in-the-Loop** model.
-All feature work is developed in isolated git worktrees on `feat/*` branches and submitted via PRs that include step-by-step human-operable test plans.
+All feature work is developed in isolated git worktrees on `feat/*` branches, accompanied by unit and system tests, and submitted via PRs that include step-by-step human-operable test plans.
