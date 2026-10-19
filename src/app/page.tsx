@@ -18,6 +18,7 @@ import { MobileNavBar } from "@/components/mobile-nav-bar";
 import { Inhabitant, InhabitantsModal } from "@/components/inhabitants-modal";
 import { CreateGalaxyModal } from "@/components/create-galaxy-modal";
 import { JoinGalaxyModal } from "@/components/join-galaxy-modal";
+import { AgentWallModal } from "@/components/agent-wall-modal";
 import { LandingPage } from "@/components/landing-page";
 import { CalendarEventData } from "@/components/event-modal";
 import { HalloweenWhimsy } from "@/components/halloween-whimsy";
@@ -45,13 +46,17 @@ export default function HomePage() {
   const [isCreateGalaxyModalOpen, setIsCreateGalaxyModalOpen] = useState(false);
   const [isJoinGalaxyModalOpen, setIsJoinGalaxyModalOpen] = useState(false);
   const [pendingJoinCode, setPendingJoinCode] = useState("");
+  const [isAgentWallModalOpen, setIsAgentWallModalOpen] = useState(false);
+  const [agentWallInitialTab, setAgentWallInitialTab] = useState<"wall" | "mint" | "claim">("wall");
+  const [pendingClaimBotCode, setPendingClaimBotCode] = useState("");
 
-  // Inspect URL parameters on mount (?join=... or ?demo=true)
+  // Inspect URL parameters on mount (?join=..., ?demo=true, or ?claimBot=BOT-XXXX)
   useEffect(() => {
     if (typeof window !== "undefined") {
       const searchParams = new URLSearchParams(window.location.search);
       const joinParam = searchParams.get("join");
       const demoParam = searchParams.get("demo");
+      const claimBotParam = searchParams.get("claimBot");
 
       if (joinParam) {
         setPendingJoinCode(joinParam.toUpperCase());
@@ -59,6 +64,11 @@ export default function HomePage() {
       }
       if (demoParam === "true") {
         setIsDemoMode(true);
+      }
+      if (claimBotParam) {
+        setPendingClaimBotCode(claimBotParam.toUpperCase());
+        setAgentWallInitialTab("claim");
+        setIsAgentWallModalOpen(true);
       }
     }
   }, []);
@@ -418,6 +428,25 @@ export default function HomePage() {
         }}
       />
 
+      {/* Agent Envoys & Bot Wall Modal */}
+      <AgentWallModal
+        isOpen={isAgentWallModalOpen}
+        onClose={() => {
+          setIsAgentWallModalOpen(false);
+          setPendingClaimBotCode("");
+          setAgentWallInitialTab("wall");
+        }}
+        galaxyId={activeGalaxyId}
+        inhabitants={inhabitants.map((inh) => ({
+          id: inh.id,
+          name: inh.displayName,
+          color: inh.color,
+          role: inh.role,
+        }))}
+        initialTab={agentWallInitialTab}
+        initialClaimCode={pendingClaimBotCode}
+      />
+
       {/* Demo Mode Notice Banner (Only shown if unauthenticated user is previewing demo) */}
       {isDemoMode && !session?.user && (
         <div className="bg-gradient-to-r from-purple-950 via-indigo-950 to-purple-950 border-b border-purple-500/40 px-3 py-1.5 text-center text-xs flex items-center justify-center gap-2 sm:gap-3 shrink-0 z-50">
@@ -464,6 +493,10 @@ export default function HomePage() {
             onOpenInhabitantsModal={() => setIsInhabitantsModalOpen(true)}
             onOpenCreateGalaxyModal={() => setIsCreateGalaxyModalOpen(true)}
             onOpenJoinGalaxyModal={() => setIsJoinGalaxyModalOpen(true)}
+            onOpenAgentWallModal={() => {
+              setAgentWallInitialTab("wall");
+              setIsAgentWallModalOpen(true);
+            }}
             user={user}
           />
 

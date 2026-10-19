@@ -27,6 +27,7 @@ import {
   getCosmicAvatarIcon,
 } from "./inhabitants-modal";
 import { EventModal, CalendarEventData } from "./event-modal";
+import { AgentProvenanceBadge } from "./agent-badge";
 import {
   expandRecurringEvents,
   computeDurationMinutes,
@@ -71,6 +72,8 @@ export interface CalendarEvent {
   location?: string | null;
   description?: string | null;
   color: string;
+  createdByAgentId?: string | null;
+  agent?: any;
 }
 
 export function parseMemberIds(raw: string[] | string | null | undefined): string[] {
@@ -682,6 +685,8 @@ export function CalendarView({
               pe.colorOverride ||
               assignedMember?.color ||
               (parsedIds.length === 0 ? familyColor : "#8b5cf6"),
+            createdByAgentId: pe.createdByAgentId || null,
+            agent: pe.agent || null,
           };
         })
       : isSolDemoGalaxy
@@ -1568,6 +1573,9 @@ export function CalendarView({
                     </div>
 
                     <div className="flex items-center gap-1.5">
+                      {evt.agent && (
+                        <AgentProvenanceBadge agent={evt.agent} compact />
+                      )}
                       {colors.length > 1 && (
                         <div className="flex -space-x-1.5">
                           {colors.map((c, i) => (

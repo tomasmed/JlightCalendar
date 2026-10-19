@@ -41,6 +41,8 @@ export interface CalendarEventData {
   exdates?: string[] | string | null;
   occurrenceDate?: string; // Specific occurrence date clicked (YYYY-MM-DD)
   colorOverride?: string | null;
+  createdByAgentId?: string | null;
+  agent?: any;
 }
 
 interface EventModalProps {

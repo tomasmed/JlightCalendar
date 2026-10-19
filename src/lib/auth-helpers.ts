@@ -143,3 +143,30 @@ export async function verifyGalaxyAccess(
 
   return membership.length > 0;
 }
+
+// Re-export agent auth & actor verification helpers
+export {
+  resolveRequestActor,
+  verifyActorGalaxyAccess,
+  recordAgentAction,
+  getGalaxyAgentMap,
+  generateAgentPat,
+  generateDeviceHandshakeCodes,
+  isValidStencil16,
+  decodeStencil16ToGrid,
+  encodeGridToStencil16,
+  sanitizeRune,
+  hashSecret,
+  STENCIL_PRESETS,
+} from "./agent-auth";
+export type {
+  RequestActor,
+  AgentActor,
+  HumanActor,
+  InvalidAgentActor,
+  AgentScope,
+  AgentStatus,
+  AgentTagMode,
+  AgentBadgeInfo,
+  VerifyActorAccessOptions,
+} from "./agent-auth";

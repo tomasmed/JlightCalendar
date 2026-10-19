@@ -2,31 +2,27 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { galaxyMembers, galaxies } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { auth } from "@/auth";
-import { verifyGalaxyAccess, ensureDbUser } from "@/lib/auth-helpers";
+import {
+  resolveRequestActor,
+  verifyActorGalaxyAccess,
+  recordAgentAction,
+} from "@/lib/agent-auth";
+import { ensureDatabaseSchema } from "@/db/ensure-schema";
 
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDatabaseSchema();
     const { id: galaxyId } = await params;
-    const session = await auth();
-    let userId = session?.user?.id;
-    if (session?.user) {
-      const ensuredId = await ensureDbUser(session.user);
-      if (ensuredId) userId = ensuredId;
-    }
+    const actor = await resolveRequestActor(req);
 
-    const hasAccess = await verifyGalaxyAccess(
-      galaxyId,
-      userId,
-      session?.user?.email
-    );
-    if (!hasAccess) {
+    const access = await verifyActorGalaxyAccess(actor, galaxyId);
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have access to view this galaxy's inhabitants." },
-        { status: 403 }
+        { error: access.error || "You do not have access to view this galaxy's inhabitants." },
+        { status: access.status || 403 }
       );
     }
 
@@ -34,6 +30,10 @@ export async function GET(
       .select()
       .from(galaxyMembers)
       .where(eq(galaxyMembers.galaxyId, galaxyId));
+
+    if (actor.kind === "agent") {
+      await recordAgentAction(actor.agent.id);
+    }
 
     return NextResponse.json({ members });
   } catch (error) {
@@ -50,23 +50,16 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDatabaseSchema();
     const { id: galaxyId } = await params;
-    const session = await auth();
-    let userId = session?.user?.id;
-    if (session?.user) {
-      const ensuredId = await ensureDbUser(session.user);
-      if (ensuredId) userId = ensuredId;
-    }
+    const actor = await resolveRequestActor(req);
 
-    const hasAccess = await verifyGalaxyAccess(
-      galaxyId,
-      userId,
-      session?.user?.email
-    );
-    if (!hasAccess) {
+    // Agents require admin or standard write access
+    const access = await verifyActorGalaxyAccess(actor, galaxyId, { requireWrite: true });
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have access to add inhabitants to this galaxy." },
-        { status: 403 }
+        { error: access.error || "You do not have access to add inhabitants to this galaxy." },
+        { status: access.status || 403 }
       );
     }
 
@@ -99,6 +92,10 @@ export async function POST(
       isKioskProfile: false,
     });
 
+    if (actor.kind === "agent") {
+      await recordAgentAction(actor.agent.id);
+    }
+
     return NextResponse.json({
       success: true,
       member: {
@@ -125,23 +122,28 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDatabaseSchema();
     const { id: galaxyId } = await params;
-    const session = await auth();
-    let userId = session?.user?.id;
-    if (session?.user) {
-      const ensuredId = await ensureDbUser(session.user);
-      if (ensuredId) userId = ensuredId;
-    }
+    const actor = await resolveRequestActor(req);
 
-    const hasAccess = await verifyGalaxyAccess(
-      galaxyId,
-      userId,
-      session?.user?.email
-    );
-    if (!hasAccess) {
+    // For agents, deleting an inhabitant requires admin scope
+    const access = await verifyActorGalaxyAccess(actor, galaxyId, {
+      requireAdmin: true,
+    });
+    if (!access.allowed && actor.kind === "human") {
+      const stdAccess = await verifyActorGalaxyAccess(actor, galaxyId, {
+        requireWrite: true,
+      });
+      if (!stdAccess.allowed) {
+        return NextResponse.json(
+          { error: "You do not have access to manage inhabitants in this galaxy." },
+          { status: 403 }
+        );
+      }
+    } else if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have access to manage inhabitants in this galaxy." },
-        { status: 403 }
+        { error: access.error || "Forbidden." },
+        { status: access.status || 403 }
       );
     }
 
@@ -220,6 +222,10 @@ export async function DELETE(
         )
       );
 
+    if (actor.kind === "agent") {
+      await recordAgentAction(actor.agent.id);
+    }
+
     return NextResponse.json({
       success: true,
       removedMemberId: memberId,
@@ -238,23 +244,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDatabaseSchema();
     const { id: galaxyId } = await params;
-    const session = await auth();
-    let userId = session?.user?.id;
-    if (session?.user) {
-      const ensuredId = await ensureDbUser(session.user);
-      if (ensuredId) userId = ensuredId;
-    }
+    const actor = await resolveRequestActor(req);
 
-    const hasAccess = await verifyGalaxyAccess(
-      galaxyId,
-      userId,
-      session?.user?.email
-    );
-    if (!hasAccess) {
+    const access = await verifyActorGalaxyAccess(actor, galaxyId, { requireWrite: true });
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have access to update inhabitants in this galaxy." },
-        { status: 403 }
+        { error: access.error || "You do not have access to update inhabitants in this galaxy." },
+        { status: access.status || 403 }
       );
     }
 
@@ -335,6 +333,10 @@ export async function PATCH(
         )
       )
       .limit(1);
+
+    if (actor.kind === "agent") {
+      await recordAgentAction(actor.agent.id);
+    }
 
     return NextResponse.json({
       success: true,

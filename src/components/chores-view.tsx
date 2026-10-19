@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Star, CheckCircle, Circle, Plus, Sparkles, X, User, Trash2, Pencil } from "lucide-react";
 import { AccessMode } from "./kiosk-header";
+import { AgentProvenanceBadge } from "./agent-badge";
 
 interface ChoreItem {
   id: string;
@@ -15,6 +16,8 @@ interface ChoreItem {
   frequency: string;
   recurrenceType?: string;
   dueTime?: string;
+  createdByAgentId?: string | null;
+  agent?: any;
 }
 
 interface FamilyMember {
@@ -338,6 +341,9 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
                       <User className="w-3 h-3 text-slate-500 shrink-0" />
                       {chore.memberName}
                     </span>
+                    {chore.agent && (
+                      <AgentProvenanceBadge agent={chore.agent} compact />
+                    )}
                     <span>•</span>
                     {chore.frequency === "One-Time Task" || chore.recurrenceType === "one_time" ? (
                       <span className="px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-extrabold text-[10px] border border-amber-500/30">

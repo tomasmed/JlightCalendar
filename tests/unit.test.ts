@@ -442,5 +442,51 @@ assert(
   "ChoresView renders a thumb-zone Floating Action Button (FAB) for adding chores on mobile"
 );
 
+// ==========================================
+// 8. Testing Agent Auth & Bot Wall Stencil Helpers
+// ==========================================
+console.log("\n====================================================");
+console.log("🧪 8. Testing Agent Auth & Bot Wall Stencil Helpers");
+console.log("====================================================");
+
+const {
+  generateAgentPat,
+  generateDeviceHandshakeCodes,
+  hashSecret,
+  isValidStencil16,
+  decodeStencil16ToGrid,
+  encodeGridToStencil16,
+  sanitizeRune,
+  STENCIL_PRESETS,
+} = require("../src/lib/agent-auth");
+
+// PAT Generation
+const pat1 = generateAgentPat();
+assert(pat1.rawToken.startsWith("jlight_ag_"), "PAT token starts with jlight_ag_ prefix");
+assert(pat1.tokenHash === hashSecret(pat1.rawToken), "tokenHash is SHA-256 of rawToken");
+assert(pat1.keyPrefix.startsWith("jlight_ag_"), "keyPrefix contains prefix");
+
+// Device Handshake Codes
+const hs = generateDeviceHandshakeCodes();
+assert(hs.deviceCode.startsWith("jlight_dc_"), "deviceCode starts with jlight_dc_");
+assert(/^BOT-\d{4}$/.test(hs.userCode), "userCode matches BOT-XXXX format");
+
+// Stencil validation & roundtrip
+assert(isValidStencil16(STENCIL_PRESETS.robot.hex), "Robot stencil hex is valid 64-char");
+assert(!isValidStencil16("123"), "Short hex string is invalid stencil");
+assert(!isValidStencil16(null), "Null is invalid stencil");
+
+const robotGrid = decodeStencil16ToGrid(STENCIL_PRESETS.robot.hex);
+assert(robotGrid.length === 16, "Grid has 16 rows");
+assert(robotGrid[0].length === 16, "Grid has 16 columns");
+const reEncoded = encodeGridToStencil16(robotGrid);
+assert(reEncoded.toLowerCase() === STENCIL_PRESETS.robot.hex.toLowerCase(), "Roundtrip encode/decode preserves stencil hex");
+
+// Rune Sanitization
+assert(sanitizeRune("⚡") === "⚡", "Sanitizes rune emoji");
+assert(sanitizeRune("") === "◈", "Empty string defaults to ◈");
+assert(sanitizeRune(null) === "◈", "Null defaults to ◈");
+assert(sanitizeRune("anything", true) === "∅", "Buffed status produces ∅");
+
 console.log("\n✨ All unit and static guard tests passed successfully!");
 

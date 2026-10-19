@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Plus, CheckCircle, Circle, Trash2, ShoppingBag, User } from "lucide-react";
 import { AccessMode } from "./kiosk-header";
+import { AgentProvenanceBadge } from "./agent-badge";
 
 interface ListItem {
   id: string;
@@ -12,6 +13,8 @@ interface ListItem {
   addedByMemberId?: string | null;
   addedByName?: string | null;
   addedByColor?: string | null;
+  createdByAgentId?: string | null;
+  agent?: any;
 }
 
 interface FamilyMember {
@@ -270,6 +273,9 @@ export function ListsView({ accessMode, activeGalaxyId }: ListsViewProps) {
                         style={{ backgroundColor: item.addedByColor || "#8b5cf6" }}
                       />
                       <span>Added by {item.addedByName}</span>
+                      {item.agent && (
+                        <AgentProvenanceBadge agent={item.agent} compact />
+                      )}
                     </div>
                   )}
                 </div>
