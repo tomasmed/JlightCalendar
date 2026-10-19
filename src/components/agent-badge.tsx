@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { decodeStencil16ToGrid } from "@/lib/agent-auth";
-import type { AgentBadgeInfo } from "@/lib/agent-auth";
+import { decodeStencil16ToGrid } from "@/lib/agent-types";
+import type { AgentBadgeInfo } from "@/lib/agent-types";
 
 interface Stencil16IconProps {
   stencilMap?: string | null;

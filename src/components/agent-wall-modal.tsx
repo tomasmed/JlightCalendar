@@ -23,8 +23,8 @@ import {
   STENCIL_PRESETS,
   encodeGridToStencil16,
   decodeStencil16ToGrid,
-} from "@/lib/agent-auth";
-import type { AgentBadgeInfo, AgentScope, AgentTagMode } from "@/lib/agent-auth";
+} from "@/lib/agent-types";
+import type { AgentBadgeInfo, AgentScope, AgentTagMode } from "@/lib/agent-types";
 import { Stencil16Icon, AgentProvenanceBadge } from "./agent-badge";
 
 interface InhabitantOption {
