@@ -31,6 +31,7 @@ import {
   Info,
   Palette,
   Ghost,
+  Bot,
 } from "lucide-react";
 import { signIn, signOut } from "next-auth/react";
 import { ChangelogModal } from "./changelog-modal";
@@ -68,10 +69,11 @@ interface KioskHeaderProps {
   onToggleSleep: () => void;
   galaxies?: GalaxyItem[];
   activeGalaxyId?: string;
-  onSelectGalaxy?: (galaxyId: string) => void;
+  onSelectGalaxy?: (id: string) => void;
   onOpenInhabitantsModal?: () => void;
   onOpenCreateGalaxyModal?: () => void;
   onOpenJoinGalaxyModal?: () => void;
+  onOpenAgentWallModal?: () => void;
   user?: {
     name?: string | null;
     email?: string | null;
@@ -91,6 +93,7 @@ export function KioskHeader({
   onOpenInhabitantsModal,
   onOpenCreateGalaxyModal,
   onOpenJoinGalaxyModal,
+  onOpenAgentWallModal,
   user,
 }: KioskHeaderProps) {
   const [time, setTime] = useState("");
@@ -434,6 +437,19 @@ export function KioskHeader({
                   >
                     <Users className="w-3.5 h-3.5 text-starlight" />
                     <span>Manage Inhabitants & Pets</span>
+                  </button>
+                )}
+
+                {accessMode !== "kid" && onOpenAgentWallModal && (
+                  <button
+                    onClick={() => {
+                      setShowGalaxyMenu(false);
+                      onOpenAgentWallModal();
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-cyan-300 hover:text-cyan-200 hover:bg-cyan-950/40 flex items-center gap-2 transition"
+                  >
+                    <Bot className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Manage Agents & Bot Wall</span>
                   </button>
                 )}
 

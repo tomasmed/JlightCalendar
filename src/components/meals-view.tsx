@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Utensils, Plus, ShoppingCart, Check, Sparkles, User, X } from "lucide-react";
+import { Utensils, Plus, ShoppingCart, Check, Sparkles, User, X, Trash2 } from "lucide-react";
 import { AccessMode } from "./kiosk-header";
+import { AgentProvenanceBadge } from "./agent-badge";
 
 interface MealPlanItem {
   id: string;
@@ -14,6 +15,8 @@ interface MealPlanItem {
   memberId?: string | null;
   memberName?: string | null;
   memberColor?: string | null;
+  createdByAgentId?: string | null;
+  agent?: any;
 }
 
 interface FamilyMember {
@@ -208,35 +211,57 @@ export function MealsView({ accessMode, activeGalaxyId }: MealsViewProps) {
                         <span>Chef: {meal.memberName}</span>
                       </span>
                     )}
+                    {meal.agent && (
+                      <AgentProvenanceBadge agent={meal.agent} compact />
+                    )}
                   </div>
                   {meal.notes && (
                     <p className="text-xs text-slate-400 italic">{meal.notes}</p>
                   )}
                 </div>
 
-                {/* Actions: Add ingredients to grocery list */}
+                {/* Actions: Add ingredients to grocery list + Delete */}
                 {accessMode !== "kid" && (
-                  <button
-                    onClick={() => handleAddToGrocery(meal.title, meal.memberId)}
-                    disabled={isAdded}
-                    className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition min-h-[44px] cursor-pointer shrink-0 ${
-                      isAdded
-                        ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
-                        : "bg-cosmos-surface border-cosmos-border text-slate-300 hover:text-white hover:border-purple-500/50"
-                    }`}
-                  >
-                    {isAdded ? (
-                      <>
-                        <Check className="w-4 h-4 text-emerald-400" />
-                        <span>Added to List!</span>
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart className="w-4 h-4 text-purple-400" />
-                        <span>+ Grocery List</span>
-                      </>
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleAddToGrocery(meal.title, meal.memberId)}
+                      disabled={isAdded}
+                      className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition min-h-[44px] cursor-pointer shrink-0 ${
+                        isAdded
+                          ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
+                          : "bg-cosmos-surface border-cosmos-border text-slate-300 hover:text-white hover:border-purple-500/50"
+                      }`}
+                    >
+                      {isAdded ? (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-400" />
+                          <span>Added to List!</span>
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="w-4 h-4 text-purple-400" />
+                          <span>+ Grocery List</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!confirm("Delete this meal plan?")) return;
+                        try {
+                          const res = await fetch(`/api/meals?id=${encodeURIComponent(meal.id)}`, {
+                            method: "DELETE",
+                          });
+                          if (res.ok) fetchMeals();
+                        } catch (err) {
+                          console.error("Failed to delete meal:", err);
+                        }
+                      }}
+                      className="p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-cosmos-surface min-h-[44px] min-w-[44px] flex items-center justify-center transition"
+                      title="Delete meal plan"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 )}
               </div>
             );

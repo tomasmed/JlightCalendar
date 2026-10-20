@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "jlight": "tsx src/cli/jlight.ts",
     "test:unit": "tsx tests/unit.test.ts",
     "test:system": "tsx tests/system.test.ts",
     "test": "npm run test:unit && npm run test:system",
@@ -15,6 +16,9 @@
     "db:push": "drizzle-kit push",
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio"
+  },
+  "bin": {
+    "jlight": "./src/cli/jlight.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

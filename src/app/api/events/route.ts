@@ -2,13 +2,24 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { events, calendars } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { auth } from "@/auth";
-import { verifyGalaxyAccess } from "@/lib/auth-helpers";
+import {
+  resolveRequestActor,
+  verifyActorGalaxyAccess,
+  recordAgentAction,
+  getGalaxyAgentMap,
+} from "@/lib/agent-auth";
+import { ensureDatabaseSchema } from "@/db/ensure-schema";
 
 export async function GET(req: Request) {
   try {
+    await ensureDatabaseSchema();
+    const actor = await resolveRequestActor(req);
     const { searchParams } = new URL(req.url);
-    const galaxyId = searchParams.get("galaxyId");
+    const rawGalaxyId = searchParams.get("galaxyId");
+
+    const galaxyId =
+      rawGalaxyId ||
+      (actor.kind === "agent" ? actor.agent.galaxyId : null);
 
     if (!galaxyId) {
       return NextResponse.json(
@@ -17,16 +28,11 @@ export async function GET(req: Request) {
       );
     }
 
-    const session = await auth();
-    const hasAccess = await verifyGalaxyAccess(
-      galaxyId,
-      session?.user?.id,
-      session?.user?.email
-    );
-    if (!hasAccess) {
+    const access = await verifyActorGalaxyAccess(actor, galaxyId);
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have access to this galaxy's events." },
-        { status: 403 }
+        { error: access.error || "You do not have access to this galaxy's events." },
+        { status: access.status || 403 }
       );
     }
 
@@ -35,7 +41,14 @@ export async function GET(req: Request) {
       .from(events)
       .where(eq(events.galaxyId, galaxyId));
 
-    return NextResponse.json({ events: galaxyEvents });
+    // O(1) enrichment with agent badge metadata
+    const agentMap = await getGalaxyAgentMap(galaxyId);
+    const enrichedEvents = galaxyEvents.map((evt) => ({
+      ...evt,
+      agent: evt.createdByAgentId ? agentMap.get(evt.createdByAgentId) || null : null,
+    }));
+
+    return NextResponse.json({ events: enrichedEvents });
   } catch (error) {
     console.error("Failed to fetch events:", error);
     return NextResponse.json(
@@ -47,12 +60,15 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    await ensureDatabaseSchema();
+    const actor = await resolveRequestActor(req);
     const body = await req.json();
+
     const {
-      galaxyId,
+      galaxyId: rawGalaxyId,
       calendarId,
-      memberId,
-      memberIds,
+      memberId: rawMemberId,
+      memberIds: rawMemberIds,
       title,
       description,
       location,
@@ -64,6 +80,10 @@ export async function POST(req: Request) {
       colorOverride,
     } = body;
 
+    const galaxyId =
+      rawGalaxyId ||
+      (actor.kind === "agent" ? actor.agent.galaxyId : null);
+
     if (!galaxyId || !title || !startTime || !endTime) {
       return NextResponse.json(
         { error: "galaxyId, title, startTime, and endTime are required" },
@@ -71,17 +91,26 @@ export async function POST(req: Request) {
       );
     }
 
-    const session = await auth();
-    const hasAccess = await verifyGalaxyAccess(
-      galaxyId,
-      session?.user?.id,
-      session?.user?.email
-    );
-    if (!hasAccess) {
+    const access = await verifyActorGalaxyAccess(actor, galaxyId, { requireWrite: true });
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have permission to add events to this galaxy." },
-        { status: 403 }
+        { error: access.error || "You do not have permission to add events to this galaxy." },
+        { status: access.status || 403 }
       );
+    }
+
+    // Default inhabitant attribution for agents:
+    // If agent omits both memberId AND memberIds, default to bound Inhabitant.
+    // If memberId: null was explicitly passed (whole-family), respect that!
+    let memberId = rawMemberId;
+    let memberIds = rawMemberIds;
+    if (
+      actor.kind === "agent" &&
+      rawMemberId === undefined &&
+      rawMemberIds === undefined
+    ) {
+      memberId = actor.agent.memberId;
+      memberIds = [actor.agent.memberId];
     }
 
     // If calendarId not specified, find the primary calendar for the galaxy
@@ -115,6 +144,8 @@ export async function POST(req: Request) {
       : null;
 
     const id = crypto.randomUUID();
+    const createdByAgentId = actor.kind === "agent" ? actor.agent.id : null;
+
     await db.insert(events).values({
       id,
       galaxyId,
@@ -130,7 +161,12 @@ export async function POST(req: Request) {
       rrule: rrule || null,
       exdates: exdatesString,
       colorOverride: colorOverride || null,
+      createdByAgentId,
     });
+
+    if (actor.kind === "agent") {
+      await recordAgentAction(actor.agent.id);
+    }
 
     return NextResponse.json({
       success: true,
@@ -149,6 +185,8 @@ export async function POST(req: Request) {
         rrule: rrule || null,
         exdates: exdatesString,
         colorOverride,
+        createdByAgentId,
+        agent: actor.kind === "agent" ? actor.agent : null,
       },
     });
   } catch (error) {
@@ -162,7 +200,8 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const session = await auth();
+    await ensureDatabaseSchema();
+    const actor = await resolveRequestActor(req);
     const body = await req.json();
     const { id, ...updates } = body;
 
@@ -180,19 +219,39 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    const hasAccess = await verifyGalaxyAccess(
-      existing[0].galaxyId,
-      session?.user?.id,
-      session?.user?.email
-    );
-    if (!hasAccess) {
+    const access = await verifyActorGalaxyAccess(actor, existing[0].galaxyId, {
+      requireWrite: true,
+    });
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have permission to edit this event." },
-        { status: 403 }
+        { error: access.error || "You do not have permission to edit this event." },
+        { status: access.status || 403 }
       );
     }
 
-    const updatePayload = { ...updates };
+    // Whitelist allowed mutable fields (prevents agent badge object or arbitrary columns from breaking update)
+    const updatePayload: Record<string, any> = {};
+    const allowedKeys = [
+      "calendarId",
+      "memberId",
+      "memberIds",
+      "title",
+      "description",
+      "location",
+      "startTime",
+      "endTime",
+      "isAllDay",
+      "rrule",
+      "exdates",
+      "colorOverride",
+    ];
+
+    for (const key of allowedKeys) {
+      if (key in updates) {
+        updatePayload[key] = updates[key];
+      }
+    }
+
     if ("memberIds" in updatePayload) {
       if (Array.isArray(updatePayload.memberIds)) {
         updatePayload.memberIds = JSON.stringify(updatePayload.memberIds);
@@ -209,7 +268,17 @@ export async function PATCH(req: Request) {
       }
     }
 
-    await db.update(events).set(updatePayload).where(eq(events.id, id));
+    if (actor.kind === "agent") {
+      updatePayload.createdByAgentId = actor.agent.id;
+    }
+
+    if (Object.keys(updatePayload).length > 0) {
+      await db.update(events).set(updatePayload).where(eq(events.id, id));
+    }
+
+    if (actor.kind === "agent") {
+      await recordAgentAction(actor.agent.id);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -223,7 +292,8 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const session = await auth();
+    await ensureDatabaseSchema();
+    const actor = await resolveRequestActor(req);
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     const exdate = searchParams.get("exdate"); // YYYY-MM-DD for single occurrence deletion
@@ -243,15 +313,13 @@ export async function DELETE(req: Request) {
     }
 
     const eventRecord = existing[0];
-    const hasAccess = await verifyGalaxyAccess(
-      eventRecord.galaxyId,
-      session?.user?.id,
-      session?.user?.email
-    );
-    if (!hasAccess) {
+    const access = await verifyActorGalaxyAccess(actor, eventRecord.galaxyId, {
+      requireWrite: true,
+    });
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have permission to delete this event." },
-        { status: 403 }
+        { error: access.error || "You do not have permission to delete this event." },
+        { status: access.status || 403 }
       );
     }
 
@@ -277,6 +345,10 @@ export async function DELETE(req: Request) {
         .set({ exdates: JSON.stringify(currentExdates) })
         .where(eq(events.id, id));
 
+      if (actor.kind === "agent") {
+        await recordAgentAction(actor.agent.id);
+      }
+
       return NextResponse.json({
         success: true,
         deletedOccurrence: exdate,
@@ -286,6 +358,10 @@ export async function DELETE(req: Request) {
 
     // Delete entire event / series
     await db.delete(events).where(eq(events.id, id));
+
+    if (actor.kind === "agent") {
+      await recordAgentAction(actor.agent.id);
+    }
 
     return NextResponse.json({ success: true, deletedSeries: true });
   } catch (error) {

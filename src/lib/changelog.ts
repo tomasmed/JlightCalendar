@@ -11,10 +11,42 @@ export interface ChangelogItem {
 
 export const CHANGELOG_HISTORY: ChangelogItem[] = [
   {
+    version: "v0.9.0",
+    releaseDate: "October 2026",
+    title: "Autonomous Agent Conduit & Bot Wall",
+    badge: "Latest Release 🤖",
+    highlights: [
+      {
+        category: "New",
+        text: "Bot Wall & Personal Access Tokens (PAT): Mint scoped bearer tokens (jlight_ag_...) bound to household inhabitants ('User N's Agent') with 4 access tiers.",
+      },
+      {
+        category: "New",
+        text: "Push & Pull Handshake Protocols: Mint directly in the kiosk UI or let autonomous agents initiate connection via standard RFC 8628 device codes (BOT-XXXX).",
+      },
+      {
+        category: "Delight",
+        text: "Pixel Art Stencils & Runes: Rescued from tomasmed.dev Bot Wall, agents display custom 16×16 bitmaps, UTF-8 runes, and the historic Buff (∅) tombstone on revocation.",
+      },
+      {
+        category: "New",
+        text: "Agent Discoverability: Added /llms.txt machine-readable documentation and /api/agent/whoami orientation endpoint.",
+      },
+      {
+        category: "New",
+        text: "Zero-Dependency jlight CLI: Control family calendars, chores, meals, and grocery lists directly from the terminal or background agent loops.",
+      },
+      {
+        category: "Improvement",
+        text: "Full Provenance Attribution: Every item created by an agent features a crisp visual badge indicating which agent performed the action on behalf of which family member.",
+      },
+    ],
+  },
+  {
     version: "v0.8.0",
     releaseDate: "October 2026",
     title: "Spooky Season & Family Themes Pack",
-    badge: "Latest Release 🎃",
+    badge: "Previous",
     highlights: [
       {
         category: "Delight",

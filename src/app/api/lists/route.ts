@@ -2,25 +2,36 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { listItems, galaxyMembers } from "@/db/schema";
 import { eq, desc, and } from "drizzle-orm";
-import { auth } from "@/auth";
-import { verifyGalaxyAccess } from "@/lib/auth-helpers";
+import {
+  resolveRequestActor,
+  verifyActorGalaxyAccess,
+  recordAgentAction,
+  getGalaxyAgentMap,
+} from "@/lib/agent-auth";
+import { ensureDatabaseSchema } from "@/db/ensure-schema";
 
 export async function GET(request: Request) {
   try {
+    await ensureDatabaseSchema();
+    const actor = await resolveRequestActor(request);
     const { searchParams } = new URL(request.url);
-    const galaxyId = searchParams.get("galaxyId") || "galaxy_sol_family";
+    const rawGalaxyId = searchParams.get("galaxyId");
+
+    const galaxyId =
+      rawGalaxyId ||
+      (actor.kind === "agent" ? actor.agent.galaxyId : "galaxy_sol_family");
+
     const listType = (searchParams.get("type") || "grocery") as
       | "grocery"
       | "todo"
       | "packing";
     const memberId = searchParams.get("memberId");
 
-    const session = await auth();
-    const hasAccess = await verifyGalaxyAccess(galaxyId, session?.user?.id);
-    if (!hasAccess) {
+    const access = await verifyActorGalaxyAccess(actor, galaxyId);
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have access to this galaxy's lists." },
-        { status: 403 }
+        { error: access.error || "You do not have access to this galaxy's lists." },
+        { status: access.status || 403 }
       );
     }
 
@@ -45,6 +56,8 @@ export async function GET(request: Request) {
       query = query.filter((item) => item.addedByMemberId === memberId);
     }
 
+    const agentMap = await getGalaxyAgentMap(galaxyId);
+
     const items = query.map((item) => {
       const member = item.addedByMemberId
         ? memberMap.get(item.addedByMemberId)
@@ -57,6 +70,8 @@ export async function GET(request: Request) {
         addedByMemberId: item.addedByMemberId,
         addedByName: member?.displayName,
         addedByColor: member?.color,
+        createdByAgentId: item.createdByAgentId,
+        agent: item.createdByAgentId ? agentMap.get(item.createdByAgentId) || null : null,
       };
     });
 
@@ -78,14 +93,19 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
+    await ensureDatabaseSchema();
+    const actor = await resolveRequestActor(request);
     const body = await request.json();
     const {
       title,
-      addedByMemberId,
+      addedByMemberId: rawAddedByMemberId,
       listType = "grocery",
-      galaxyId = "galaxy_sol_family",
+      galaxyId: rawGalaxyId,
     } = body;
+
+    const galaxyId =
+      rawGalaxyId ||
+      (actor.kind === "agent" ? actor.agent.galaxyId : "galaxy_sol_family");
 
     if (!title || !title.trim()) {
       return NextResponse.json(
@@ -94,15 +114,26 @@ export async function POST(request: Request) {
       );
     }
 
-    const hasAccess = await verifyGalaxyAccess(galaxyId, session?.user?.id);
-    if (!hasAccess) {
+    const access = await verifyActorGalaxyAccess(actor, galaxyId, { requireWrite: true });
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have access to add items in this galaxy." },
-        { status: 403 }
+        { error: access.error || "You do not have access to add items in this galaxy." },
+        { status: access.status || 403 }
       );
     }
 
-    const id = `list_${Date.now()}`;
+    // Default addedByMemberId to bound Inhabitant if agent omitted it
+    const addedByMemberId =
+      rawAddedByMemberId !== undefined
+        ? rawAddedByMemberId
+        : actor.kind === "agent"
+        ? actor.agent.memberId
+        : null;
+
+    // Millisecond collision prevention
+    const id = `list_${Date.now()}_${crypto.randomUUID().slice(0, 6)}`;
+    const createdByAgentId = actor.kind === "agent" ? actor.agent.id : null;
+
     await db.insert(listItems).values({
       id,
       galaxyId,
@@ -110,9 +141,19 @@ export async function POST(request: Request) {
       title: title.trim(),
       isCompleted: false,
       addedByMemberId: addedByMemberId || null,
+      createdByAgentId,
     });
 
-    return NextResponse.json({ success: true, id });
+    if (actor.kind === "agent") {
+      await recordAgentAction(actor.agent.id);
+    }
+
+    return NextResponse.json({
+      success: true,
+      id,
+      createdByAgentId,
+      agent: actor.kind === "agent" ? actor.agent : null,
+    });
   } catch (error) {
     console.error("Failed to create list item:", error);
     return NextResponse.json(
@@ -124,7 +165,8 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const session = await auth();
+    await ensureDatabaseSchema();
+    const actor = await resolveRequestActor(request);
     const body = await request.json();
     const { id, completed } = body;
 
@@ -145,11 +187,11 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Item not found" }, { status: 404 });
     }
 
-    const hasAccess = await verifyGalaxyAccess(item.galaxyId, session?.user?.id);
-    if (!hasAccess) {
+    const access = await verifyActorGalaxyAccess(actor, item.galaxyId, { requireWrite: true });
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have permission to update this item." },
-        { status: 403 }
+        { error: access.error || "You do not have permission to update this item." },
+        { status: access.status || 403 }
       );
     }
 
@@ -157,6 +199,10 @@ export async function PATCH(request: Request) {
       .update(listItems)
       .set({ isCompleted: completed })
       .where(eq(listItems.id, id));
+
+    if (actor.kind === "agent") {
+      await recordAgentAction(actor.agent.id);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -170,11 +216,16 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const session = await auth();
+    await ensureDatabaseSchema();
+    const actor = await resolveRequestActor(request);
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const action = searchParams.get("action");
-    const galaxyId = searchParams.get("galaxyId");
+    const rawGalaxyId = searchParams.get("galaxyId");
+
+    const galaxyId =
+      rawGalaxyId ||
+      (actor.kind === "agent" ? actor.agent.galaxyId : null);
 
     if (action === "clear-completed") {
       if (!galaxyId) {
@@ -183,11 +234,11 @@ export async function DELETE(request: Request) {
           { status: 400 }
         );
       }
-      const hasAccess = await verifyGalaxyAccess(galaxyId, session?.user?.id);
-      if (!hasAccess) {
+      const access = await verifyActorGalaxyAccess(actor, galaxyId, { requireWrite: true });
+      if (!access.allowed) {
         return NextResponse.json(
-          { error: "You do not have permission for this galaxy." },
-          { status: 403 }
+          { error: access.error || "You do not have permission for this galaxy." },
+          { status: access.status || 403 }
         );
       }
       await db
@@ -198,6 +249,11 @@ export async function DELETE(request: Request) {
             eq(listItems.isCompleted, true)
           )
         );
+
+      if (actor.kind === "agent") {
+        await recordAgentAction(actor.agent.id);
+      }
+
       return NextResponse.json({ success: true, cleared: true });
     }
 
@@ -212,18 +268,20 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ error: "Item not found" }, { status: 404 });
       }
 
-      const hasAccess = await verifyGalaxyAccess(
-        item.galaxyId,
-        session?.user?.id
-      );
-      if (!hasAccess) {
+      const access = await verifyActorGalaxyAccess(actor, item.galaxyId, { requireWrite: true });
+      if (!access.allowed) {
         return NextResponse.json(
-          { error: "You do not have permission to delete this item." },
-          { status: 403 }
+          { error: access.error || "You do not have permission to delete this item." },
+          { status: access.status || 403 }
         );
       }
 
       await db.delete(listItems).where(eq(listItems.id, id));
+
+      if (actor.kind === "agent") {
+        await recordAgentAction(actor.agent.id);
+      }
+
       return NextResponse.json({ success: true, deleted: id });
     }
 

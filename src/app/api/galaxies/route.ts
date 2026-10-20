@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { ensureDatabaseSchema } from "@/db/ensure-schema";
 import {
@@ -8,13 +9,54 @@ import {
   events,
   generateJoinCode,
 } from "@/db/schema";
-import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { ensureDbUser } from "@/lib/auth-helpers";
+import { resolveRequestActor, verifyActorGalaxyAccess, recordAgentAction } from "@/lib/agent-auth";
 
 export async function GET(req: Request) {
   try {
     await ensureDatabaseSchema();
+    const actor = await resolveRequestActor(req);
+
+    if (actor.kind === "invalid_agent") {
+      return NextResponse.json({ error: actor.error }, { status: actor.status });
+    }
+
+    if (actor.kind === "agent") {
+      // Agent actor: Return its bound galaxy with members and calendars
+      const [boundGalaxy] = await db
+        .select()
+        .from(galaxies)
+        .where(eq(galaxies.id, actor.agent.galaxyId))
+        .limit(1);
+
+      if (!boundGalaxy) {
+        return NextResponse.json({ error: "Galaxy not found" }, { status: 404 });
+      }
+
+      const members = await db
+        .select()
+        .from(galaxyMembers)
+        .where(eq(galaxyMembers.galaxyId, boundGalaxy.id));
+
+      const calList = await db
+        .select()
+        .from(calendars)
+        .where(eq(calendars.galaxyId, boundGalaxy.id));
+
+      await recordAgentAction(actor.agent.id);
+
+      return NextResponse.json({
+        galaxies: [
+          {
+            ...boundGalaxy,
+            members,
+            calendars: calList,
+          },
+        ],
+      });
+    }
+
     const session = await auth();
     let userId = session?.user?.id;
     if (session?.user) {
@@ -164,6 +206,14 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     await ensureDatabaseSchema();
+    const actor = await resolveRequestActor(req);
+    if (actor.kind === "agent") {
+      return NextResponse.json(
+        { error: "Forbidden: Agents cannot create new galaxies. Only human operators can provision galaxies." },
+        { status: 403 }
+      );
+    }
+
     const session = await auth();
     let userId = session?.user?.id;
     if (session?.user) {
@@ -278,18 +328,21 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     await ensureDatabaseSchema();
-    const session = await auth();
-    let userId = session?.user?.id;
-    if (session?.user) {
-      const ensuredId = await ensureDbUser(session.user);
-      if (ensuredId) userId = ensuredId;
-    }
-
+    const actor = await resolveRequestActor(req);
     const body = await req.json();
-    const { galaxyId, name, familyColor, familyAvatar, theme, icon } = body;
+    const { galaxyId: rawGalaxyId, id: rawId, name, familyColor, familyAvatar, theme, icon } = body;
+    const galaxyId = rawGalaxyId || rawId || (actor.kind === "agent" ? actor.agent.galaxyId : null);
 
     if (!galaxyId) {
       return NextResponse.json({ error: "galaxyId is required" }, { status: 400 });
+    }
+
+    const access = await verifyActorGalaxyAccess(actor, galaxyId, { requireAdmin: true });
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.error || "You do not have permission to update this galaxy." },
+        { status: access.status || 403 }
+      );
     }
 
     const updates: Record<string, any> = {};

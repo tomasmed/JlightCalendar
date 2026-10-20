@@ -68,6 +68,12 @@ async function runSystemTests() {
   const eventsRoute = await import("../src/app/api/events/route");
   const choresRoute = await import("../src/app/api/chores/route");
   const listsRoute = await import("../src/app/api/lists/route");
+  const mealsRoute = await import("../src/app/api/meals/route");
+  const llmsRoute = await import("../src/app/llms.txt/route");
+  const agentKeysRoute = await import("../src/app/api/agent/keys/route");
+  const agentWhoamiRoute = await import("../src/app/api/agent/whoami/route");
+  const agentConnectRoute = await import("../src/app/api/agent/connect/route");
+  const agentConnectApproveRoute = await import("../src/app/api/agent/connect/approve/route");
 
   console.log("\n====================================================");
   console.log("👩‍🚀 2. Creating Users & Provisioning Galaxies");
@@ -622,6 +628,328 @@ async function runSystemTests() {
   assert(
     finalGroceryData.items.length === 1 && finalGroceryData.items[0].title === "Honeycrisp Apples",
     "Verified remaining grocery list state after deletions"
+  );
+
+  console.log("\n====================================================");
+  console.log("🤖 7. Agent Auth, Bot Wall, Handshake & Provenance Workflows");
+  console.log("====================================================");
+
+  // 1. Machine Discovery: GET /llms.txt
+  const llmsRes = await llmsRoute.GET(new Request("http://localhost:3000/llms.txt"));
+  assert(llmsRes.status === 200, "GET /llms.txt returned 200");
+  const llmsText = await llmsRes.text();
+  assert(
+    llmsText.includes("# JlightCalendar — Agent Conduit & Protocol Manual") &&
+      llmsText.includes("/api/agent/whoami") &&
+      llmsText.includes("Authorization: Bearer jlight_ag_"),
+    "GET /llms.txt exposes markdown guide for autonomous agents"
+  );
+
+  // 2. Push Flow: Human Mints PAT for "Starlight Butler" bound to Leo
+  const robotStencil64 =
+    "000000000000000003c0042009900bd00bd0099007e003c00ff00bd00bd00000";
+  const mintRes = await agentKeysRoute.POST(
+    new Request("http://localhost:3000/api/agent/keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        galaxyId,
+        memberId: leoMemberId,
+        agentName: "Starlight Butler",
+        crew: "astronomy",
+        directive: "Schedule evening stargazing sessions and telescope chores",
+        tagMode: "stencil16",
+        rune: "⚡",
+        color: "#8b5cf6",
+        stencilMap: robotStencil64,
+        scope: "standard",
+      }),
+    })
+  );
+  assert(mintRes.status === 200, "POST /api/agent/keys successfully minted PAT for Starlight Butler");
+  const mintData = await mintRes.json();
+  const butlerApiKey = mintData.token;
+  const butlerKeyId = mintData.keyId;
+  assert(
+    typeof butlerApiKey === "string" && butlerApiKey.startsWith("jlight_ag_"),
+    "Minted PAT matches 'jlight_ag_...' format"
+  );
+
+  // 3. Agent Self-Orientation: GET /api/agent/whoami
+  const whoamiRes = await agentWhoamiRoute.GET(
+    new Request("http://localhost:3000/api/agent/whoami", {
+      headers: { Authorization: `Bearer ${butlerApiKey}` },
+    })
+  );
+  assert(whoamiRes.status === 200, "GET /api/agent/whoami authenticated with Bearer PAT");
+  const whoamiData = await whoamiRes.json();
+  assert(
+    whoamiData.agent.agentName === "Starlight Butler" &&
+      whoamiData.galaxy.id === galaxyId &&
+      whoamiData.onBehalfOf.memberId === leoMemberId &&
+      whoamiData.inhabitants.length >= 3,
+    "GET /api/agent/whoami returned agent identity, galaxy ID, and household inhabitants"
+  );
+
+  // 4. Agent Domain CRUD with Smart Defaults & Provenance Stamping
+  // 4a. Events: Omit galaxyId and memberId; verify smart defaults and agent provenance
+  const agentEventRes = await eventsRoute.POST(
+    new Request("http://localhost:3000/api/events", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${butlerApiKey}`,
+      },
+      body: JSON.stringify({
+        title: "Agent Stargazing Observation",
+        date: "2026-10-25",
+        startTime: "20:00",
+        endTime: "21:00",
+        category: "general",
+      }),
+    })
+  );
+  assert(agentEventRes.status === 200, "POST /api/events created event via agent PAT with smart defaults");
+  const agentEventData = await agentEventRes.json();
+  const agentCreatedEventId = agentEventData.event.id;
+
+  // Verify event was stamped with createdByAgentId and enriched with agent metadata
+  const fetchAgentEventRes = await eventsRoute.GET(
+    new Request(
+      `http://localhost:3000/api/events?galaxyId=${galaxyId}&start=2026-10-01&end=2026-10-31`,
+      { headers: { Authorization: `Bearer ${butlerApiKey}` } }
+    )
+  );
+  const fetchAgentEventData = await fetchAgentEventRes.json();
+  const fetchedAgentEvent = fetchAgentEventData.events.find(
+    (e: any) => e.id === agentCreatedEventId
+  );
+  assert(
+    Boolean(
+      fetchedAgentEvent &&
+        fetchedAgentEvent.createdByAgentId === butlerKeyId &&
+        fetchedAgentEvent.agent?.agentName === "Starlight Butler" &&
+        fetchedAgentEvent.agent?.rune === "⚡"
+    ),
+    "Event stamped with createdByAgentId and enriched with Bot Wall persona"
+  );
+
+  // 4b. Lists: Create list item via agent
+  const agentListRes = await listsRoute.POST(
+    new Request("http://localhost:3000/api/lists", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${butlerApiKey}`,
+      },
+      body: JSON.stringify({
+        title: "Telescope Solar Filters",
+        type: "packing",
+      }),
+    })
+  );
+  assert(agentListRes.status === 200, "POST /api/lists created item via agent PAT");
+  const agentListData = await agentListRes.json();
+  assert(
+    agentListData.createdByAgentId === butlerKeyId,
+    "List item stamped with agent provenance and default galaxy"
+  );
+
+  // 4c. Chores: Create chore via agent
+  const agentChoreRes = await choresRoute.POST(
+    new Request("http://localhost:3000/api/chores", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${butlerApiKey}`,
+      },
+      body: JSON.stringify({
+        title: "Dust Primary Telescope Mirror",
+        points: 3,
+        recurrenceType: "weekly",
+      }),
+    })
+  );
+  assert(agentChoreRes.status === 200, "POST /api/chores created chore via agent PAT");
+  const agentChoreData = await agentChoreRes.json();
+  assert(
+    agentChoreData.createdByAgentId === butlerKeyId,
+    "Chore stamped with agent provenance"
+  );
+
+  // 4d. Meals: Create meal plan via agent
+  const agentMealRes = await mealsRoute.POST(
+    new Request("http://localhost:3000/api/meals", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${butlerApiKey}`,
+      },
+      body: JSON.stringify({
+        planDate: "2026-10-25",
+        mealType: "dinner",
+        title: "Starlight Constellation Stew",
+      }),
+    })
+  );
+  assert(agentMealRes.status === 200, "POST /api/meals created meal plan via agent PAT");
+  const agentMealData = await agentMealRes.json();
+  assert(
+    agentMealData.createdByAgentId === butlerKeyId,
+    "Meal plan stamped with agent provenance"
+  );
+
+  // 5. Pull Flow: Agent Initiates Handshake (Device Code Flow)
+  const connectInitRes = await agentConnectRoute.POST(
+    new Request("http://localhost:3000/api/agent/connect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        agentName: "Nova Rover",
+        crew: "exploration",
+        directive: "Autonomous surface reconnaissance",
+        tagMode: "rune",
+        rune: "🔭",
+        color: "#3b82f6",
+        requestedScope: "kid",
+      }),
+    })
+  );
+  assert(connectInitRes.status === 200, "POST /api/agent/connect initiated device handshake");
+  const connectInitData = await connectInitRes.json();
+  const { deviceCode, userCode } = connectInitData;
+  assert(
+    typeof deviceCode === "string" &&
+      deviceCode.startsWith("jlight_dc_") &&
+      typeof userCode === "string" &&
+      userCode.startsWith("BOT-"),
+    "Generated deviceCode (jlight_dc_) and userCode (BOT-XXXX)"
+  );
+
+  // Agent polls before human approves -> returns pending status
+  const pollPendingRes = await agentConnectRoute.GET(
+    new Request(`http://localhost:3000/api/agent/connect?deviceCode=${deviceCode}`)
+  );
+  assert(pollPendingRes.status === 202, "GET /api/agent/connect returned 202 while polling");
+  const pollPendingData = await pollPendingRes.json();
+  assert(pollPendingData.status === "pending", "Handshake status is 'pending' before human approval");
+
+  // Human Alice reviews and approves the handshake request
+  const approvePreviewRes = await agentConnectApproveRoute.GET(
+    new Request(`http://localhost:3000/api/agent/connect/approve?userCode=${userCode}`)
+  );
+  assert(approvePreviewRes.status === 200, "GET /api/agent/connect/approve loaded bot preview");
+  const previewData = await approvePreviewRes.json();
+  assert(previewData.agentName === "Nova Rover", "Bot preview matches initiated agent name");
+
+  const approveRes = await agentConnectApproveRoute.POST(
+    new Request("http://localhost:3000/api/agent/connect/approve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userCode,
+        action: "approve",
+        galaxyId,
+        memberId: miaMemberId,
+        scope: "kid",
+      }),
+    })
+  );
+  assert(approveRes.status === 200, "POST /api/agent/connect/approve approved connection and bound to Mia");
+
+  // Agent polls after human approval -> returns approved status and minted apiKey
+  const pollApprovedRes = await agentConnectRoute.GET(
+    new Request(`http://localhost:3000/api/agent/connect?deviceCode=${deviceCode}`)
+  );
+  const pollApprovedData = await pollApprovedRes.json();
+  assert(
+    pollApprovedData.status === "approved" &&
+      typeof pollApprovedData.token === "string" &&
+      pollApprovedData.token.startsWith("jlight_ag_"),
+    "Polling agent received approved status and new Bearer PAT"
+  );
+  const novaApiKey = pollApprovedData.token;
+
+  // 5b. Autonomous Instant Self-Registration (With Galaxy Join Code)
+  const testJoinCode = joinCode;
+  assert(Boolean(testJoinCode), "Retrieved test galaxy join code");
+
+  const autoRegisterRes = await agentConnectRoute.POST(
+    new Request("http://localhost:3000/api/agent/connect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        joinCode: testJoinCode,
+        agentName: "Auto Probe",
+        directive: "Self-registered probe",
+        requestedScope: "standard",
+      }),
+    })
+  );
+  assert(autoRegisterRes.status === 200, "POST /api/agent/connect with joinCode self-registers instantly");
+  const autoRegisterData = await autoRegisterRes.json();
+  assert(
+    autoRegisterData.status === "approved" &&
+      typeof autoRegisterData.token === "string" &&
+      autoRegisterData.token.startsWith("jlight_ag_") &&
+      Boolean(autoRegisterData.boundMember),
+    "Autonomous registration returned approved token bound to household member with zero human clicks"
+  );
+
+  // 6. Scope Restrictions (kid & readonly)
+  // Kid-scoped agent cannot mutate family identity / settings (PATCH /api/galaxies)
+  const kidPatchGalaxyRes = await galaxiesRoute.PATCH(
+    new Request("http://localhost:3000/api/galaxies", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${novaApiKey}`,
+      },
+      body: JSON.stringify({
+        id: galaxyId,
+        name: "Hacked Galaxy by Kid Agent",
+      }),
+    })
+  );
+  assert(
+    kidPatchGalaxyRes.status === 403,
+    "PATCH /api/galaxies blocked kid-scoped agent with 403 Forbidden"
+  );
+
+  // 7. The Buff (∅) Revocation Flow
+  // Revoke Starlight Butler's key
+  const buffRes = await agentKeysRoute.PATCH(
+    new Request("http://localhost:3000/api/agent/keys", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: butlerKeyId,
+        action: "buff",
+      }),
+    })
+  );
+  assert(buffRes.status === 200, "PATCH /api/agent/keys gave Starlight Butler The Buff (∅)");
+
+  // Revoked agent PAT is rejected with 403 Forbidden
+  const revokedAccessRes = await agentWhoamiRoute.GET(
+    new Request("http://localhost:3000/api/agent/whoami", {
+      headers: { Authorization: `Bearer ${butlerApiKey}` },
+    })
+  );
+  assert(
+    revokedAccessRes.status === 403,
+    "GET /api/agent/whoami rejected buffed token with 403 Forbidden"
+  );
+
+  // Verify Bot Wall listing shows the revoked agent tombstone
+  const keysListRes = await agentKeysRoute.GET(
+    new Request(`http://localhost:3000/api/agent/keys?galaxyId=${galaxyId}`)
+  );
+  const keysListData = await keysListRes.json();
+  const buffedKey = keysListData.keys.find((k: any) => k.id === butlerKeyId);
+  assert(
+    Boolean(buffedKey && buffedKey.status === "revoked" && buffedKey.rune === "∅" && buffedKey.revokedAt),
+    "Bot Wall lists revoked agent with status='revoked', rune='∅', and revokedAt tombstone"
   );
 
   // Close client & clean up temporary SQLite DB files

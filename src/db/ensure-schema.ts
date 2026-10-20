@@ -108,6 +108,91 @@ export async function ensureDatabaseSchema(): Promise<void> {
         }
       }
 
+      // 7. Ensure created_by_agent_id in domain tables
+      const domainTables = [
+        "events",
+        "chores",
+        "chore_completions",
+        "list_items",
+        "meal_plans",
+      ];
+      for (const tbl of domainTables) {
+        const chk = await client.execute(
+          `SELECT name FROM sqlite_master WHERE type='table' AND name='${tbl}';`
+        );
+        if (chk.rows.length > 0) {
+          const info = await client.execute(`PRAGMA table_info(${tbl});`);
+          const cols = new Set(info.rows.map((r) => String(r.name)));
+          if (!cols.has("created_by_agent_id")) {
+            console.log(`🛠️ Adding 'created_by_agent_id' to '${tbl}'...`);
+            await client.execute(
+              `ALTER TABLE ${tbl} ADD COLUMN created_by_agent_id text;`
+            );
+          }
+        }
+      }
+
+      // 8. Ensure agent_keys table
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS agent_keys (
+          id text PRIMARY KEY,
+          galaxy_id text NOT NULL REFERENCES galaxies(id) ON DELETE CASCADE,
+          member_id text NOT NULL REFERENCES galaxy_members(id) ON DELETE CASCADE,
+          created_by_user_id text REFERENCES users(id) ON DELETE SET NULL,
+          token_hash text NOT NULL UNIQUE,
+          key_prefix text NOT NULL,
+          agent_name text NOT NULL,
+          crew text,
+          directive text,
+          tag_mode text NOT NULL DEFAULT 'rune',
+          rune text NOT NULL DEFAULT '◈',
+          color text NOT NULL DEFAULT '#06b6d4',
+          stencil_map text,
+          scope text NOT NULL DEFAULT 'standard',
+          status text NOT NULL DEFAULT 'active',
+          action_count integer NOT NULL DEFAULT 0,
+          last_used_at text,
+          revoked_at text,
+          created_at text NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await client.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS agent_keys_token_hash_unique ON agent_keys (token_hash);"
+      );
+      await client.execute(
+        "CREATE INDEX IF NOT EXISTS agent_keys_galaxy_id_idx ON agent_keys (galaxy_id);"
+      );
+
+      // 9. Ensure agent_device_codes table
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS agent_device_codes (
+          id text PRIMARY KEY,
+          device_code_hash text NOT NULL UNIQUE,
+          user_code text NOT NULL UNIQUE,
+          agent_name text NOT NULL,
+          crew text,
+          directive text,
+          tag_mode text NOT NULL DEFAULT 'rune',
+          rune text NOT NULL DEFAULT '◈',
+          color text NOT NULL DEFAULT '#06b6d4',
+          stencil_map text,
+          requested_scope text NOT NULL DEFAULT 'standard',
+          status text NOT NULL DEFAULT 'pending',
+          galaxy_id text REFERENCES galaxies(id) ON DELETE CASCADE,
+          member_id text REFERENCES galaxy_members(id) ON DELETE CASCADE,
+          minted_raw_token text,
+          agent_key_id text REFERENCES agent_keys(id) ON DELETE SET NULL,
+          expires_at integer NOT NULL,
+          created_at text NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await client.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS agent_device_codes_code_hash_unique ON agent_device_codes (device_code_hash);"
+      );
+      await client.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS agent_device_codes_user_code_unique ON agent_device_codes (user_code);"
+      );
+
       isEnsured = true;
     } catch (err) {
       console.error("⚠️ Failed to ensure database schema at runtime:", err);

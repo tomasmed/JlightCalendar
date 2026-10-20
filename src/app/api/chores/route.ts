@@ -2,23 +2,34 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { chores, choreCompletions, galaxyMembers } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
-import { auth } from "@/auth";
-import { verifyGalaxyAccess } from "@/lib/auth-helpers";
+import {
+  resolveRequestActor,
+  verifyActorGalaxyAccess,
+  recordAgentAction,
+  getGalaxyAgentMap,
+} from "@/lib/agent-auth";
+import { ensureDatabaseSchema } from "@/db/ensure-schema";
 
 export async function GET(request: Request) {
   try {
+    await ensureDatabaseSchema();
+    const actor = await resolveRequestActor(request);
     const { searchParams } = new URL(request.url);
-    const galaxyId = searchParams.get("galaxyId") || "galaxy_sol_family";
+    const rawGalaxyId = searchParams.get("galaxyId");
+
+    const galaxyId =
+      rawGalaxyId ||
+      (actor.kind === "agent" ? actor.agent.galaxyId : "galaxy_sol_family");
+
     const dateParam =
       searchParams.get("date") || new Date().toISOString().slice(0, 10);
     const memberId = searchParams.get("memberId");
 
-    const session = await auth();
-    const hasAccess = await verifyGalaxyAccess(galaxyId, session?.user?.id);
-    if (!hasAccess) {
+    const access = await verifyActorGalaxyAccess(actor, galaxyId);
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have access to this galaxy's chores." },
-        { status: 403 }
+        { error: access.error || "You do not have access to this galaxy's chores." },
+        { status: access.status || 403 }
       );
     }
 
@@ -63,6 +74,8 @@ export async function GET(request: Request) {
       }
     }
 
+    const agentMap = await getGalaxyAgentMap(galaxyId);
+
     const choreItems = allChores.map((chore) => {
       const member = memberMap.get(chore.memberId);
       return {
@@ -83,6 +96,8 @@ export async function GET(request: Request) {
             : "Daily Routine",
         recurrenceType: chore.recurrenceType,
         dueTime: chore.dueTime || undefined,
+        createdByAgentId: chore.createdByAgentId,
+        agent: chore.createdByAgentId ? agentMap.get(chore.createdByAgentId) || null : null,
       };
     });
 
@@ -114,16 +129,26 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
+    await ensureDatabaseSchema();
+    const actor = await resolveRequestActor(request);
     const body = await request.json();
     const {
-      memberId,
+      memberId: rawMemberId,
       title,
       points = 1,
       recurrenceType = "daily",
       dueTime,
-      galaxyId = "galaxy_sol_family",
+      galaxyId: rawGalaxyId,
     } = body;
+
+    const galaxyId =
+      rawGalaxyId ||
+      (actor.kind === "agent" ? actor.agent.galaxyId : "galaxy_sol_family");
+
+    // Default memberId for agent
+    const memberId =
+      rawMemberId ||
+      (actor.kind === "agent" ? actor.agent.memberId : null);
 
     if (!memberId || !title) {
       return NextResponse.json(
@@ -132,15 +157,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const hasAccess = await verifyGalaxyAccess(galaxyId, session?.user?.id);
-    if (!hasAccess) {
+    const access = await verifyActorGalaxyAccess(actor, galaxyId, { requireWrite: true });
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have access to add chores in this galaxy." },
-        { status: 403 }
+        { error: access.error || "You do not have access to add chores in this galaxy." },
+        { status: access.status || 403 }
       );
     }
 
-    const choreId = `chore_${Date.now()}`;
+    const choreId = `chore_${Date.now()}_${crypto.randomUUID().slice(0, 6)}`;
+    const createdByAgentId = actor.kind === "agent" ? actor.agent.id : null;
+
     await db.insert(chores).values({
       id: choreId,
       galaxyId,
@@ -150,9 +177,19 @@ export async function POST(request: Request) {
       recurrenceType,
       dueTime: dueTime || null,
       isActive: true,
+      createdByAgentId,
     });
 
-    return NextResponse.json({ success: true, id: choreId });
+    if (actor.kind === "agent") {
+      await recordAgentAction(actor.agent.id);
+    }
+
+    return NextResponse.json({
+      success: true,
+      id: choreId,
+      createdByAgentId,
+      agent: actor.kind === "agent" ? actor.agent : null,
+    });
   } catch (error) {
     console.error("Failed to create chore:", error);
     return NextResponse.json(
@@ -164,7 +201,8 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const session = await auth();
+    await ensureDatabaseSchema();
+    const actor = await resolveRequestActor(request);
     const body = await request.json();
     const { choreId, date } = body;
     const completedDate = date || new Date().toISOString().slice(0, 10);
@@ -186,14 +224,15 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Chore not found" }, { status: 404 });
     }
 
-    const hasAccess = await verifyGalaxyAccess(
-      chore.galaxyId,
-      session?.user?.id
-    );
-    if (!hasAccess) {
+    // Kid-scoped agents ARE allowed to toggle chore completions! (allowKidWrite: true)
+    const access = await verifyActorGalaxyAccess(actor, chore.galaxyId, {
+      requireWrite: true,
+      allowKidWrite: true,
+    });
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have permission to modify this chore." },
-        { status: 403 }
+        { error: access.error || "You do not have permission to modify this chore." },
+        { status: access.status || 403 }
       );
     }
 
@@ -235,12 +274,16 @@ export async function PATCH(request: Request) {
       completed = false;
     } else {
       // Check chore
+      const compId = `comp_${Date.now()}_${crypto.randomUUID().slice(0, 6)}`;
+      const createdByAgentId = actor.kind === "agent" ? actor.agent.id : null;
+
       await db.insert(choreCompletions).values({
-        id: `comp_${Date.now()}`,
+        id: compId,
         choreId: chore.id,
         memberId: chore.memberId,
         completedDate,
         pointsAwarded: pointsDelta,
+        createdByAgentId,
       });
 
       await db
@@ -251,6 +294,10 @@ export async function PATCH(request: Request) {
         .where(eq(galaxyMembers.id, chore.memberId));
 
       completed = true;
+    }
+
+    if (actor.kind === "agent") {
+      await recordAgentAction(actor.agent.id);
     }
 
     // Return updated member star balances for this galaxy
@@ -275,7 +322,8 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const session = await auth();
+    await ensureDatabaseSchema();
+    const actor = await resolveRequestActor(request);
     const { searchParams } = new URL(request.url);
     const choreId = searchParams.get("choreId");
 
@@ -296,14 +344,13 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Chore not found" }, { status: 404 });
     }
 
-    const hasAccess = await verifyGalaxyAccess(
-      chore.galaxyId,
-      session?.user?.id
-    );
-    if (!hasAccess) {
+    const access = await verifyActorGalaxyAccess(actor, chore.galaxyId, {
+      requireWrite: true,
+    });
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have permission to delete this chore." },
-        { status: 403 }
+        { error: access.error || "You do not have permission to delete this chore." },
+        { status: access.status || 403 }
       );
     }
 
@@ -314,6 +361,10 @@ export async function DELETE(request: Request) {
 
     // Delete chore
     await db.delete(chores).where(eq(chores.id, choreId));
+
+    if (actor.kind === "agent") {
+      await recordAgentAction(actor.agent.id);
+    }
 
     return NextResponse.json({ success: true, deletedChoreId: choreId });
   } catch (error) {
@@ -327,7 +378,8 @@ export async function DELETE(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const session = await auth();
+    await ensureDatabaseSchema();
+    const actor = await resolveRequestActor(request);
     const body = await request.json();
     const {
       choreId,
@@ -355,14 +407,13 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Chore not found" }, { status: 404 });
     }
 
-    const hasAccess = await verifyGalaxyAccess(
-      chore.galaxyId,
-      session?.user?.id
-    );
-    if (!hasAccess) {
+    const access = await verifyActorGalaxyAccess(actor, chore.galaxyId, {
+      requireWrite: true,
+    });
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "You do not have permission to edit this chore." },
-        { status: 403 }
+        { error: access.error || "You do not have permission to edit this chore." },
+        { status: access.status || 403 }
       );
     }
 
@@ -376,6 +427,10 @@ export async function PUT(request: Request) {
         dueTime: dueTime || null,
       })
       .where(eq(chores.id, choreId));
+
+    if (actor.kind === "agent") {
+      await recordAgentAction(actor.agent.id);
+    }
 
     return NextResponse.json({ success: true, choreId });
   } catch (error) {

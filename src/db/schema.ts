@@ -5,6 +5,7 @@ import {
   primaryKey,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
+import { randomInt } from "crypto";
 import type { AdapterAccountType } from "next-auth/adapters";
 
 // ==========================================
@@ -96,13 +97,47 @@ export const galaxies = sqliteTable("galaxies", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
+/**
+ * Generates a high-entropy, human-friendly 8-character galaxy join code (GLX-XXXX-XXXX).
+ * 30 unambiguous alphanumeric chars ^ 8 = 656.1 billion combinations (~39.3 bits of entropy).
+ * Uses CSPRNG (crypto.randomInt) to prevent PRNG state recovery and enumeration attacks.
+ */
 export function generateJoinCode(): string {
   const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-  let code = "GLX-";
-  for (let i = 0; i < 5; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  let part1 = "";
+  let part2 = "";
+  for (let i = 0; i < 4; i++) {
+    part1 += chars.charAt(randomInt(0, chars.length));
   }
-  return code;
+  for (let i = 0; i < 4; i++) {
+    part2 += chars.charAt(randomInt(0, chars.length));
+  }
+  return `GLX-${part1}-${part2}`;
+}
+
+/**
+ * Normalizes user-submitted join codes:
+ * Strips whitespace, hyphens, and handles omitted "GLX-" prefixes for both
+ * 8-char (GLX-XXXX-XXXX) and legacy 5-char (GLX-XXXXX) formats.
+ */
+export function normalizeJoinCode(input: string): string {
+  if (!input || typeof input !== "string") return "";
+  const raw = input.trim().toUpperCase();
+  const stripped = raw.replace(/[^A-Z0-9]/g, "");
+
+  // 8-char without prefix: "8P9A2M4K" -> "GLX-8P9A-2M4K"
+  if (stripped.length === 8 && !stripped.startsWith("GLX")) {
+    return `GLX-${stripped.slice(0, 4)}-${stripped.slice(4, 8)}`;
+  }
+  // 8-char with prefix: "GLX8P9A2M4K" -> "GLX-8P9A-2M4K"
+  if (stripped.startsWith("GLX") && stripped.length === 11) {
+    return `GLX-${stripped.slice(3, 7)}-${stripped.slice(7, 11)}`;
+  }
+  // 5-char legacy with prefix: "GLX7SZXX" -> "GLX-7SZXX"
+  if (stripped.startsWith("GLX") && stripped.length === 8) {
+    return `GLX-${stripped.slice(3, 8)}`;
+  }
+  return raw;
 }
 
 // ==========================================
@@ -185,6 +220,7 @@ export const events = sqliteTable("events", {
   rrule: text("rrule"),
   exdates: text("exdates"), // JSON array or comma-separated list of YYYY-MM-DD excluded dates
   colorOverride: text("color_override"),
+  createdByAgentId: text("created_by_agent_id"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
@@ -212,6 +248,7 @@ export const chores = sqliteTable("chores", {
   daysOfWeek: text("days_of_week").default("1,2,3,4,5,6,7"),
   dueTime: text("due_time"),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  createdByAgentId: text("created_by_agent_id"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
@@ -227,6 +264,7 @@ export const choreCompletions = sqliteTable("chore_completions", {
     .references(() => galaxyMembers.id, { onDelete: "cascade" }),
   completedDate: text("completed_date").notNull(), // YYYY-MM-DD
   pointsAwarded: integer("points_awarded").notNull().default(1),
+  createdByAgentId: text("created_by_agent_id"),
   completedAt: text("completed_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
@@ -252,6 +290,7 @@ export const listItems = sqliteTable("list_items", {
     () => galaxyMembers.id,
     { onDelete: "set null" }
   ),
+  createdByAgentId: text("created_by_agent_id"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
@@ -274,6 +313,7 @@ export const mealPlans = sqliteTable("meal_plans", {
   title: text("title").notNull(),
   notes: text("notes"),
   recipeUrl: text("recipe_url"),
+  createdByAgentId: text("created_by_agent_id"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
@@ -300,6 +340,83 @@ export const displayDevices = sqliteTable("display_devices", {
   sleepStart: text("sleep_start").notNull().default("23:00"),
   sleepEnd: text("sleep_end").notNull().default("06:00"),
   lastActiveAt: text("last_active_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ==========================================
+// 9. Autonomous Agents & Bot Wall
+// ==========================================
+
+export const agentKeys = sqliteTable("agent_keys", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  galaxyId: text("galaxy_id")
+    .notNull()
+    .references(() => galaxies.id, { onDelete: "cascade" }),
+  memberId: text("member_id")
+    .notNull()
+    .references(() => galaxyMembers.id, { onDelete: "cascade" }),
+  createdByUserId: text("created_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  tokenHash: text("token_hash").notNull().unique(),
+  keyPrefix: text("key_prefix").notNull(),
+  agentName: text("agent_name").notNull(),
+  crew: text("crew"),
+  directive: text("directive"),
+  tagMode: text("tag_mode", { enum: ["rune", "stencil16"] })
+    .notNull()
+    .default("rune"),
+  rune: text("rune").notNull().default("◈"),
+  color: text("color").notNull().default("#06b6d4"),
+  stencilMap: text("stencil_map"),
+  scope: text("scope", { enum: ["admin", "standard", "kid", "readonly"] })
+    .notNull()
+    .default("standard"),
+  status: text("status", { enum: ["active", "revoked"] })
+    .notNull()
+    .default("active"),
+  actionCount: integer("action_count").notNull().default(0),
+  lastUsedAt: text("last_used_at"),
+  revokedAt: text("revoked_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const agentDeviceCodes = sqliteTable("agent_device_codes", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  deviceCodeHash: text("device_code_hash").notNull().unique(),
+  userCode: text("user_code").notNull().unique(),
+  agentName: text("agent_name").notNull(),
+  crew: text("crew"),
+  directive: text("directive"),
+  tagMode: text("tag_mode", { enum: ["rune", "stencil16"] })
+    .notNull()
+    .default("rune"),
+  rune: text("rune").notNull().default("◈"),
+  color: text("color").notNull().default("#06b6d4"),
+  stencilMap: text("stencil_map"),
+  requestedScope: text("requested_scope", {
+    enum: ["admin", "standard", "kid", "readonly"],
+  })
+    .notNull()
+    .default("standard"),
+  status: text("status", { enum: ["pending", "approved", "denied", "expired"] })
+    .notNull()
+    .default("pending"),
+  galaxyId: text("galaxy_id").references(() => galaxies.id, {
+    onDelete: "cascade",
+  }),
+  memberId: text("member_id").references(() => galaxyMembers.id, {
+    onDelete: "cascade",
+  }),
+  mintedRawToken: text("minted_raw_token"),
+  agentKeyId: text("agent_key_id").references(() => agentKeys.id, {
+    onDelete: "set null",
+  }),
+  expiresAt: integer("expires_at").notNull(),
+  createdAt: text("created_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
 });
