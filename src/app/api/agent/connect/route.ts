@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { agentDeviceCodes, agentKeys, galaxies, galaxyMembers } from "@/db/schema";
+import { agentDeviceCodes, agentKeys, galaxies, galaxyMembers, normalizeJoinCode } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import {
   generateDeviceHandshakeCodes,
@@ -54,12 +54,21 @@ export async function POST(req: Request) {
   // it can register itself directly without waiting for a human claim code approval.
   const rawJoinCode = body.joinCode || body.galaxyJoinCode;
   if (rawJoinCode && typeof rawJoinCode === "string") {
-    const cleanJoinCode = rawJoinCode.trim().toUpperCase();
-    const galaxyRows = await db
+    const rawUpper = rawJoinCode.trim().toUpperCase();
+    const cleanJoinCode = normalizeJoinCode(rawJoinCode);
+    let galaxyRows = await db
       .select()
       .from(galaxies)
       .where(eq(galaxies.joinCode, cleanJoinCode))
       .limit(1);
+
+    if (galaxyRows.length === 0 && rawUpper !== cleanJoinCode) {
+      galaxyRows = await db
+        .select()
+        .from(galaxies)
+        .where(eq(galaxies.joinCode, rawUpper))
+        .limit(1);
+    }
 
     if (galaxyRows.length === 0) {
       return NextResponse.json(

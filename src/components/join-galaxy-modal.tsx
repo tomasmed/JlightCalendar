@@ -94,7 +94,7 @@ export function JoinGalaxyModal({
                 type="text"
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="e.g. GLX-8K9A2"
+                placeholder="e.g. GLX-8K9A-2M4N"
                 maxLength={16}
                 className="w-full bg-cosmos-deep border border-cosmos-border rounded-xl px-4 py-3 text-lg font-mono font-bold text-white placeholder-slate-600 focus:outline-none focus:border-purple-500 uppercase tracking-wider min-h-[48px]"
                 autoFocus

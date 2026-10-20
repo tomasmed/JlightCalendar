@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { ensureDatabaseSchema } from "@/db/ensure-schema";
-import { galaxies, galaxyMembers } from "@/db/schema";
+import { galaxies, galaxyMembers, normalizeJoinCode } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { auth } from "@/auth";
 
@@ -28,13 +28,21 @@ export async function POST(req: Request) {
       );
     }
 
-    const joinCode = rawCode.trim().toUpperCase();
+    const rawUpper = rawCode.trim().toUpperCase();
+    const joinCode = normalizeJoinCode(rawCode);
 
-    // 1. Locate the galaxy with this join code
-    const matching = await db
+    // 1. Locate the galaxy with this join code (normalized or exact)
+    let matching = await db
       .select()
       .from(galaxies)
       .where(eq(galaxies.joinCode, joinCode));
+
+    if (matching.length === 0 && rawUpper !== joinCode) {
+      matching = await db
+        .select()
+        .from(galaxies)
+        .where(eq(galaxies.joinCode, rawUpper));
+    }
 
     if (matching.length === 0) {
       return NextResponse.json(

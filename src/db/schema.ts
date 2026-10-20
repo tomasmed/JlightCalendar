@@ -5,6 +5,7 @@ import {
   primaryKey,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
+import { randomInt } from "crypto";
 import type { AdapterAccountType } from "next-auth/adapters";
 
 // ==========================================
@@ -96,13 +97,47 @@ export const galaxies = sqliteTable("galaxies", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
+/**
+ * Generates a high-entropy, human-friendly 8-character galaxy join code (GLX-XXXX-XXXX).
+ * 30 unambiguous alphanumeric chars ^ 8 = 656.1 billion combinations (~39.3 bits of entropy).
+ * Uses CSPRNG (crypto.randomInt) to prevent PRNG state recovery and enumeration attacks.
+ */
 export function generateJoinCode(): string {
   const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-  let code = "GLX-";
-  for (let i = 0; i < 5; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  let part1 = "";
+  let part2 = "";
+  for (let i = 0; i < 4; i++) {
+    part1 += chars.charAt(randomInt(0, chars.length));
   }
-  return code;
+  for (let i = 0; i < 4; i++) {
+    part2 += chars.charAt(randomInt(0, chars.length));
+  }
+  return `GLX-${part1}-${part2}`;
+}
+
+/**
+ * Normalizes user-submitted join codes:
+ * Strips whitespace, hyphens, and handles omitted "GLX-" prefixes for both
+ * 8-char (GLX-XXXX-XXXX) and legacy 5-char (GLX-XXXXX) formats.
+ */
+export function normalizeJoinCode(input: string): string {
+  if (!input || typeof input !== "string") return "";
+  const raw = input.trim().toUpperCase();
+  const stripped = raw.replace(/[^A-Z0-9]/g, "");
+
+  // 8-char without prefix: "8P9A2M4K" -> "GLX-8P9A-2M4K"
+  if (stripped.length === 8 && !stripped.startsWith("GLX")) {
+    return `GLX-${stripped.slice(0, 4)}-${stripped.slice(4, 8)}`;
+  }
+  // 8-char with prefix: "GLX8P9A2M4K" -> "GLX-8P9A-2M4K"
+  if (stripped.startsWith("GLX") && stripped.length === 11) {
+    return `GLX-${stripped.slice(3, 7)}-${stripped.slice(7, 11)}`;
+  }
+  // 5-char legacy with prefix: "GLX7SZXX" -> "GLX-7SZXX"
+  if (stripped.startsWith("GLX") && stripped.length === 8) {
+    return `GLX-${stripped.slice(3, 8)}`;
+  }
+  return raw;
 }
 
 // ==========================================

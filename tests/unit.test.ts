@@ -488,5 +488,44 @@ assert(sanitizeRune("") === "◈", "Empty string defaults to ◈");
 assert(sanitizeRune(null) === "◈", "Null defaults to ◈");
 assert(sanitizeRune("anything", true) === "∅", "Buffed status produces ∅");
 
+// ==========================================
+// 9. Testing High-Entropy CSPRNG Join Code Generation & Normalization
+// ==========================================
+console.log("\n====================================================");
+console.log("🧪 9. Testing High-Entropy CSPRNG Join Code Generation & Normalization");
+console.log("====================================================");
+
+const { generateJoinCode, normalizeJoinCode } = require("../src/db/schema");
+
+const code1 = generateJoinCode();
+assert(
+  /^GLX-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}$/.test(code1),
+  `Join code matches 8-char format GLX-XXXX-XXXX (got ${code1})`
+);
+assert(code1.length === 13, "Join code total string length is 13 characters");
+
+const sampleCodes = new Set();
+for (let i = 0; i < 50; i++) {
+  sampleCodes.add(generateJoinCode());
+}
+assert(sampleCodes.size === 50, "50 randomly generated join codes are strictly unique");
+
+assert(
+  normalizeJoinCode("8P9A2M4K") === "GLX-8P9A-2M4K",
+  "normalizeJoinCode adds GLX- and chunks 8 unformatted characters"
+);
+assert(
+  normalizeJoinCode("GLX8P9A2M4K") === "GLX-8P9A-2M4K",
+  "normalizeJoinCode formats GLX-prefixed 8 unhyphenated characters"
+);
+assert(
+  normalizeJoinCode("glx-8p9a-2m4k") === "GLX-8P9A-2M4K",
+  "normalizeJoinCode uppercases lowercase hyphenated code"
+);
+assert(
+  normalizeJoinCode("GLX7SZXX") === "GLX-7SZXX",
+  "normalizeJoinCode preserves legacy 5-char codes"
+);
+
 console.log("\n✨ All unit and static guard tests passed successfully!");
 

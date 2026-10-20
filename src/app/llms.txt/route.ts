@@ -42,7 +42,7 @@ POST ${baseUrl}/api/agent/connect
 Content-Type: application/json
 
 {
-  "joinCode": "GLX-8P992",
+  "joinCode": "GLX-8P9A-2M4K",
   "agentName": "Autonomous Envoy",
   "crew": "✓ Automated Logistics",
   "directive": "Coordinate grocery lists and morning chores",
