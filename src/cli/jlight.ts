@@ -124,6 +124,9 @@ async function cmdConnect(flags: Record<string, string | boolean>) {
   const color = flags.color ? String(flags.color) : "#06b6d4";
   const scope = flags.scope ? String(flags.scope) : "standard";
 
+  const rawJoinCode = flags["join-code"] || flags.j || flags.code;
+  const joinCode = rawJoinCode ? String(rawJoinCode).trim().toUpperCase() : undefined;
+
   console.log(`📡 Initiating handshake for agent '${name}'...`);
 
   const reqBody: any = {
@@ -135,6 +138,7 @@ async function cmdConnect(flags: Record<string, string | boolean>) {
     color,
     stencilMap: stencil,
     requestedScope: scope,
+    joinCode,
   };
 
   const res = await apiRequest("/api/agent/connect", {
@@ -145,6 +149,23 @@ async function cmdConnect(flags: Record<string, string | boolean>) {
   if (!res.ok) {
     console.error("❌ Failed to initiate connection:", res.data);
     process.exit(1);
+  }
+
+  // Autonomous instant approval via Join Code
+  if (res.data.status === "approved" && res.data.token) {
+    const token = res.data.token;
+    const config = loadConfig();
+    config.token = token;
+    config.agentName = name;
+    saveConfig(config);
+
+    console.log("\n=======================================================");
+    console.log(`🎉 Autonomous Self-Registration Approved via Join Code!`);
+    console.log(`🔑 Token saved to ${CONFIG_FILE}`);
+    console.log(`👤 Bound Inhabitant: ${res.data.boundMember || res.data.memberId}`);
+    console.log(`🪐 Galaxy:           ${res.data.galaxyName || res.data.galaxyId}`);
+    console.log("=======================================================\n");
+    return;
   }
 
   const { deviceCode, userCode, verificationUri, interval = 3 } = res.data;
@@ -409,8 +430,9 @@ USAGE:
   jlight <command> [subcommand] [arguments...] [--flags]
 
 COMMANDS:
-  connect                   Initiate Device Code handshake (Pull flow)
+  connect                   Initiate Device Code handshake or autonomous instant registration
                             Flags: --name <n> --crew <c> --directive <d> --rune <r> --stencil <hex> --scope <s>
+                            Autonomous: --join-code <GLX-XXXXX> (auto-approves with 0 human clicks)
   login                     Save PAT token directly (Push flow)
                             Flags: --token <jlight_ag_...> [--url <url>]
   whoami                    Inspect authenticated agent persona & household

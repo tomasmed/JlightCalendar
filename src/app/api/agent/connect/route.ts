@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { agentDeviceCodes } from "@/db/schema";
+import { agentDeviceCodes, agentKeys, galaxies, galaxyMembers } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import {
   generateDeviceHandshakeCodes,
+  generateAgentPat,
   hashSecret,
   isValidStencil16,
   sanitizeRune,
@@ -46,6 +47,82 @@ export async function POST(req: Request) {
       );
     }
     cleanStencil = stencilMap.toLowerCase().trim();
+  }
+
+  // Autonomous Self-Registration:
+  // If the agent provides the galaxy's Join Code (e.g. GLX-XXXXX),
+  // it can register itself directly without waiting for a human claim code approval.
+  const rawJoinCode = body.joinCode || body.galaxyJoinCode;
+  if (rawJoinCode && typeof rawJoinCode === "string") {
+    const cleanJoinCode = rawJoinCode.trim().toUpperCase();
+    const galaxyRows = await db
+      .select()
+      .from(galaxies)
+      .where(eq(galaxies.joinCode, cleanJoinCode))
+      .limit(1);
+
+    if (galaxyRows.length === 0) {
+      return NextResponse.json(
+        { error: `No galaxy found matching join code: ${cleanJoinCode}` },
+        { status: 404 }
+      );
+    }
+
+    const galaxy = galaxyRows[0];
+    const memberRows = await db
+      .select()
+      .from(galaxyMembers)
+      .where(eq(galaxyMembers.galaxyId, galaxy.id));
+
+    if (memberRows.length === 0) {
+      return NextResponse.json(
+        { error: "No inhabitants found in this galaxy to bind the agent to." },
+        { status: 400 }
+      );
+    }
+
+    const targetMember =
+      (body.memberId && memberRows.find((m) => m.id === body.memberId)) ||
+      memberRows.find((m) => m.role === "owner") ||
+      memberRows[0];
+
+    const { rawToken, tokenHash, keyPrefix } = generateAgentPat();
+    const keyId = crypto.randomUUID();
+    const approvedScope = ["admin", "standard", "kid", "readonly"].includes(requestedScope)
+      ? requestedScope
+      : "standard";
+
+    await db.insert(agentKeys).values({
+      id: keyId,
+      galaxyId: galaxy.id,
+      memberId: targetMember.id,
+      createdByUserId: galaxy.ownerId,
+      keyPrefix,
+      tokenHash,
+      agentName: String(agentName).trim() || "Autonomous Envoy",
+      crew: crew ? String(crew).trim() : null,
+      directive: directive ? String(directive).trim() : null,
+      tagMode: tagMode === "stencil16" ? "stencil16" : "rune",
+      rune: sanitizeRune(rune),
+      color: color ? String(color).trim() : "#06b6d4",
+      stencilMap: cleanStencil,
+      scope: approvedScope,
+      status: "active",
+    });
+
+    return NextResponse.json({
+      status: "approved",
+      token: rawToken,
+      keyId,
+      keyPrefix,
+      agentName: String(agentName).trim() || "Autonomous Envoy",
+      scope: approvedScope,
+      galaxyId: galaxy.id,
+      galaxyName: galaxy.name,
+      memberId: targetMember.id,
+      boundMember: targetMember.displayName,
+      message: "Autonomous self-registration successful via galaxy join code.",
+    });
   }
 
   const { deviceCode, deviceCodeHash, userCode } = generateDeviceHandshakeCodes();

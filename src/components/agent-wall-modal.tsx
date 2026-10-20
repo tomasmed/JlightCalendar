@@ -279,6 +279,18 @@ export function AgentWallModal({
     });
   };
 
+  const clearGrid = () => {
+    setPixelGrid(
+      Array(16)
+        .fill(null)
+        .map(() => Array(16).fill(false))
+    );
+  };
+
+  const invertGrid = () => {
+    setPixelGrid((prev) => prev.map((row) => row.map((cell) => !cell)));
+  };
+
   const applyPreset = (hex: string) => {
     try {
       const grid = decodeStencil16ToGrid(hex);
@@ -733,32 +745,78 @@ export function AgentWallModal({
                             </div>
                           </div>
 
-                          <div className="flex gap-4 items-center">
+                          <div className="flex flex-col sm:flex-row gap-5 items-start">
                             {/* 16x16 Grid Canvas */}
-                            <div className="grid grid-cols-16 gap-[1px] bg-slate-800 p-1 rounded-lg border border-slate-700 inline-block">
-                              {pixelGrid.map((row, r) =>
-                                row.map((active, c) => (
-                                  <div
-                                    key={`${r}-${c}`}
-                                    onClick={() => togglePixel(r, c)}
-                                    className="h-2.5 w-2.5 cursor-pointer transition-colors"
-                                    style={{
-                                      backgroundColor: active ? mintColor : "#0f172a",
-                                    }}
-                                  />
-                                ))
-                              )}
+                            <div className="flex flex-col gap-2">
+                              <div
+                                className="gap-[2px] bg-slate-900 p-2 rounded-xl border border-slate-700/80 shadow-inner select-none inline-grid"
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "repeat(16, minmax(0, 1fr))",
+                                  width: "fit-content",
+                                }}
+                              >
+                                {pixelGrid.map((row, r) =>
+                                  row.map((active, c) => (
+                                    <button
+                                      key={`${r}-${c}`}
+                                      type="button"
+                                      onClick={() => togglePixel(r, c)}
+                                      onMouseEnter={(e) => {
+                                        if (e.buttons === 1) togglePixel(r, c);
+                                      }}
+                                      className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-[2px] transition-all duration-75 cursor-pointer border border-black/40 hover:scale-110 active:scale-95"
+                                      style={{
+                                        backgroundColor: active ? mintColor : "#1e293b",
+                                        boxShadow: active ? `0 0 6px ${mintColor}aa` : "none",
+                                      }}
+                                      title={`Row ${r + 1}, Col ${c + 1}`}
+                                    />
+                                  ))
+                                )}
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={clearGrid}
+                                  className="rounded-lg px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 font-medium transition-colors border border-slate-700"
+                                >
+                                  Clear Canvas
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={invertGrid}
+                                  className="rounded-lg px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 font-medium transition-colors border border-slate-700"
+                                >
+                                  Invert Pixels
+                                </button>
+                              </div>
                             </div>
 
                             {/* Live Preview */}
-                            <div className="flex flex-col items-center gap-1">
-                              <span className="text-[10px] text-slate-400">Preview:</span>
-                              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-900">
-                                <Stencil16Icon
-                                  stencilMap={encodeGridToStencil16(pixelGrid)}
-                                  color={mintColor}
-                                  size={32}
-                                />
+                            <div className="flex flex-col gap-3">
+                              <span className="text-[11px] font-semibold text-slate-400">Live Preview:</span>
+                              <div className="flex items-center gap-3 bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className="text-[10px] text-slate-500">Badge</span>
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-950">
+                                    <Stencil16Icon
+                                      stencilMap={encodeGridToStencil16(pixelGrid)}
+                                      color={mintColor}
+                                      size={22}
+                                    />
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className="text-[10px] text-slate-500">Full</span>
+                                  <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-slate-700 bg-slate-950">
+                                    <Stencil16Icon
+                                      stencilMap={encodeGridToStencil16(pixelGrid)}
+                                      color={mintColor}
+                                      size={40}
+                                    />
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </div>

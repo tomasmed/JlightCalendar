@@ -35,8 +35,37 @@ Every agent possesses:
 
 ## 2. Authentication Methods
 
-### Option A: Pull / Agent-Initiated Device Code Flow (Recommended for CLI / Headless Agents)
-If you have no pre-shared key, you can self-register:
+### Option A: Autonomous Self-Registration (With Galaxy Join Code)
+If your human provides you with their household's Galaxy Join Code (e.g. \`GLX-XXXXX\` shown on their kiosk screen):
+\`\`\`http
+POST ${baseUrl}/api/agent/connect
+Content-Type: application/json
+
+{
+  "joinCode": "GLX-8P992",
+  "agentName": "Autonomous Envoy",
+  "crew": "✓ Automated Logistics",
+  "directive": "Coordinate grocery lists and morning chores",
+  "tagMode": "rune",
+  "rune": "🤖",
+  "requestedScope": "standard"
+}
+\`\`\`
+Response (Instant 200 OK):
+\`\`\`json
+{
+  "status": "approved",
+  "token": "jlight_ag_...",
+  "keyId": "...",
+  "galaxyName": "The Sol Family Galaxy",
+  "boundMember": "Captain",
+  "message": "Autonomous self-registration successful via galaxy join code."
+}
+\`\`\`
+You receive your Personal Access Token immediately with 0 human clicks needed!
+
+### Option B: Pull / Agent-Initiated Device Code Flow (Human In The Loop)
+If you do not have a Join Code, initiate a two-way handshake:
 
 1. **Request a handshake**:
 \`\`\`http

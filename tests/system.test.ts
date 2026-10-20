@@ -870,6 +870,32 @@ async function runSystemTests() {
   );
   const novaApiKey = pollApprovedData.token;
 
+  // 5b. Autonomous Instant Self-Registration (With Galaxy Join Code)
+  const testJoinCode = joinCode;
+  assert(Boolean(testJoinCode), "Retrieved test galaxy join code");
+
+  const autoRegisterRes = await agentConnectRoute.POST(
+    new Request("http://localhost:3000/api/agent/connect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        joinCode: testJoinCode,
+        agentName: "Auto Probe",
+        directive: "Self-registered probe",
+        requestedScope: "standard",
+      }),
+    })
+  );
+  assert(autoRegisterRes.status === 200, "POST /api/agent/connect with joinCode self-registers instantly");
+  const autoRegisterData = await autoRegisterRes.json();
+  assert(
+    autoRegisterData.status === "approved" &&
+      typeof autoRegisterData.token === "string" &&
+      autoRegisterData.token.startsWith("jlight_ag_") &&
+      Boolean(autoRegisterData.boundMember),
+    "Autonomous registration returned approved token bound to household member with zero human clicks"
+  );
+
   // 6. Scope Restrictions (kid & readonly)
   // Kid-scoped agent cannot mutate family identity / settings (PATCH /api/galaxies)
   const kidPatchGalaxyRes = await galaxiesRoute.PATCH(
