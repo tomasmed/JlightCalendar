@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Utensils, Plus, ShoppingCart, Check, Sparkles, User, X, Trash2 } from "lucide-react";
 import { AccessMode } from "./kiosk-header";
 import { AgentProvenanceBadge } from "./agent-badge";
+import { adaptMemberColor, useActiveTheme } from "@/lib/theme";
 
 interface MealPlanItem {
   id: string;
@@ -31,6 +32,7 @@ interface MealsViewProps {
 }
 
 export function MealsView({ accessMode, activeGalaxyId }: MealsViewProps) {
+  const activeTheme = useActiveTheme();
   const [meals, setMeals] = useState<MealPlanItem[]>([]);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [addedGrocery, setAddedGrocery] = useState<Record<string, boolean>>({});
@@ -141,10 +143,10 @@ export function MealsView({ accessMode, activeGalaxyId }: MealsViewProps) {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 md:pb-4 border-b border-cosmos-border">
         <div>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-starlight">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-cosmos-text">
             Weekly Meal Planner
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-cosmos-muted">
             Backed to database — plan meals, assign family chefs, and sync grocery ingredients.
           </p>
         </div>
@@ -152,7 +154,7 @@ export function MealsView({ accessMode, activeGalaxyId }: MealsViewProps) {
         {accessMode === "admin" && (
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-lg shadow-purple-500/20 transition min-h-[44px] cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl theme-focus-pill font-bold text-xs transition min-h-[44px] cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Add Meal</span>
@@ -163,28 +165,34 @@ export function MealsView({ accessMode, activeGalaxyId }: MealsViewProps) {
       {/* Meals List */}
       <div className="flex-1 overflow-y-auto py-3 space-y-3 pr-1">
         {loading ? (
-          <div className="text-center py-12 text-slate-500">Loading meals...</div>
+          <div className="text-center py-12 text-cosmos-muted">Loading meals...</div>
         ) : meals.length === 0 ? (
-          <div className="text-center py-12 text-slate-400">
-            <Utensils className="w-8 h-8 mx-auto mb-2 text-purple-400 opacity-60" />
+          <div className="text-center py-12 text-cosmos-muted">
+            <Utensils className="w-8 h-8 mx-auto mb-2 text-starlight opacity-60" />
             <p className="font-semibold text-sm">No meals scheduled yet!</p>
           </div>
         ) : (
           meals.map((meal) => {
             const { dayName, dateFormatted } = formatMealDay(meal.planDate);
             const isAdded = !!addedGrocery[meal.title];
+            const chefColor = adaptMemberColor(meal.memberColor || "#8b5cf6", activeTheme);
 
             return (
               <div
                 key={meal.id}
-                className="p-3.5 sm:p-4 rounded-2xl bg-cosmos-card/80 border border-cosmos-border flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 shadow-lg backdrop-blur-md"
+                className="p-3.5 sm:p-4 rounded-2xl border border-cosmos-border theme-card-nmm flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 shadow-lg backdrop-blur-md"
+                style={{
+                  borderLeftWidth: "5px",
+                  borderLeftColor: chefColor,
+                  background: `linear-gradient(90deg, ${chefColor}1F 0%, rgb(var(--cosmos-card)) 85%)`,
+                }}
               >
                 {/* Day & Date Header */}
                 <div className="w-full md:w-36 flex items-baseline md:flex-col justify-between md:justify-start">
-                  <span className="text-base sm:text-lg font-black text-white block">
+                  <span className="text-base sm:text-lg font-black text-cosmos-text block">
                     {dayName}
                   </span>
-                  <span className="text-xs font-bold text-purple-300">
+                  <span className="text-xs font-bold text-starlight">
                     {dateFormatted}
                   </span>
                 </div>
@@ -192,19 +200,19 @@ export function MealsView({ accessMode, activeGalaxyId }: MealsViewProps) {
                 {/* Meal Details & Assigned Cook */}
                 <div className="flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-extrabold uppercase px-2 py-0.5 rounded bg-purple-500/20 text-purple-200">
+                    <span className="text-xs font-extrabold uppercase px-2 py-0.5 rounded bg-cosmos-surface text-starlight border border-cosmos-border">
                       {meal.mealType}
                     </span>
-                    <span className="text-base font-bold text-white">
+                    <span className="text-base font-bold text-cosmos-text">
                       {meal.title}
                     </span>
                     {meal.memberName && (
                       <span
-                        className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md border"
                         style={{
-                          backgroundColor: `${meal.memberColor}20`,
-                          borderColor: `${meal.memberColor}50`,
-                          color: meal.memberColor || "#8b5cf6",
+                          backgroundColor: `${chefColor}22`,
+                          borderColor: `${chefColor}50`,
+                          color: chefColor,
                         }}
                       >
                         <User className="w-3 h-3" />
@@ -216,7 +224,7 @@ export function MealsView({ accessMode, activeGalaxyId }: MealsViewProps) {
                     )}
                   </div>
                   {meal.notes && (
-                    <p className="text-xs text-slate-400 italic">{meal.notes}</p>
+                    <p className="text-xs text-cosmos-muted italic">{meal.notes}</p>
                   )}
                 </div>
 
@@ -228,8 +236,8 @@ export function MealsView({ accessMode, activeGalaxyId }: MealsViewProps) {
                       disabled={isAdded}
                       className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition min-h-[44px] cursor-pointer shrink-0 ${
                         isAdded
-                          ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
-                          : "bg-cosmos-surface border-cosmos-border text-slate-300 hover:text-white hover:border-purple-500/50"
+                          ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
+                          : "bg-cosmos-surface border-cosmos-border text-cosmos-muted hover:text-cosmos-text hover:border-cosmos-borderLight"
                       }`}
                     >
                       {isAdded ? (
@@ -239,7 +247,7 @@ export function MealsView({ accessMode, activeGalaxyId }: MealsViewProps) {
                         </>
                       ) : (
                         <>
-                          <ShoppingCart className="w-4 h-4 text-purple-400" />
+                          <ShoppingCart className="w-4 h-4 text-starlight" />
                           <span>+ Grocery List</span>
                         </>
                       )}
@@ -256,7 +264,7 @@ export function MealsView({ accessMode, activeGalaxyId }: MealsViewProps) {
                           console.error("Failed to delete meal:", err);
                         }
                       }}
-                      className="p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-cosmos-surface min-h-[44px] min-w-[44px] flex items-center justify-center transition"
+                      className="p-2 rounded-xl text-cosmos-muted hover:text-rose-400 hover:bg-cosmos-surface min-h-[44px] min-w-[44px] flex items-center justify-center transition"
                       title="Delete meal plan"
                     >
                       <Trash2 className="w-4 h-4" />

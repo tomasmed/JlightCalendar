@@ -43,10 +43,21 @@
 ## 4. Multi-Device Ergonomics
 
 - **Mobile Viewport (~Samsung Galaxy S26 / 412px)**:
-  - Top header is streamlined (clock, compact date, household badge, compact weather pill, mode button).
+  - Top header is streamlined (clock, compact date, household badge, compact weather utility, mode button).
   - Central navigation tabs shift to a fixed bottom navigation bar (`MobileNavBar`) with >= 48px touch targets.
-  - Monthly calendar cells render compact colored constellation dots instead of wrapped text pills, with instant tap-to-inspect Day Overview.
+  - Monthly calendar cells render crisp horizontal micro-bars (`h-1.5 rounded-[2px]`) in each member's adapted color instead of wrapped text pills, with instant tap-to-inspect Day Overview.
 - **Tablet & Wall Kiosk (~iPad / 768px - 1280px)**:
-  - Top kiosk header retains full tab bar with glowing active states.
-  - Monthly calendar cells render full event pills with time and title.
+  - Top kiosk header retains full tab bar with archetype-aware `.theme-focus-pill` active states.
+  - Monthly calendar cells render full OSL Left-Lip event pills with time and title.
   - All interactive buttons maintain >= 48px hit targets.
+
+## 5. Material Archetype Theme Studio & Hue-Preserving Member Colors
+
+- **9 Curated Palettes Across 2 Archetypes**:
+  - **Super Creamy (Matte PBT Keycaps)**: `mocha` (Default), `matcha`, `oat`, and `latte` (Daylight).
+  - **Cyberpunk & Seasonal OSL (Fluorescent Light-Spill)**: `over-volt-blue`, `yakuza-purple`, `red-dragon`, `neon-green`, and `halloween` (All Hallows).
+- **Per-Device Persistence**:
+  - Stored in `localStorage` under `jlight_app_theme` (`milky-way` automatically aliases to `mocha`).
+- **Hue-Preserving Member Color Adaptation**:
+  - Family member colors preserve their semantic hue ($H$) while adapting saturation, lightness, and Mother-Color undertone across Creamy Dark, Creamy Daylight, and Cyberpunk OSL themes.
+

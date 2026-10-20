@@ -527,5 +527,108 @@ assert(
   "normalizeJoinCode preserves legacy 5-char codes"
 );
 
+// ==========================================
+// 10. Testing Material Archetype Theme Engine & Hue-Preserving Member Colors
+// ==========================================
+console.log("\n====================================================");
+console.log("🧪 10. Testing Material Archetype Theme Engine & Hue-Preserving Member Colors");
+console.log("====================================================");
+
+const {
+  THEME_OPTIONS,
+  resolveTheme,
+  getThemeOption,
+  adaptMemberColor,
+} = require("../src/lib/theme");
+
+assert(
+  Array.isArray(THEME_OPTIONS) && THEME_OPTIONS.length === 9,
+  `THEME_OPTIONS exposes all 9 curated palettes (got ${THEME_OPTIONS?.length})`
+);
+
+const expectedThemes = [
+  "mocha",
+  "matcha",
+  "oat",
+  "latte",
+  "over-volt-blue",
+  "yakuza-purple",
+  "red-dragon",
+  "neon-green",
+  "halloween",
+];
+for (const tid of expectedThemes) {
+  const opt = getThemeOption(tid);
+  assert(opt.id === tid, `getThemeOption('${tid}') resolves matching palette`);
+  // Mother-Color Invariant: No pure #000000 or #ffffff in any palette token
+  for (const [tokenKey, hexVal] of Object.entries(opt.palette)) {
+    const lower = String(hexVal).toLowerCase();
+    assert(
+      lower !== "#000000" && lower !== "#ffffff",
+      `Theme '${tid}' token '${tokenKey}' obeys Mother-Color rule (no pure black/white, got ${hexVal})`
+    );
+  }
+}
+
+assert(
+  resolveTheme("milky-way") === "mocha",
+  "Legacy 'milky-way' theme ID gracefully aliases to 'mocha'"
+);
+assert(
+  resolveTheme("halloween") === "halloween",
+  "'halloween' resolves to reworked All Hallows OSL theme"
+);
+assert(
+  resolveTheme("unknown-theme") === "mocha",
+  "Unknown theme ID falls back to 'mocha'"
+);
+
+// Hue-preserving member color adaptation check
+function hexToHue(hex: string): number {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.slice(0, 2), 16) / 255;
+  const g = parseInt(clean.slice(2, 4), 16) / 255;
+  const b = parseInt(clean.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max === min) return 0;
+  const d = max - min;
+  let h = 0;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b - r) / d + 2) / 6;
+  else h = ((r - g) / d + 4) / 6;
+  return h * 360;
+}
+
+function hueDistance(h1: number, h2: number): number {
+  const diff = Math.abs(h1 - h2) % 360;
+  return diff > 180 ? 360 - diff : diff;
+}
+
+const rawEmerald = "#10b981"; // Family member green
+const rawHue = hexToHue(rawEmerald);
+
+const mochaGreen = adaptMemberColor(rawEmerald, "mocha");
+const latteGreen = adaptMemberColor(rawEmerald, "latte");
+const oslGreen = adaptMemberColor(rawEmerald, "over-volt-blue");
+
+assert(
+  hueDistance(rawHue, hexToHue(mochaGreen)) < 18,
+  `Creamy Dark ('mocha') preserves green semantic hue (${rawEmerald} -> ${mochaGreen})`
+);
+assert(
+  hueDistance(rawHue, hexToHue(latteGreen)) < 18,
+  `Creamy Daylight ('latte') preserves green semantic hue (${rawEmerald} -> ${latteGreen})`
+);
+assert(
+  hueDistance(rawHue, hexToHue(oslGreen)) < 18,
+  `Cyberpunk OSL ('over-volt-blue') preserves green semantic hue (${rawEmerald} -> ${oslGreen})`
+);
+assert(
+  mochaGreen !== latteGreen && latteGreen !== oslGreen,
+  `Member color materiality adapts distinctly across Creamy Dark (${mochaGreen}), Daylight (${latteGreen}), and OSL (${oslGreen})`
+);
+
 console.log("\n✨ All unit and static guard tests passed successfully!");
+
 

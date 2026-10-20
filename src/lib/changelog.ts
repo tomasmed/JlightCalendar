@@ -11,10 +11,34 @@ export interface ChangelogItem {
 
 export const CHANGELOG_HISTORY: ChangelogItem[] = [
   {
+    version: "v0.10.0",
+    releaseDate: "October 2026",
+    title: "Material Archetype Theme Studio & OSL Light-Spill",
+    badge: "Latest Release 🎨",
+    highlights: [
+      {
+        category: "New",
+        text: "9-Palette Theme Studio: Choose between 4 'Super Creamy' Matte PBT Keycap palettes (Mocha, Matcha, Oat, and Daylight Latte) and 5 'Cyberpunk & Seasonal OSL' palettes (Over-Volt Blue, Yakuza Purple, Red Dragon, Neon Green, and All Hallows).",
+      },
+      {
+        category: "Delight",
+        text: "Hue-Preserving Member Color Adaptation: Family member colors stay true to their chosen hue while adapting saturation, lightness, and Mother-Color undertone to match the active theme's materiality.",
+      },
+      {
+        category: "Improvement",
+        text: "OSL Left-Lip Cards & Double-Shot Keycap Focus: Event, Chore, Meal, and List cards feature a crisp 3px solid left lip with a directional horizontal glaze, while active tabs adapt between tactile PBT keycaps and 3-layer fluorescent OSL light-spill.",
+      },
+      {
+        category: "Improvement",
+        text: "Reworked All Hallows OSL & Visual Restraint: Replaced intrusive full-screen spooky overlays and novelty display fonts with an atmospheric pumpkin-phosphor OSL palette, borderless header utilities, and single-anchor calendar selection.",
+      },
+    ],
+  },
+  {
     version: "v0.9.0",
     releaseDate: "October 2026",
     title: "Autonomous Agent Conduit & Bot Wall",
-    badge: "Latest Release 🤖",
+    badge: "Previous",
     highlights: [
       {
         category: "New",
