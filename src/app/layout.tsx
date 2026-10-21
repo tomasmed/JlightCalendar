@@ -1,13 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Creepster } from "next/font/google";
 import "./globals.css";
-
-const creepster = Creepster({
-  weight: "400",
-  subsets: ["latin"],
-  variable: "--font-creepster",
-  display: "swap",
-});
+import { Providers } from "@/components/providers";
 
 export const metadata: Metadata = {
   title: "JlightCalendar — Smart Family Dashboard",
@@ -25,10 +18,8 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#090d16",
+  themeColor: "#1E1E2E",
 };
-
-import { Providers } from "@/components/providers";
 
 export default function RootLayout({
   children,
@@ -36,8 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark h-full ${creepster.variable}`}>
-      <body className="h-full antialiased bg-[#090d16] text-slate-100 selection:bg-blue-600 selection:text-white">
+    <html lang="en" className="dark h-full" data-theme="mocha" data-archetype="creamy">
+      <body className="h-full antialiased bg-cosmos-void text-cosmos-text selection:bg-starlight selection:text-starlight-focusText">
         <Providers>{children}</Providers>
       </body>
     </html>

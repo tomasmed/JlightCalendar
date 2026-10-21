@@ -6,7 +6,7 @@ import { getSavedTheme, applyTheme } from "@/lib/theme";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    // Apply saved theme (or default to 'halloween') on app boot
+    // Apply saved per-device theme (or default to 'mocha') on app boot
     const currentTheme = getSavedTheme();
     applyTheme(currentTheme);
   }, []);

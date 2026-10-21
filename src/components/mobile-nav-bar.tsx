@@ -45,18 +45,16 @@ export function MobileNavBar({
             onClick={() => onTabChange(tab.id)}
             className={`min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 transition-all ${
               isActive
-                ? "text-starlight font-bold scale-105"
-                : "text-slate-400 hover:text-slate-200"
+                ? "text-starlight font-bold"
+                : "text-cosmos-muted hover:text-cosmos-text"
             }`}
           >
             <div
-              className={`p-1 rounded-lg transition-all ${
-                isActive
-                  ? "bg-purple-600/30 text-starlight shadow-sm shadow-purple-500/40"
-                  : ""
+              className={`p-1.5 rounded-lg transition-all ${
+                isActive ? "theme-focus-pill" : ""
               }`}
             >
-              <Icon className="w-5 h-5" />
+              <Icon className="w-4 h-4" />
             </div>
             <span className="text-[10px] tracking-tight">{tab.label}</span>
           </button>

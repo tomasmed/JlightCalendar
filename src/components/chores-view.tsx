@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Star, CheckCircle, Circle, Plus, Sparkles, X, User, Trash2, Pencil } from "lucide-react";
 import { AccessMode } from "./kiosk-header";
 import { AgentProvenanceBadge } from "./agent-badge";
+import { adaptMemberColor, useActiveTheme } from "@/lib/theme";
 
 interface ChoreItem {
   id: string;
@@ -33,6 +34,7 @@ interface ChoresViewProps {
 }
 
 export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
+  const activeTheme = useActiveTheme();
   const [chores, setChores] = useState<ChoreItem[]>([]);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [starBalances, setStarBalances] = useState<Record<string, number>>({});
@@ -231,10 +233,10 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
       <div className="flex flex-col gap-2 pb-2.5 md:pb-4 border-b border-cosmos-border shrink-0">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="text-lg sm:text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-starlight truncate">
+            <h2 className="text-lg sm:text-2xl md:text-3xl font-black text-cosmos-text truncate">
               Daily Chores & Routines
             </h2>
-            <p className="text-[11px] sm:text-xs text-slate-400 hidden sm:block">
+            <p className="text-[11px] sm:text-xs text-cosmos-muted hidden sm:block">
               Backed to database — check off tasks to earn family reward stars!
             </p>
           </div>
@@ -242,7 +244,7 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
           {accessMode !== "kid" && (
             <button
               onClick={handleOpenAdd}
-              className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-md transition min-h-[44px] shrink-0 cursor-pointer"
+              className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl theme-focus-pill font-bold text-xs transition min-h-[44px] shrink-0 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Add Chore</span>
@@ -257,10 +259,10 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
         >
           <button
             onClick={() => setSelectedMemberId("all")}
-            className={`px-3 py-1.5 rounded-2xl text-[11px] sm:text-xs font-bold transition min-h-[40px] sm:min-h-[44px] min-w-0 shrink-0 ${
+            className={`px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition min-h-[40px] sm:min-h-[44px] min-w-0 shrink-0 ${
               selectedMemberId === "all"
-                ? "bg-purple-600 text-white shadow-md shadow-purple-500/30"
-                : "bg-cosmos-surface border border-cosmos-border text-slate-400 hover:text-white"
+                ? "theme-focus-pill font-extrabold"
+                : "bg-cosmos-surface border border-cosmos-border text-cosmos-muted hover:text-cosmos-text"
             }`}
           >
             All Members
@@ -268,24 +270,31 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
           {members.map((m) => {
             const isSelected = selectedMemberId === m.id;
             const stars = starBalances[m.name] ?? m.starBalance ?? 0;
+            const memberColor = adaptMemberColor(m.color, activeTheme);
             return (
               <button
                 key={m.id}
                 onClick={() => setSelectedMemberId(m.id)}
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-2xl text-[11px] sm:text-xs font-bold transition min-h-[40px] sm:min-h-[44px] min-w-0 shrink-0 border ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition min-h-[40px] sm:min-h-[44px] min-w-0 shrink-0 border ${
                   isSelected
-                    ? "bg-cosmos-card text-white border-2 shadow-md"
-                    : "bg-cosmos-surface border-cosmos-border text-slate-300 hover:text-white"
+                    ? "bg-cosmos-card text-cosmos-text border-cosmos-borderLight shadow-sm"
+                    : "bg-cosmos-surface border-cosmos-border text-cosmos-muted hover:text-cosmos-text"
                 }`}
-                style={{ borderColor: isSelected ? m.color : undefined }}
+                style={{
+                  borderLeftWidth: isSelected ? "4px" : undefined,
+                  borderLeftColor: isSelected ? memberColor : undefined,
+                  background: isSelected
+                    ? `linear-gradient(90deg, ${memberColor}22 0%, rgb(var(--cosmos-card)) 90%)`
+                    : undefined,
+                }}
               >
                 <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: m.color }}
+                  className="w-2.5 h-2.5 rounded-[3px] shrink-0"
+                  style={{ backgroundColor: memberColor }}
                 />
                 <span className="whitespace-nowrap">{m.name}</span>
-                <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 font-black text-starlight text-[10px] sm:text-xs">
-                  <Star className="w-3 h-3 fill-starlight text-starlight shrink-0" />
+                <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-cosmos-surface border border-cosmos-border font-black text-starlight-tension text-[10px] sm:text-xs">
+                  <Star className="w-3 h-3 fill-current shrink-0" />
                   <span>{stars}</span>
                 </span>
               </button>
@@ -297,25 +306,30 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
       {/* Chores Grid / List */}
       <div className="flex-1 overflow-y-auto space-y-2.5 pt-2.5 pb-20 sm:pb-2 pr-1">
         {loading ? (
-          <div className="text-center py-12 text-slate-500">Loading chores...</div>
+          <div className="text-center py-12 text-cosmos-muted">Loading chores...</div>
         ) : filteredChores.length === 0 ? (
-          <div className="text-center py-12 text-slate-400">
-            <Sparkles className="w-8 h-8 mx-auto mb-2 text-purple-400 opacity-60" />
+          <div className="text-center py-12 text-cosmos-muted">
+            <Sparkles className="w-8 h-8 mx-auto mb-2 text-starlight opacity-60" />
             <p className="font-semibold text-sm">No chores found for this view!</p>
           </div>
         ) : (
-          filteredChores.map((chore) => (
+          filteredChores.map((chore) => {
+            const adaptedChoreColor = adaptMemberColor(chore.memberColor, activeTheme);
+            return (
             <div
               key={chore.id}
               onClick={() => toggleChore(chore.id)}
-              className={`p-3 sm:p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 select-none ${
+              className={`p-3 sm:p-4 rounded-2xl border theme-card-nmm transition-all cursor-pointer flex items-center justify-between gap-2 select-none ${
                 chore.completed
                   ? "bg-cosmos-deep/40 border-cosmos-border/50 opacity-60"
-                  : "bg-cosmos-card hover:bg-cosmos-cardHover border-cosmos-border shadow-lg"
+                  : "border-cosmos-border shadow-md hover:brightness-105"
               }`}
               style={{
-                borderLeftWidth: "6px",
-                borderLeftColor: chore.memberColor,
+                borderLeftWidth: "5px",
+                borderLeftColor: adaptedChoreColor,
+                background: chore.completed
+                  ? undefined
+                  : `linear-gradient(90deg, ${adaptedChoreColor}1F 0%, rgb(var(--cosmos-card)) 85%)`,
               }}
             >
               <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
@@ -323,22 +337,22 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
                   {chore.completed ? (
                     <CheckCircle className="w-6 h-6 text-emerald-400" />
                   ) : (
-                    <Circle className="w-6 h-6 text-slate-500 hover:text-slate-300" />
+                    <Circle className="w-6 h-6 text-cosmos-muted hover:text-cosmos-text" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <span
                     className={`text-sm sm:text-base font-bold block truncate sm:whitespace-normal ${
                       chore.completed
-                        ? "line-through text-slate-400"
-                        : "text-slate-100"
+                        ? "line-through text-cosmos-muted"
+                        : "text-cosmos-text"
                     }`}
                   >
                     {chore.title}
                   </span>
-                  <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-0.5 text-[11px] sm:text-xs text-slate-400">
+                  <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-0.5 text-[11px] sm:text-xs text-cosmos-muted">
                     <span className="flex items-center gap-1">
-                      <User className="w-3 h-3 text-slate-500 shrink-0" />
+                      <User className="w-3 h-3 text-cosmos-muted shrink-0" />
                       {chore.memberName}
                     </span>
                     {chore.agent && (
@@ -346,15 +360,15 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
                     )}
                     <span>•</span>
                     {chore.frequency === "One-Time Task" || chore.recurrenceType === "one_time" ? (
-                      <span className="px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-extrabold text-[10px] border border-amber-500/30">
+                      <span className="px-1.5 py-0.5 rounded-md bg-cosmos-surface text-starlight-tension font-extrabold text-[10px] border border-cosmos-border">
                         ⚡ One-Time
                       </span>
                     ) : (
                       <span>{chore.frequency}</span>
                     )}
                     {chore.dueTime && <span>at {chore.dueTime}</span>}
-                    <span className="sm:hidden inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 font-black text-[10px]">
-                      <Star className="w-2.5 h-2.5 fill-amber-300 text-amber-300" />
+                    <span className="sm:hidden inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-cosmos-surface border border-cosmos-border text-starlight-tension font-black text-[10px]">
+                      <Star className="w-2.5 h-2.5 fill-current" />
                       <span>+{chore.points}</span>
                     </span>
                   </div>
@@ -363,8 +377,8 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
 
               {/* Right: Points Badge (sm:+), Edit & Delete */}
               <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-                <div className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 font-black text-xs shrink-0">
-                  <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                <div className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-cosmos-surface border border-cosmos-border text-starlight-tension font-black text-xs shrink-0">
+                  <Star className="w-3.5 h-3.5 fill-current" />
                   <span>+{chore.points}</span>
                 </div>
 
@@ -373,7 +387,7 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
                     type="button"
                     onClick={(e) => handleOpenEdit(chore, e)}
                     title="Edit chore"
-                    className="p-2 sm:p-2.5 rounded-xl text-slate-500 hover:text-purple-300 hover:bg-purple-500/10 border border-transparent hover:border-purple-500/30 transition min-w-[40px] sm:min-w-[44px] min-h-[40px] sm:min-h-[44px] flex items-center justify-center shrink-0 cursor-pointer"
+                    className="p-2 sm:p-2.5 rounded-xl text-cosmos-muted hover:text-starlight hover:bg-cosmos-surface border border-transparent hover:border-cosmos-border transition min-w-[40px] sm:min-w-[44px] min-h-[40px] sm:min-h-[44px] flex items-center justify-center shrink-0 cursor-pointer"
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
@@ -384,14 +398,15 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
                     type="button"
                     onClick={(e) => handleDeleteChore(chore.id, e)}
                     title="Delete chore"
-                    className="p-2 sm:p-2.5 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 transition min-w-[40px] sm:min-w-[44px] min-h-[40px] sm:min-h-[44px] flex items-center justify-center shrink-0 cursor-pointer"
+                    className="p-2 sm:p-2.5 rounded-xl text-cosmos-muted hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 transition min-w-[40px] sm:min-w-[44px] min-h-[40px] sm:min-h-[44px] flex items-center justify-center shrink-0 cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 )}
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -403,7 +418,7 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
           onClick={handleOpenAdd}
           aria-label="Add Chore"
           title="Add Chore"
-          className="sm:hidden fixed bottom-20 right-4 z-30 w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-xl shadow-purple-600/40 border border-purple-400/40 flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+          className="sm:hidden fixed bottom-20 right-4 z-30 w-14 h-14 rounded-2xl theme-focus-pill shadow-xl flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
         >
           <Plus className="w-6 h-6" />
         </button>

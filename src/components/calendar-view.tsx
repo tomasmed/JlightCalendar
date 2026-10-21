@@ -35,6 +35,7 @@ import {
   rruleToFrequency,
   formatLocalDate,
 } from "@/lib/recurrence";
+import { adaptMemberColor, useActiveTheme, AppTheme } from "@/lib/theme";
 
 export interface Member {
   id: string;
@@ -94,7 +95,8 @@ export function parseMemberIds(raw: string[] | string | null | undefined): strin
 export function getEventColors(
   event: { memberId?: string | null; memberIds?: string[] | null; color?: string },
   inhabitants: { id: string; color: string }[],
-  fallbackFamilyColor: string = "#ef4444"
+  fallbackFamilyColor: string = "#ef4444",
+  activeTheme?: AppTheme | string | null
 ): string[] {
   const ids = event.memberIds && event.memberIds.length > 0
     ? event.memberIds
@@ -102,27 +104,33 @@ export function getEventColors(
     ? [event.memberId]
     : [];
 
+  let rawColors: string[];
   if (ids.length === 0) {
-    return [event.color || fallbackFamilyColor];
+    rawColors = [event.color || fallbackFamilyColor];
+  } else {
+    const colors = ids.map((id) => {
+      const member = inhabitants.find((m) => m.id === id);
+      return member?.color || event.color || fallbackFamilyColor;
+    });
+    rawColors = colors.length > 0 ? colors : [fallbackFamilyColor];
   }
 
-  const colors = ids.map((id) => {
-    const member = inhabitants.find((m) => m.id === id);
-    return member?.color || event.color || fallbackFamilyColor;
-  });
+  if (!activeTheme) {
+    return rawColors;
+  }
 
-  return colors.length > 0 ? colors : [fallbackFamilyColor];
+  return rawColors.map((c) => adaptMemberColor(c, activeTheme));
 }
 
 export function getEventBackgroundStyle(
   colors: string[],
-  alphaHex: string = "25"
+  alphaHex: string = "22"
 ): { background: string; borderColor: string; primaryColor: string } {
   const primaryColor = colors[0] || "#ef4444";
   if (colors.length <= 1) {
     return {
-      background: `${primaryColor}${alphaHex}`,
-      borderColor: `${primaryColor}80`,
+      background: `linear-gradient(90deg, ${primaryColor}${alphaHex} 0%, rgb(var(--cosmos-card)) 88%)`,
+      borderColor: `${primaryColor}55`,
       primaryColor,
     };
   }
@@ -130,7 +138,7 @@ export function getEventBackgroundStyle(
   if (colors.length === 2) {
     return {
       background: `linear-gradient(135deg, ${colors[0]}${alphaHex} 0%, ${colors[0]}${alphaHex} 50%, ${colors[1]}${alphaHex} 50%, ${colors[1]}${alphaHex} 100%)`,
-      borderColor: `${colors[0]}90`,
+      borderColor: `${colors[0]}65`,
       primaryColor: colors[0],
     };
   }
@@ -145,7 +153,7 @@ export function getEventBackgroundStyle(
 
   return {
     background: `linear-gradient(135deg, ${stops.join(", ")})`,
-    borderColor: `${colors[0]}90`,
+    borderColor: `${colors[0]}65`,
     primaryColor: colors[0],
   };
 }
@@ -537,6 +545,7 @@ export function CalendarView({
   onUpdateInhabitant,
   onRemoveInhabitant,
 }: CalendarViewProps) {
+  const activeTheme = useActiveTheme();
   const [viewType, setViewType] = useState<"month" | "week" | "day" | "schedule">("week");
   const [selectedMemberId, setSelectedMemberId] = useState<string>("all");
 
@@ -601,18 +610,27 @@ export function CalendarView({
   const isSolDemoGalaxy = activeGalaxyId === "galaxy_sol_family";
 
   // Normalize Inhabitants: If DB provided, map to member items; else fallback to SAMPLE_MEMBERS ONLY for demo
+  // Adapt each member's hue to the active theme's materiality (Creamy pastel vs OSL fluorescent vs Latte ink)
   const memberList: Member[] = [
-    { id: "all", name: "All Family", color: familyColor || "#ef4444", avatarIcon: familyAvatar || "planet" },
+    {
+      id: "all",
+      name: "All Family",
+      color: adaptMemberColor(familyColor || "#ef4444", activeTheme),
+      avatarIcon: familyAvatar || "planet",
+    },
     ...(inhabitants.length > 0
       ? inhabitants.map((inh) => ({
           id: inh.id,
           name: inh.displayName,
-          color: inh.color,
+          color: adaptMemberColor(inh.color, activeTheme),
           role: inh.role,
           avatarIcon: inh.avatarIcon,
         }))
       : isSolDemoGalaxy
-      ? SAMPLE_MEMBERS.filter((m) => m.id !== "all")
+      ? SAMPLE_MEMBERS.filter((m) => m.id !== "all").map((m) => ({
+          ...m,
+          color: adaptMemberColor(m.color, activeTheme),
+        }))
       : []),
   ];
 
@@ -1046,27 +1064,27 @@ export function CalendarView({
             <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
               <button
                 onClick={prevPeriod}
-                className="min-w-[36px] sm:min-w-[44px] min-h-[38px] sm:min-h-[44px] flex items-center justify-center rounded-xl bg-cosmos-surface border border-cosmos-border text-slate-300 hover:text-white hover:bg-cosmos-cardHover transition cursor-pointer"
+                className="min-w-[36px] sm:min-w-[44px] min-h-[38px] sm:min-h-[44px] flex items-center justify-center rounded-xl bg-cosmos-surface border border-cosmos-border text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-cardHover transition cursor-pointer"
                 title="Previous (or Swipe Left)"
               >
                 <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <button
                 onClick={goToToday}
-                className="min-w-0 min-h-[38px] sm:min-h-[44px] px-2 sm:px-3 rounded-xl bg-cosmos-surface border border-cosmos-border text-[11px] sm:text-xs font-bold text-starlight hover:text-white hover:bg-cosmos-cardHover transition cursor-pointer"
+                className="min-w-0 min-h-[38px] sm:min-h-[44px] px-2 sm:px-3 rounded-xl bg-cosmos-surface border border-cosmos-border text-[11px] sm:text-xs font-bold text-starlight hover:text-cosmos-text hover:bg-cosmos-cardHover transition cursor-pointer"
               >
                 Today
               </button>
               <button
                 onClick={nextPeriod}
-                className="min-w-[36px] sm:min-w-[44px] min-h-[38px] sm:min-h-[44px] flex items-center justify-center rounded-xl bg-cosmos-surface border border-cosmos-border text-slate-300 hover:text-white hover:bg-cosmos-cardHover transition cursor-pointer"
+                className="min-w-[36px] sm:min-w-[44px] min-h-[38px] sm:min-h-[44px] flex items-center justify-center rounded-xl bg-cosmos-surface border border-cosmos-border text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-cardHover transition cursor-pointer"
                 title="Next (or Swipe Right)"
               >
                 <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
 
-            <h2 className="text-sm sm:text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-purple-200 to-starlight truncate">
+            <h2 className="text-sm sm:text-xl md:text-2xl font-black text-cosmos-text truncate">
               {viewType === "week" ? (
                 <>
                   <span className="sm:hidden">
@@ -1092,13 +1110,13 @@ export function CalendarView({
               )}
             </h2>
 
-            <span className="hidden lg:flex text-xs px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-300 font-bold border border-purple-500/30 items-center gap-1 shrink-0">
+            <span className="hidden lg:flex text-xs px-2.5 py-1 rounded-lg bg-cosmos-surface text-cosmos-muted font-mono font-bold border border-cosmos-border items-center gap-1 shrink-0">
               <Sparkles className="w-3 h-3 text-starlight" />
               {filteredEvents.length} Events
             </span>
           </div>
 
-          {/* Right: View Switcher & Desktop Add Event Button */}
+          {/* Right: View Switcher & Desktop Add Event Button (Critique 4.2: Unified Active Focus) */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             <div className="flex bg-cosmos-surface p-0.5 sm:p-1 rounded-xl border border-cosmos-border text-[11px] sm:text-xs font-bold">
               {(["month", "week", "day", "schedule"] as const).map((vt) => (
@@ -1107,8 +1125,8 @@ export function CalendarView({
                   onClick={() => setViewType(vt)}
                   className={`min-w-0 min-h-[36px] sm:min-h-[42px] px-2 sm:px-3 py-1 rounded-lg capitalize transition flex items-center justify-center ${
                     viewType === vt
-                      ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/30"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "theme-focus-pill font-extrabold"
+                      : "text-cosmos-muted hover:text-cosmos-text"
                   }`}
                 >
                   {vt === "schedule" ? (
@@ -1126,7 +1144,7 @@ export function CalendarView({
             {accessMode !== "kid" && (
               <button
                 onClick={() => handleOpenAddEventOnDate(todayStr)}
-                className="hidden sm:flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-lg shadow-purple-500/25 transition min-h-[44px]"
+                className="hidden sm:flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl theme-focus-pill font-extrabold text-xs transition min-h-[44px] cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Event</span>
@@ -1151,20 +1169,23 @@ export function CalendarView({
               <button
                 key={member.id}
                 onClick={() => setSelectedMemberId(member.id)}
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-2xl font-bold text-[11px] sm:text-xs tracking-wide transition-all min-h-[38px] sm:min-h-[44px] min-w-0 shrink-0 ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl font-bold text-[11px] sm:text-xs tracking-wide transition-all min-h-[38px] sm:min-h-[44px] min-w-0 shrink-0 border ${
                   isSelected
-                    ? "bg-cosmos-card text-white border-2 shadow-lg shadow-purple-500/20"
-                    : "bg-cosmos-surface/80 text-slate-400 border border-cosmos-border hover:bg-cosmos-cardHover hover:text-slate-200"
+                    ? "bg-cosmos-card text-cosmos-text border-cosmos-borderLight shadow-sm"
+                    : "bg-cosmos-surface/75 text-cosmos-muted border-cosmos-border hover:bg-cosmos-cardHover hover:text-cosmos-text"
                 }`}
                 style={{
-                  borderColor: isSelected ? member.color : undefined,
+                  borderLeftWidth: isSelected ? "4px" : undefined,
+                  borderLeftColor: isSelected ? member.color : undefined,
+                  background: isSelected
+                    ? `linear-gradient(90deg, ${member.color}22 0%, rgb(var(--cosmos-card)) 90%)`
+                    : undefined,
                 }}
               >
                 <div
-                  className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0"
+                  className="w-4 h-4 rounded-md flex items-center justify-center text-[10px] shrink-0"
                   style={{
                     backgroundColor: member.color,
-                    boxShadow: isSelected ? `0 0 8px ${member.color}` : "none",
                   }}
                 >
                   <Icon className="w-2.5 h-2.5 text-cosmos-void" />
@@ -1178,7 +1199,7 @@ export function CalendarView({
             <button
               onClick={() => setIsInhabitantsModalOpen(true)}
               title="Manage Galaxy Inhabitants"
-              className="px-2.5 py-1 sm:py-1.5 rounded-2xl border border-dashed border-cosmos-border text-slate-400 hover:text-starlight hover:border-purple-400 transition text-[11px] sm:text-xs font-bold flex items-center gap-1 min-h-[38px] sm:min-h-[44px] min-w-0 shrink-0"
+              className="px-2.5 py-1 sm:py-1.5 rounded-xl border border-dashed border-cosmos-border text-cosmos-muted hover:text-starlight hover:border-starlight transition text-[11px] sm:text-xs font-bold flex items-center gap-1 min-h-[38px] sm:min-h-[44px] min-w-0 shrink-0"
             >
               <Users className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Manage</span>
@@ -1193,7 +1214,7 @@ export function CalendarView({
           {/* Upper Pane (Mobile) / Full Grid (Tablet & Desktop) */}
           <div className="h-[46%] min-h-[200px] max-h-[265px] sm:h-auto sm:max-h-none sm:flex-1 flex flex-col min-h-0 border border-cosmos-border rounded-2xl overflow-hidden bg-cosmos-deep/70 backdrop-blur-md shrink-0 sm:shrink">
             {/* Day of week headers */}
-            <div className="grid grid-cols-7 border-b border-cosmos-border bg-cosmos-surface/90 text-center text-[10px] sm:text-xs font-black text-slate-400 py-1 sm:py-2.5 tracking-wider">
+            <div className="grid grid-cols-7 border-b border-cosmos-border bg-cosmos-surface/90 text-center text-[10px] sm:text-xs font-black text-cosmos-muted py-1 sm:py-2.5 tracking-wider">
               {dayLabels.map((day) => (
                 <div key={day} className="truncate">
                   {day}
@@ -1224,23 +1245,23 @@ export function CalendarView({
                     }}
                     className={`cursor-pointer p-1 sm:p-1.5 flex flex-col justify-start overflow-hidden transition-all select-none relative group ${
                       isSelectedAgendaDay
-                        ? "bg-purple-950/50 sm:bg-cosmos-deep ring-2 ring-inset ring-starlight sm:ring-0"
+                        ? "theme-selected-cell"
                         : cell.isCurrentMonth
                         ? "bg-cosmos-deep hover:bg-cosmos-card/80"
-                        : "bg-cosmos-void/60 text-slate-600 hover:bg-cosmos-deep/50"
+                        : "bg-cosmos-void/60 text-cosmos-muted/50 hover:bg-cosmos-deep/50"
                     }`}
                   >
-                    {/* Top Bar: Date Number */}
+                    {/* Top Bar: Date Number (Critique 4.3: Single-Anchor Keycap/OSL Badge, no double-hat rings) */}
                     <div className="flex items-center justify-between mb-0.5 sm:mb-1">
                       <span
-                        className={`text-[11px] sm:text-xs font-black px-1 sm:px-1.5 py-0.5 rounded-md ${
+                        className={`text-[11px] sm:text-xs font-black px-1.5 py-0.5 rounded-md ${
                           cell.isToday
-                            ? "bg-purple-600 text-white font-extrabold shadow-md shadow-purple-500/50 ring-1 sm:ring-2 ring-starlight"
+                            ? "theme-today-badge font-extrabold"
                             : isSelectedAgendaDay
-                            ? "text-starlight sm:text-slate-300"
+                            ? "text-starlight font-extrabold"
                             : cell.isCurrentMonth
-                            ? "text-slate-300 group-hover:text-white"
-                            : "text-slate-600"
+                            ? "text-cosmos-text group-hover:text-starlight"
+                            : "text-cosmos-muted/50"
                         }`}
                       >
                         {cell.dayNum}
@@ -1253,36 +1274,38 @@ export function CalendarView({
                       )}
                     </div>
 
-                    {/* Tablet & Desktop: Event Pills */}
+                    {/* Tablet & Desktop: OSL Left-Lip Event Pills */}
                     <div className="hidden sm:flex flex-1 flex-col gap-1 overflow-hidden">
                       {dayEvents.slice(0, 3).map((evt) => {
-                        const colors = getEventColors(evt, inhabitants, familyColor);
-                        const bgStyle = getEventBackgroundStyle(colors, "30");
+                        const colors = getEventColors(evt, inhabitants, familyColor, activeTheme);
+                        const bgStyle = getEventBackgroundStyle(colors, "26");
 
                         return (
                           <div
                             key={evt.id}
                             onClick={(e) => handleOpenEditEvent(evt, e)}
-                            className="truncate text-[10px] md:text-[11px] font-bold px-1.5 py-0.5 rounded-md border text-white transition hover:scale-[1.02] flex items-center gap-1"
+                            className="truncate text-[10px] md:text-[11px] font-bold px-1.5 py-0.5 rounded-md border text-cosmos-text transition hover:brightness-110 flex items-center gap-1"
                             style={{
                               background: bgStyle.background,
                               borderColor: bgStyle.borderColor,
+                              borderLeftWidth: "3px",
+                              borderLeftColor: bgStyle.primaryColor,
                             }}
                           >
-                            {/* Multi-member mini colored dots */}
+                            {/* Crisp Multi-member micro-pellets */}
                             {colors.length > 1 ? (
-                              <div className="flex -space-x-1 shrink-0">
+                              <div className="flex items-center gap-0.5 shrink-0">
                                 {colors.map((c, i) => (
                                   <span
                                     key={i}
-                                    className="w-1.5 h-1.5 rounded-full ring-1 ring-black/40"
+                                    className="w-1.5 h-1.5 rounded-[2px]"
                                     style={{ backgroundColor: c }}
                                   />
                                 ))}
                               </div>
                             ) : (
                               <span
-                                className="w-1.5 h-1.5 rounded-full shrink-0"
+                                className="w-1.5 h-1.5 rounded-[2px] shrink-0"
                                 style={{ backgroundColor: colors[0] }}
                               />
                             )}
@@ -1299,37 +1322,31 @@ export function CalendarView({
                       })}
 
                       {dayEvents.length > 3 && (
-                        <span className="text-[10px] font-extrabold text-starlight-cyan px-1">
+                        <span className="text-[10px] font-extrabold text-starlight px-1">
                           +{dayEvents.length - 3} more
                         </span>
                       )}
                     </div>
 
-                    {/* Mobile (<640px): Constellation Event Indicator Dots */}
+                    {/* Mobile (<640px): Crisp Micro-Indicators (Critique 4.4: Unblurred horizontal pill bars) */}
                     <div className="sm:hidden flex flex-wrap gap-0.5 mt-auto items-center justify-center">
                       {dayEvents.slice(0, 3).map((evt) => {
-                        const colors = getEventColors(evt, inhabitants, familyColor);
+                        const colors = getEventColors(evt, inhabitants, familyColor, activeTheme);
                         return colors.length > 1 ? (
-                          <div key={evt.id} className="flex -space-x-1 shrink-0">
+                          <div key={evt.id} className="flex items-center gap-[1px] shrink-0">
                             {colors.map((c, i) => (
                               <div
                                 key={i}
-                                className="w-1.5 h-1.5 rounded-full ring-1 ring-black/50"
-                                style={{
-                                  backgroundColor: c,
-                                  boxShadow: `0 0 3px ${c}`,
-                                }}
+                                className="w-1.5 h-1 rounded-[1.5px]"
+                                style={{ backgroundColor: c }}
                               />
                             ))}
                           </div>
                         ) : (
                           <div
                             key={evt.id}
-                            className="w-1.5 h-1.5 rounded-full shrink-0 shadow-sm"
-                            style={{
-                              backgroundColor: colors[0],
-                              boxShadow: `0 0 4px ${colors[0]}`,
-                            }}
+                            className="w-2.5 h-1 rounded-[1.5px] shrink-0"
+                            style={{ backgroundColor: colors[0] }}
                           />
                         );
                       })}
@@ -1353,10 +1370,10 @@ export function CalendarView({
             {/* Sticky Day Agenda Header */}
             <div className="px-3 py-2 border-b border-cosmos-border bg-cosmos-surface/90 flex items-center justify-between gap-2 shrink-0">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-xs font-black text-white truncate">
+                <span className="text-xs font-black text-cosmos-text truncate">
                   {formatCompactAgendaDate(selectedAgendaDate)}
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-starlight border border-purple-500/30 shrink-0">
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-cosmos-card text-starlight border border-cosmos-border shrink-0">
                   {mobileAgendaEvents.length}{" "}
                   {mobileAgendaEvents.length === 1 ? "Event" : "Events"}
                 </span>
@@ -1370,9 +1387,9 @@ export function CalendarView({
                     setCurrentDate(new Date(y, m - 1, d));
                     setViewType("day");
                   }}
-                  className="min-w-0 min-h-[34px] px-2.5 py-1 rounded-xl bg-cosmos-card hover:bg-cosmos-cardHover border border-cosmos-border text-[10px] font-bold text-slate-300 flex items-center gap-1"
+                  className="min-w-0 min-h-[34px] px-2.5 py-1 rounded-xl bg-cosmos-card hover:bg-cosmos-cardHover border border-cosmos-border text-[10px] font-bold text-cosmos-text flex items-center gap-1"
                 >
-                  <Columns className="w-3 h-3 text-starlight-cyan" />
+                  <Columns className="w-3 h-3 text-starlight" />
                   <span>Day View</span>
                 </button>
               </div>
@@ -1381,16 +1398,16 @@ export function CalendarView({
             {/* Selected Day Event Cards Stream */}
             <div className="flex-1 overflow-y-auto p-2.5 pb-16 space-y-2">
               {mobileAgendaEvents.length === 0 ? (
-                <div className="h-full min-h-[110px] flex flex-col items-center justify-center text-center py-4 px-3 text-slate-400">
-                  <CalendarIcon className="w-7 h-7 mb-1.5 opacity-40 text-purple-400" />
-                  <p className="text-xs font-bold text-slate-300">
+                <div className="h-full min-h-[110px] flex flex-col items-center justify-center text-center py-4 px-3 text-cosmos-muted">
+                  <CalendarIcon className="w-7 h-7 mb-1.5 opacity-40 text-starlight" />
+                  <p className="text-xs font-bold text-cosmos-text">
                     No events scheduled for this date
                   </p>
                   {accessMode !== "kid" && (
                     <button
                       type="button"
                       onClick={(e) => handleOpenAddEventOnDate(selectedAgendaDate, e)}
-                      className="mt-2 min-w-0 min-h-[38px] px-3.5 py-1.5 rounded-xl bg-purple-600/25 hover:bg-purple-600/40 border border-purple-500/40 text-xs font-bold text-starlight flex items-center gap-1.5 transition"
+                      className="mt-2 min-w-0 min-h-[38px] px-3.5 py-1.5 rounded-xl theme-focus-pill text-xs font-bold flex items-center gap-1.5 transition"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Add Event</span>
@@ -1399,8 +1416,8 @@ export function CalendarView({
                 </div>
               ) : (
                 mobileAgendaEvents.map((evt) => {
-                  const colors = getEventColors(evt, inhabitants, familyColor);
-                  const bgStyle = getEventBackgroundStyle(colors, "25");
+                  const colors = getEventColors(evt, inhabitants, familyColor, activeTheme);
+                  const bgStyle = getEventBackgroundStyle(colors, "24");
                   const assignedNames =
                     evt.memberIds && evt.memberIds.length > 0
                       ? evt.memberIds
@@ -1414,31 +1431,31 @@ export function CalendarView({
                     <div
                       key={evt.id}
                       onClick={(e) => handleOpenEditEvent(evt, e)}
-                      className="p-3 rounded-2xl border flex items-center justify-between gap-2 cursor-pointer active:scale-[0.99] transition shadow-sm"
+                      className="p-3 rounded-xl border theme-card-nmm flex items-center justify-between gap-2 cursor-pointer active:scale-[0.99] transition shadow-sm"
                       style={{
                         background: bgStyle.background,
                         borderColor: bgStyle.borderColor,
-                        borderLeftWidth: "5px",
+                        borderLeftWidth: "4px",
                         borderLeftColor: bgStyle.primaryColor,
                       }}
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           {evt.rrule && evt.rrule !== "none" && (
-                            <Repeat className="w-3 h-3 text-purple-300 shrink-0" />
+                            <Repeat className="w-3 h-3 text-starlight shrink-0" />
                           )}
-                          <span className="text-xs font-bold text-white truncate">
+                          <span className="text-xs font-bold text-cosmos-text truncate">
                             {evt.title}
                           </span>
                         </div>
-                        <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-300 mt-0.5">
+                        <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-cosmos-muted mt-0.5">
                           <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                            <Clock className="w-3 h-3 text-cosmos-muted shrink-0" />
                             {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
                           </span>
                           {evt.location && (
                             <span className="flex items-center gap-1 truncate max-w-[150px]">
-                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                              <MapPin className="w-3 h-3 text-cosmos-muted shrink-0" />
                               <span className="truncate">{evt.location}</span>
                             </span>
                           )}
@@ -1447,20 +1464,20 @@ export function CalendarView({
 
                       <div className="flex items-center gap-1 shrink-0">
                         {colors.length > 1 && (
-                          <div className="flex -space-x-1 shrink-0">
+                          <div className="flex items-center gap-0.5 shrink-0">
                             {colors.map((c, i) => (
                               <span
                                 key={i}
-                                className="w-2.5 h-2.5 rounded-full ring-1 ring-cosmos-deep"
+                                className="w-2 h-2 rounded-[2px]"
                                 style={{ backgroundColor: c }}
                               />
                             ))}
                           </div>
                         )}
                         <span
-                          className="text-[10px] px-2 py-0.5 rounded-full font-bold truncate max-w-[95px]"
+                          className="text-[10px] px-2 py-0.5 rounded-md font-bold truncate max-w-[95px]"
                           style={{
-                            backgroundColor: `${bgStyle.primaryColor}30`,
+                            backgroundColor: `${bgStyle.primaryColor}28`,
                             color: bgStyle.primaryColor,
                           }}
                         >
@@ -1490,10 +1507,10 @@ export function CalendarView({
                   onClick={() => setCurrentDate(day.date)}
                   className={`flex-1 min-w-0 min-h-[44px] py-1 px-1 rounded-xl flex flex-col items-center justify-center transition ${
                     isSelectedDay
-                      ? "bg-purple-600 text-white font-black shadow-md ring-1 ring-purple-300"
+                      ? "theme-focus-pill font-black"
                       : day.isToday
-                      ? "bg-purple-950/60 text-starlight border border-purple-500/40"
-                      : "bg-cosmos-card/40 text-slate-400 hover:text-white"
+                      ? "bg-cosmos-card text-starlight border border-cosmos-borderLight"
+                      : "bg-cosmos-card/40 text-cosmos-muted hover:text-cosmos-text"
                   }`}
                   title={`View ${day.dayLabel} (${day.shortStr})`}
                 >
@@ -1506,7 +1523,7 @@ export function CalendarView({
 
           <div className="flex-1 flex flex-col overflow-y-auto space-y-3 pr-2 pb-16 sm:pb-2">
             <div className="flex items-center justify-between pb-2">
-              <h3 className="text-lg md:text-xl font-bold text-white">
+              <h3 className="text-lg md:text-xl font-bold text-cosmos-text">
                 {currentDate.toLocaleDateString([], {
                   weekday: "long",
                   month: "short",
@@ -1522,8 +1539,8 @@ export function CalendarView({
               </button>
             </div>
           {filteredEvents.filter((e) => e.date === toDateStr(currentDate)).length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              <CalendarIcon className="w-10 h-10 mx-auto mb-2 opacity-40 text-purple-400" />
+            <div className="text-center py-12 text-cosmos-muted">
+              <CalendarIcon className="w-10 h-10 mx-auto mb-2 opacity-40 text-starlight" />
               <p className="text-sm font-semibold">No events scheduled for this date.</p>
             </div>
           ) : (
@@ -1531,8 +1548,8 @@ export function CalendarView({
               .filter((e) => e.date === toDateStr(currentDate))
               .sort(compareEventsByTime)
               .map((evt) => {
-                const colors = getEventColors(evt, inhabitants, familyColor);
-                const bgStyle = getEventBackgroundStyle(colors, "25");
+                const colors = getEventColors(evt, inhabitants, familyColor, activeTheme);
+                const bgStyle = getEventBackgroundStyle(colors, "24");
                 const assignedNames = (evt.memberIds && evt.memberIds.length > 0)
                   ? evt.memberIds.map((id) => memberList.find((m) => m.id === id)?.name || id).join(", ")
                   : evt.memberId
@@ -1543,29 +1560,29 @@ export function CalendarView({
                   <div
                     key={evt.id}
                     onClick={(e) => handleOpenEditEvent(evt, e)}
-                    className="p-4 rounded-2xl border flex items-center justify-between shadow-lg cursor-pointer hover:brightness-110 transition"
+                    className="p-4 rounded-2xl border theme-card-nmm flex items-center justify-between shadow-lg cursor-pointer hover:brightness-105 transition"
                     style={{
                       background: bgStyle.background,
                       borderColor: bgStyle.borderColor,
-                      borderLeftWidth: "6px",
+                      borderLeftWidth: "4px",
                       borderLeftColor: bgStyle.primaryColor,
                     }}
                   >
                     <div>
-                      <span className="text-base md:text-lg font-bold text-white flex items-center gap-1.5">
+                      <span className="text-base md:text-lg font-bold text-cosmos-text flex items-center gap-1.5">
                         {evt.rrule && evt.rrule !== "none" && (
-                          <Repeat className="w-4 h-4 text-purple-400 shrink-0" />
+                          <Repeat className="w-4 h-4 text-starlight shrink-0" />
                         )}
                         <span>{evt.title}</span>
                       </span>
-                      <div className="flex items-center gap-4 mt-1 text-xs text-slate-300">
+                      <div className="flex items-center gap-4 mt-1 text-xs text-cosmos-muted">
                         <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          <Clock className="w-3.5 h-3.5 text-cosmos-muted" />
                           {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
                         </span>
                         {evt.location && (
                           <span className="flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                            <MapPin className="w-3.5 h-3.5 text-cosmos-muted" />
                             {evt.location}
                           </span>
                         )}
@@ -1577,20 +1594,20 @@ export function CalendarView({
                         <AgentProvenanceBadge agent={evt.agent} compact />
                       )}
                       {colors.length > 1 && (
-                        <div className="flex -space-x-1.5">
+                        <div className="flex items-center gap-1">
                           {colors.map((c, i) => (
                             <span
                               key={i}
-                              className="w-3.5 h-3.5 rounded-full ring-2 ring-cosmos-deep shadow-sm"
+                              className="w-3 h-3 rounded-[3px] shadow-sm"
                               style={{ backgroundColor: c }}
                             />
                           ))}
                         </div>
                       )}
                       <span
-                        className="text-xs px-3 py-1 rounded-full font-bold"
+                        className="text-xs px-3 py-1 rounded-md font-bold"
                         style={{
-                          backgroundColor: `${bgStyle.primaryColor}30`,
+                          backgroundColor: `${bgStyle.primaryColor}28`,
                           color: bgStyle.primaryColor,
                         }}
                       >
@@ -1617,8 +1634,8 @@ export function CalendarView({
                 onClick={() => scrollToDayColumn(idx)}
                 className={`flex-1 min-w-0 min-h-[42px] py-1 px-1 rounded-xl flex flex-col items-center justify-center transition ${
                   day.isToday
-                    ? "bg-purple-600 text-white font-black shadow-md ring-1 ring-purple-300"
-                    : "bg-cosmos-card/60 text-slate-300 hover:text-white"
+                    ? "theme-focus-pill font-black"
+                    : "bg-cosmos-card/60 text-cosmos-muted hover:text-cosmos-text"
                 }`}
                 title={`Jump to ${day.dayLabel}`}
               >
@@ -1637,8 +1654,8 @@ export function CalendarView({
               {/* Header Row: Days of Week (Mon - Sun) */}
               <div className="flex border-b border-cosmos-border bg-cosmos-surface/90 shrink-0">
                 {/* Time Axis Placeholder / Header */}
-                <div className="sticky left-0 z-20 bg-cosmos-surface w-14 sm:w-16 md:w-20 shrink-0 border-r border-cosmos-border py-2 px-1 flex flex-col items-center justify-center text-[10px] text-slate-400 font-bold select-none">
-                  <Clock className="w-3.5 h-3.5 text-purple-400 mb-0.5" />
+                <div className="sticky left-0 z-20 bg-cosmos-surface w-14 sm:w-16 md:w-20 shrink-0 border-r border-cosmos-border py-2 px-1 flex flex-col items-center justify-center text-[10px] text-cosmos-muted font-bold select-none">
+                  <Clock className="w-3.5 h-3.5 text-starlight mb-0.5" />
                   <span>TIME</span>
                 </div>
 
@@ -1650,24 +1667,24 @@ export function CalendarView({
                       onClick={() => setSelectedDayModal(day.dateStr)}
                       className={`py-2 px-1 sm:px-2 flex flex-col items-center justify-center border-r border-cosmos-border last:border-r-0 cursor-pointer select-none transition ${
                         day.isToday
-                          ? "bg-purple-950/40 text-starlight"
-                          : "hover:bg-cosmos-cardHover/50 text-slate-300"
+                          ? "theme-selected-cell"
+                          : "hover:bg-cosmos-cardHover/50 text-cosmos-text"
                       }`}
                       title={`View ${day.shortStr} overview`}
                     >
                       <span
                         className={`text-[10px] sm:text-xs font-black tracking-wider uppercase ${
-                          day.isToday ? "text-starlight font-extrabold" : "text-slate-400"
+                          day.isToday ? "text-starlight font-extrabold" : "text-cosmos-muted"
                         }`}
                       >
                         {day.dayLabel}
                       </span>
                       <div className="flex items-center gap-1 mt-0.5">
                         <span
-                          className={`text-xs sm:text-sm font-black px-2 py-0.5 rounded-full ${
+                          className={`text-xs sm:text-sm font-black px-2 py-0.5 rounded-md ${
                             day.isToday
-                              ? "bg-purple-600 text-white font-black shadow-md shadow-purple-500/50 ring-2 ring-starlight scale-105"
-                              : "text-slate-200"
+                              ? "theme-today-badge font-black"
+                              : "text-cosmos-text"
                           }`}
                         >
                           {day.date.getDate()}
@@ -1690,7 +1707,7 @@ export function CalendarView({
                 )
               ) && (
                 <div className="flex border-b border-cosmos-border bg-cosmos-surface/60 shrink-0">
-                  <div className="sticky left-0 z-20 bg-cosmos-surface w-14 sm:w-16 md:w-20 shrink-0 border-r border-cosmos-border py-1.5 px-1 flex items-center justify-center text-[9px] text-slate-400 font-extrabold tracking-tighter select-none">
+                  <div className="sticky left-0 z-20 bg-cosmos-surface w-14 sm:w-16 md:w-20 shrink-0 border-r border-cosmos-border py-1.5 px-1 flex items-center justify-center text-[9px] text-cosmos-muted font-extrabold tracking-tighter select-none">
                     ALL DAY
                   </div>
                   <div className="flex-1 grid grid-cols-7">
@@ -1704,33 +1721,35 @@ export function CalendarView({
                           className="p-1 border-r border-cosmos-border last:border-r-0 space-y-1 min-h-[32px] flex flex-col justify-center"
                         >
                           {allDayEvents.map((evt) => {
-                            const colors = getEventColors(evt, inhabitants, familyColor);
-                            const bgStyle = getEventBackgroundStyle(colors, "30");
+                            const colors = getEventColors(evt, inhabitants, familyColor, activeTheme);
+                            const bgStyle = getEventBackgroundStyle(colors, "26");
 
                             return (
                               <div
                                 key={evt.id}
                                 onClick={(e) => handleOpenEditEvent(evt, e)}
-                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-md truncate cursor-pointer transition hover:scale-[1.02] shadow-sm border flex items-center gap-1"
+                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-md truncate cursor-pointer transition hover:brightness-110 shadow-sm border flex items-center gap-1 text-cosmos-text"
                                 style={{
                                   background: bgStyle.background,
                                   borderColor: bgStyle.borderColor,
+                                  borderLeftWidth: "3px",
+                                  borderLeftColor: bgStyle.primaryColor,
                                 }}
                                 title={`${evt.title} (All Day)`}
                               >
                                 {colors.length > 1 ? (
-                                  <div className="flex -space-x-1 shrink-0">
+                                  <div className="flex items-center gap-0.5 shrink-0">
                                     {colors.map((c, i) => (
                                       <span
                                         key={i}
-                                        className="w-1.5 h-1.5 rounded-full ring-1 ring-black/40"
+                                        className="w-1.5 h-1.5 rounded-[2px]"
                                         style={{ backgroundColor: c }}
                                       />
                                     ))}
                                   </div>
                                 ) : (
                                   <span
-                                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                                    className="w-1.5 h-1.5 rounded-[2px] shrink-0"
                                     style={{ backgroundColor: colors[0] }}
                                   />
                                 )}
@@ -1760,7 +1779,7 @@ export function CalendarView({
                   <div
                     key={h.hour24}
                     style={{ height: `${HOUR_HEIGHT}px` }}
-                    className="border-b border-cosmos-border/20 pr-1.5 sm:pr-2.5 pt-1 text-right text-[10px] sm:text-xs font-mono font-bold text-slate-400 flex flex-col justify-start items-end"
+                    className="border-b border-cosmos-border/20 pr-1.5 sm:pr-2.5 pt-1 text-right text-[10px] sm:text-xs font-mono font-bold text-cosmos-muted flex flex-col justify-start items-end"
                   >
                     <span>{h.label}</span>
                   </div>
@@ -1781,7 +1800,7 @@ export function CalendarView({
                     <div
                       key={day.dateStr}
                       className={`relative border-r border-cosmos-border/30 last:border-r-0 ${
-                        day.isToday ? "bg-purple-950/15" : ""
+                        day.isToday ? "bg-cosmos-surface/25" : ""
                       }`}
                     >
                       {/* 24 Hour Clickable Grid Slots */}
@@ -1790,7 +1809,7 @@ export function CalendarView({
                           key={h.hour24}
                           onClick={() => handleOpenAddEventOnDate(day.dateStr, h.timeStr)}
                           style={{ height: `${HOUR_HEIGHT}px` }}
-                          className="border-b border-cosmos-border/20 relative group/slot cursor-pointer transition hover:bg-purple-500/10"
+                          className="border-b border-cosmos-border/20 relative group/slot cursor-pointer transition hover:bg-cosmos-surface/40"
                           title={
                             accessMode === "kid"
                               ? `View ${day.shortStr} schedule`
@@ -1802,7 +1821,7 @@ export function CalendarView({
 
                           {/* Hover "+" cue for desktop / mouse */}
                           {accessMode !== "kid" && (
-                            <div className="absolute right-1 top-1 opacity-0 group-hover/slot:opacity-60 transition text-slate-400 hover:text-white pointer-events-none">
+                            <div className="absolute right-1 top-1 opacity-0 group-hover/slot:opacity-60 transition text-cosmos-muted hover:text-cosmos-text pointer-events-none">
                               <Plus className="w-3 h-3" />
                             </div>
                           )}
@@ -1815,16 +1834,16 @@ export function CalendarView({
                           style={{ top: `${currentTimeTop}px` }}
                           className="absolute left-0 right-0 z-30 pointer-events-none flex items-center"
                         >
-                          <div className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e] -ml-1" />
-                          <div className="flex-1 border-t-2 border-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.6)]" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-starlight-tension -ml-1" />
+                          <div className="flex-1 border-t-2 border-starlight-tension" />
                         </div>
                       )}
 
-                      {/* Positioned Timed Events (with visual vertical hour spanning) */}
+                      {/* Positioned Timed Events (OSL Left-Lip Cards with NMM top edge) */}
                       {positionedEvents.map((pos) => {
                         const evt = pos.event;
-                        const colors = getEventColors(evt, inhabitants, familyColor);
-                        const bgStyle = getEventBackgroundStyle(colors, "30");
+                        const colors = getEventColors(evt, inhabitants, familyColor, activeTheme);
+                        const bgStyle = getEventBackgroundStyle(colors, "28");
                         const isWholeFamily = (!evt.memberIds || evt.memberIds.length === 0) && !evt.memberId;
                         const FamilyAvatarIcon = getCosmicAvatarIcon(familyAvatar);
                         const InhabitantIcon = isWholeFamily
@@ -1848,37 +1867,37 @@ export function CalendarView({
                               borderLeftColor: bgStyle.primaryColor,
                               zIndex: 10 + pos.colIndex,
                             }}
-                            className="absolute rounded-xl border border-l-4 p-1.5 sm:p-2 cursor-pointer shadow-md overflow-hidden transition-all duration-150 hover:scale-[1.01] hover:shadow-xl hover:brightness-110 flex flex-col justify-between backdrop-blur-sm group/evt"
+                            className="absolute rounded-xl border border-l-4 theme-card-nmm p-1.5 sm:p-2 cursor-pointer shadow-md overflow-hidden transition-all duration-150 hover:scale-[1.01] hover:shadow-xl hover:brightness-105 flex flex-col justify-between backdrop-blur-sm group/evt"
                             title={`${evt.title} (${evt.time}, ${evt.duration})`}
                           >
                             <div className="overflow-hidden">
                               <div className="flex items-center gap-1 leading-tight">
                                 {colors.length > 1 ? (
-                                  <div className="flex -space-x-1 shrink-0">
+                                  <div className="flex items-center gap-0.5 shrink-0">
                                     {colors.map((c, i) => (
                                       <span
                                         key={i}
-                                        className="w-2 h-2 rounded-full ring-1 ring-black/40"
+                                        className="w-2 h-2 rounded-[2px]"
                                         style={{ backgroundColor: c }}
                                       />
                                     ))}
                                   </div>
                                 ) : (
                                   <span
-                                    className="w-2 h-2 rounded-full shrink-0"
+                                    className="w-2 h-2 rounded-[2px] shrink-0"
                                     style={{ backgroundColor: colors[0] }}
                                   />
                                 )}
                                 {evt.rrule && evt.rrule !== "none" && (
-                                  <Repeat className="w-2.5 h-2.5 text-purple-300 shrink-0 opacity-90" />
+                                  <Repeat className="w-2.5 h-2.5 text-starlight shrink-0 opacity-90" />
                                 )}
-                                <span className="font-black text-[11px] sm:text-xs text-white truncate block">
+                                <span className="font-black text-[11px] sm:text-xs text-cosmos-text truncate block">
                                   {evt.title}
                                 </span>
                               </div>
 
-                              <div className="flex items-center gap-1 text-[10px] text-slate-300 mt-0.5 opacity-90 font-medium">
-                                <Clock className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                              <div className="flex items-center gap-1 text-[10px] text-cosmos-muted mt-0.5 opacity-90 font-medium">
+                                <Clock className="w-2.5 h-2.5 text-cosmos-muted shrink-0" />
                                 <span className="truncate">
                                   {evt.time} ({evt.duration})
                                 </span>
@@ -1886,8 +1905,8 @@ export function CalendarView({
 
                               {/* Location pill if card is tall enough */}
                               {pos.height >= 50 && evt.location && (
-                                <div className="flex items-center gap-1 text-[9px] text-slate-300 mt-0.5 opacity-80 truncate">
-                                  <MapPin className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                                <div className="flex items-center gap-1 text-[9px] text-cosmos-muted mt-0.5 opacity-80 truncate">
+                                  <MapPin className="w-2.5 h-2.5 text-cosmos-muted shrink-0" />
                                   <span className="truncate">{evt.location}</span>
                                 </div>
                               )}
@@ -1895,11 +1914,11 @@ export function CalendarView({
 
                             {/* Inhabitant tag on larger cards */}
                             {pos.height >= 70 && (
-                              <div className="flex items-center justify-between mt-auto pt-1 border-t border-white/10">
+                              <div className="flex items-center justify-between mt-auto pt-1 border-t border-cosmos-border/40">
                                 <span
-                                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-full truncate flex items-center gap-1"
+                                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-md truncate flex items-center gap-1"
                                   style={{
-                                    backgroundColor: `${bgStyle.primaryColor}30`,
+                                    backgroundColor: `${bgStyle.primaryColor}28`,
                                     color: bgStyle.primaryColor,
                                   }}
                                 >
@@ -1932,8 +1951,8 @@ export function CalendarView({
       {viewType === "schedule" && (
         <div className="flex-1 overflow-y-auto space-y-3 pr-2">
           {[...filteredEvents].sort(compareEventsByTime).map((evt) => {
-            const colors = getEventColors(evt, inhabitants, familyColor);
-            const bgStyle = getEventBackgroundStyle(colors, "25");
+            const colors = getEventColors(evt, inhabitants, familyColor, activeTheme);
+            const bgStyle = getEventBackgroundStyle(colors, "24");
             const assignedNames = (evt.memberIds && evt.memberIds.length > 0)
               ? evt.memberIds.map((id) => memberList.find((m) => m.id === id)?.name || id).join(", ")
               : evt.memberId
@@ -1944,45 +1963,47 @@ export function CalendarView({
               <div
                 key={evt.id}
                 onClick={(e) => handleOpenEditEvent(evt, e)}
-                className="p-4 rounded-2xl border flex items-center justify-between cursor-pointer hover:brightness-110 transition shadow-md"
+                className="p-4 rounded-2xl border theme-card-nmm flex items-center justify-between cursor-pointer hover:brightness-105 transition shadow-md"
                 style={{
                   background: bgStyle.background,
                   borderColor: bgStyle.borderColor,
+                  borderLeftWidth: "4px",
+                  borderLeftColor: bgStyle.primaryColor,
                 }}
               >
                 <div className="flex items-center gap-4">
                   {colors.length > 1 ? (
-                    <div className="flex -space-x-1 shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                       {colors.map((c, i) => (
                         <div
                           key={i}
-                          className="w-3.5 h-10 rounded-full shadow-sm ring-1 ring-black/40"
+                          className="w-2.5 h-9 rounded-[3px] shadow-sm"
                           style={{ backgroundColor: c }}
                         />
                       ))}
                     </div>
                   ) : (
                     <div
-                      className="w-3 h-10 rounded-full"
+                      className="w-2.5 h-9 rounded-[3px]"
                       style={{ backgroundColor: colors[0] }}
                     />
                   )}
                   <div>
-                    <span className="text-base font-bold text-white flex items-center gap-1.5">
+                    <span className="text-base font-bold text-cosmos-text flex items-center gap-1.5">
                       {evt.rrule && evt.rrule !== "none" && (
-                        <Repeat className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                        <Repeat className="w-3.5 h-3.5 text-starlight shrink-0" />
                       )}
                       <span>{evt.title}</span>
                     </span>
-                    <span className="text-xs text-slate-300 block">
+                    <span className="text-xs text-cosmos-muted block">
                       {evt.date} • {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
                     </span>
                   </div>
                 </div>
                 <span
-                  className="text-xs px-3 py-1 rounded-full font-bold"
+                  className="text-xs px-3 py-1 rounded-md font-bold"
                   style={{
-                    backgroundColor: `${bgStyle.primaryColor}30`,
+                    backgroundColor: `${bgStyle.primaryColor}28`,
                     color: bgStyle.primaryColor,
                   }}
                 >
@@ -2004,13 +2025,13 @@ export function CalendarView({
                 <span className="text-xs font-extrabold uppercase tracking-wider text-starlight">
                   Day Overview
                 </span>
-                <h3 className="text-lg sm:text-2xl font-black text-white">
+                <h3 className="text-lg sm:text-2xl font-black text-cosmos-text">
                   {formatModalHeaderDate(selectedDayModal)}
                 </h3>
               </div>
               <button
                 onClick={() => setSelectedDayModal(null)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-cosmos-surface min-h-[44px] min-w-[44px] flex items-center justify-center"
+                className="p-2 rounded-xl text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface min-h-[44px] min-w-[44px] flex items-center justify-center"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2019,17 +2040,17 @@ export function CalendarView({
             {/* Events List for this Day */}
             <div className="my-4 max-h-72 overflow-y-auto space-y-3 pr-1">
               {selectedDateEvents.length === 0 ? (
-                <div className="text-center py-8 text-slate-400">
-                  <CalendarIcon className="w-10 h-10 mx-auto mb-2 opacity-40 text-purple-400" />
+                <div className="text-center py-8 text-cosmos-muted">
+                  <CalendarIcon className="w-10 h-10 mx-auto mb-2 opacity-40 text-starlight" />
                   <p className="text-sm font-semibold">No events scheduled for this date.</p>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-cosmos-muted mt-1">
                     Enjoy family free time or tap Add Event to schedule something!
                   </p>
                 </div>
               ) : (
                 selectedDateEvents.map((evt) => {
-                  const colors = getEventColors(evt, inhabitants, familyColor);
-                  const bgStyle = getEventBackgroundStyle(colors, "25");
+                  const colors = getEventColors(evt, inhabitants, familyColor, activeTheme);
+                  const bgStyle = getEventBackgroundStyle(colors, "24");
                   const assignedNames = (evt.memberIds && evt.memberIds.length > 0)
                     ? evt.memberIds.map((id) => memberList.find((m) => m.id === id)?.name || id).join(", ")
                     : evt.memberId
@@ -2043,38 +2064,38 @@ export function CalendarView({
                         setSelectedDayModal(null);
                         handleOpenEditEvent(evt, e);
                       }}
-                      className="p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer hover:brightness-110 transition shadow-sm"
+                      className="p-3.5 rounded-2xl border theme-card-nmm flex items-center justify-between cursor-pointer hover:brightness-105 transition shadow-sm"
                       style={{
                         background: bgStyle.background,
                         borderColor: bgStyle.borderColor,
-                        borderLeftWidth: "5px",
+                        borderLeftWidth: "4px",
                         borderLeftColor: bgStyle.primaryColor,
                       }}
                     >
                       <div>
-                        <span className="text-sm font-bold text-white flex items-center gap-1.5">
+                        <span className="text-sm font-bold text-cosmos-text flex items-center gap-1.5">
                           {evt.rrule && evt.rrule !== "none" && (
-                            <Repeat className="w-3 h-3 text-purple-400 shrink-0" />
+                            <Repeat className="w-3 h-3 text-starlight shrink-0" />
                           )}
                           <span>{evt.title}</span>
                         </span>
-                        <div className="flex items-center gap-3 text-xs text-slate-300 mt-0.5">
+                        <div className="flex items-center gap-3 text-xs text-cosmos-muted mt-0.5">
                           <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-slate-400" />
+                            <Clock className="w-3 h-3 text-cosmos-muted" />
                             {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
                           </span>
                           {evt.location && (
                             <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-slate-400" />
+                              <MapPin className="w-3 h-3 text-cosmos-muted" />
                               {evt.location}
                             </span>
                           )}
                         </div>
                       </div>
                       <span
-                        className="text-xs px-2.5 py-1 rounded-full font-bold"
+                        className="text-xs px-2.5 py-1 rounded-md font-bold"
                         style={{
-                          backgroundColor: `${bgStyle.primaryColor}30`,
+                          backgroundColor: `${bgStyle.primaryColor}28`,
                           color: bgStyle.primaryColor,
                         }}
                       >
@@ -2096,9 +2117,9 @@ export function CalendarView({
                     setViewType("day");
                     setSelectedDayModal(null);
                   }}
-                  className="px-3.5 py-2 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-xs font-bold text-slate-200 transition flex items-center gap-1.5 min-h-[44px]"
+                  className="px-3.5 py-2 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-xs font-bold text-cosmos-text transition flex items-center gap-1.5 min-h-[44px]"
                 >
-                  <Columns className="w-3.5 h-3.5 text-starlight-cyan" />
+                  <Columns className="w-3.5 h-3.5 text-starlight" />
                   <span>View as Day</span>
                 </button>
                 <button
@@ -2108,9 +2129,9 @@ export function CalendarView({
                     setViewType("week");
                     setSelectedDayModal(null);
                   }}
-                  className="px-3.5 py-2 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-xs font-bold text-slate-200 transition flex items-center gap-1.5 min-h-[44px]"
+                  className="px-3.5 py-2 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-xs font-bold text-cosmos-text transition flex items-center gap-1.5 min-h-[44px]"
                 >
-                  <LayoutGrid className="w-3.5 h-3.5 text-starlight-purple" />
+                  <LayoutGrid className="w-3.5 h-3.5 text-starlight-tension" />
                   <span>View as Week</span>
                 </button>
               </div>
@@ -2122,7 +2143,7 @@ export function CalendarView({
                     setSelectedDayModal(null);
                     handleOpenAddEventOnDate(date, e);
                   }}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-xs text-white shadow-md shadow-purple-500/20 transition flex items-center gap-1.5 min-h-[44px]"
+                  className="px-4 py-2 rounded-xl theme-focus-pill font-bold text-xs transition flex items-center gap-1.5 min-h-[44px]"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Event</span>
@@ -2150,7 +2171,7 @@ export function CalendarView({
           }
           aria-label="Add Event"
           title="Add Event"
-          className="sm:hidden fixed bottom-20 right-4 z-30 w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-xl shadow-purple-600/40 border border-purple-400/40 flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+          className="sm:hidden fixed bottom-20 right-4 z-30 w-14 h-14 rounded-2xl theme-focus-pill shadow-xl flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
         >
           <Plus className="w-6 h-6" />
         </button>

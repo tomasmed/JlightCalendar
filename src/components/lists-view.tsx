@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Plus, CheckCircle, Circle, Trash2, ShoppingBag, User } from "lucide-react";
 import { AccessMode } from "./kiosk-header";
 import { AgentProvenanceBadge } from "./agent-badge";
+import { adaptMemberColor, useActiveTheme } from "@/lib/theme";
 
 interface ListItem {
   id: string;
@@ -29,6 +30,7 @@ interface ListsViewProps {
 }
 
 export function ListsView({ accessMode, activeGalaxyId }: ListsViewProps) {
+  const activeTheme = useActiveTheme();
   const [items, setItems] = useState<ListItem[]>([]);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<string>("all");
@@ -138,10 +140,10 @@ export function ListsView({ accessMode, activeGalaxyId }: ListsViewProps) {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 md:pb-4 border-b border-cosmos-border">
         <div>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-starlight">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-cosmos-text">
             Shared Grocery List
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-cosmos-muted">
             Backed to database — syncs groceries & items across family devices.
           </p>
         </div>
@@ -149,7 +151,7 @@ export function ListsView({ accessMode, activeGalaxyId }: ListsViewProps) {
         {items.some((i) => i.completed) && accessMode !== "kid" && (
           <button
             onClick={clearCompleted}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cosmos-surface border border-cosmos-border text-xs font-bold text-slate-400 hover:text-rose-400 hover:border-rose-500/30 transition min-h-[44px]"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cosmos-surface border border-cosmos-border text-xs font-bold text-cosmos-muted hover:text-rose-400 hover:border-rose-500/30 transition min-h-[44px]"
           >
             <Trash2 className="w-4 h-4" />
             <span>Clear Completed</span>
@@ -161,30 +163,37 @@ export function ListsView({ accessMode, activeGalaxyId }: ListsViewProps) {
       <div className="flex items-center gap-1.5 overflow-x-auto py-2.5 max-w-full">
         <button
           onClick={() => setSelectedMemberId("all")}
-          className={`px-3 py-1.5 rounded-2xl text-xs font-bold transition min-h-[40px] shrink-0 ${
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition min-h-[40px] shrink-0 ${
             selectedMemberId === "all"
-              ? "bg-purple-600 text-white shadow-md shadow-purple-500/30"
-              : "bg-cosmos-surface border border-cosmos-border text-slate-400 hover:text-white"
+              ? "theme-focus-pill font-extrabold"
+              : "bg-cosmos-surface border border-cosmos-border text-cosmos-muted hover:text-cosmos-text"
           }`}
         >
           All Members
         </button>
         {members.map((m) => {
           const isSelected = selectedMemberId === m.id;
+          const memberColor = adaptMemberColor(m.color, activeTheme);
           return (
             <button
               key={m.id}
               onClick={() => setSelectedMemberId(m.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition min-h-[40px] shrink-0 border ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition min-h-[40px] shrink-0 border ${
                 isSelected
-                  ? "bg-cosmos-card text-white shadow-md"
-                  : "bg-cosmos-surface border-cosmos-border text-slate-400 hover:text-white"
+                  ? "bg-cosmos-card text-cosmos-text border-cosmos-borderLight shadow-sm"
+                  : "bg-cosmos-surface border-cosmos-border text-cosmos-muted hover:text-cosmos-text"
               }`}
-              style={{ borderColor: isSelected ? m.color : undefined }}
+              style={{
+                borderLeftWidth: isSelected ? "4px" : undefined,
+                borderLeftColor: isSelected ? memberColor : undefined,
+                background: isSelected
+                  ? `linear-gradient(90deg, ${memberColor}22 0%, rgb(var(--cosmos-card)) 90%)`
+                  : undefined,
+              }}
             >
               <span
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: m.color }}
+                className="w-2.5 h-2.5 rounded-[3px]"
+                style={{ backgroundColor: memberColor }}
               />
               <span>{m.name}</span>
             </button>
@@ -200,13 +209,13 @@ export function ListsView({ accessMode, activeGalaxyId }: ListsViewProps) {
             placeholder="Add an item (e.g. Organic Eggs, Sourdough, Apples)..."
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
-            className="flex-1 h-12 bg-cosmos-surface border border-cosmos-border rounded-xl px-4 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-purple-500 transition"
+            className="flex-1 h-12 bg-cosmos-surface border border-cosmos-border rounded-xl px-4 text-cosmos-text text-sm placeholder:text-cosmos-muted/70 focus:outline-none focus:border-starlight transition"
           />
           <div className="flex gap-2">
             <select
               value={addedById}
               onChange={(e) => setAddedById(e.target.value)}
-              className="h-12 bg-cosmos-surface border border-cosmos-border rounded-xl px-3 text-white text-xs font-bold focus:outline-none focus:border-purple-500 shrink-0"
+              className="h-12 bg-cosmos-surface border border-cosmos-border rounded-xl px-3 text-cosmos-text text-xs font-bold focus:outline-none focus:border-starlight shrink-0"
               title="Added by"
             >
               {members.map((m) => (
@@ -217,7 +226,7 @@ export function ListsView({ accessMode, activeGalaxyId }: ListsViewProps) {
             </select>
             <button
               type="submit"
-              className="h-12 px-5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 font-bold text-white rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-purple-500/20 transition min-w-[48px] justify-center cursor-pointer shrink-0"
+              className="h-12 px-5 theme-focus-pill font-bold rounded-xl text-xs flex items-center gap-2 transition min-w-[48px] justify-center cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>Add</span>
@@ -229,21 +238,30 @@ export function ListsView({ accessMode, activeGalaxyId }: ListsViewProps) {
       {/* List Items */}
       <div className="flex-1 overflow-y-auto py-2 space-y-2.5 pr-1">
         {loading ? (
-          <div className="text-center py-12 text-slate-500">Loading items...</div>
+          <div className="text-center py-12 text-cosmos-muted">Loading items...</div>
         ) : items.length === 0 ? (
-          <div className="text-center py-12 text-slate-400">
-            <ShoppingBag className="w-8 h-8 mx-auto mb-2 text-purple-400 opacity-60" />
+          <div className="text-center py-12 text-cosmos-muted">
+            <ShoppingBag className="w-8 h-8 mx-auto mb-2 text-starlight opacity-60" />
             <p className="font-semibold text-sm">No grocery items right now!</p>
           </div>
         ) : (
-          items.map((item) => (
+          items.map((item) => {
+            const itemColor = adaptMemberColor(item.addedByColor || "#8b5cf6", activeTheme);
+            return (
             <div
               key={item.id}
-              className={`p-3 sm:p-4 rounded-2xl border transition-all flex items-center justify-between ${
+              className={`p-3 sm:p-4 rounded-2xl border theme-card-nmm transition-all flex items-center justify-between ${
                 item.completed
                   ? "bg-cosmos-deep/40 border-cosmos-border/50 opacity-60"
-                  : "bg-cosmos-card hover:bg-cosmos-cardHover border-cosmos-border shadow-md"
+                  : "border-cosmos-border shadow-md"
               }`}
+              style={{
+                borderLeftWidth: "5px",
+                borderLeftColor: itemColor,
+                background: item.completed
+                  ? undefined
+                  : `linear-gradient(90deg, ${itemColor}1F 0%, rgb(var(--cosmos-card)) 85%)`,
+              }}
             >
               <div
                 onClick={() => toggleItem(item.id, item.completed)}
@@ -253,24 +271,24 @@ export function ListsView({ accessMode, activeGalaxyId }: ListsViewProps) {
                   {item.completed ? (
                     <CheckCircle className="w-6 h-6 text-emerald-400" />
                   ) : (
-                    <Circle className="w-6 h-6 text-slate-500 hover:text-slate-300" />
+                    <Circle className="w-6 h-6 text-cosmos-muted hover:text-cosmos-text" />
                   )}
                 </div>
                 <div>
                   <span
                     className={`text-sm sm:text-base font-bold block ${
                       item.completed
-                        ? "line-through text-slate-400"
-                        : "text-slate-100"
+                        ? "line-through text-cosmos-muted"
+                        : "text-cosmos-text"
                     }`}
                   >
                     {item.title}
                   </span>
                   {item.addedByName && (
-                    <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-400">
+                    <div className="flex items-center gap-1.5 mt-0.5 text-xs text-cosmos-muted">
                       <span
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: item.addedByColor || "#8b5cf6" }}
+                        className="w-2 h-2 rounded-[2px]"
+                        style={{ backgroundColor: itemColor }}
                       />
                       <span>Added by {item.addedByName}</span>
                       {item.agent && (
@@ -284,14 +302,15 @@ export function ListsView({ accessMode, activeGalaxyId }: ListsViewProps) {
               {accessMode !== "kid" && (
                 <button
                   onClick={() => deleteSingle(item.id)}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-500 hover:text-rose-400 hover:bg-cosmos-surface transition"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-cosmos-muted hover:text-rose-400 hover:bg-cosmos-surface transition"
                   title="Delete item"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
               )}
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

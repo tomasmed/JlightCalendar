@@ -2,79 +2,306 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #050711;
-  --foreground: #f8fafc;
-  --cosmos-void: 5 7 17;
-  --cosmos-deep: 9 11 28;
-  --cosmos-surface: 14 18 43;
-  --cosmos-card: 19 24 56;
-  --cosmos-cardHover: 26 33 76;
-  --cosmos-border: 38 46 94;
-  --cosmos-borderLight: 56 67 132;
-  --starlight-default: #ffd166;
-  --scrollbar-thumb: rgba(56, 67, 132, 0.6);
-  --scrollbar-thumb-hover: rgba(168, 85, 247, 0.8);
+/* ============================================================================
+   ARCHETYPE A: "SUPER CREAMY" (Matte PBT Keycaps & Unix Rice)
+   Default: Mocha (Warm Espresso & Taro Boba)
+   ============================================================================ */
+:root,
+[data-theme="mocha"],
+[data-theme="milky-way"] {
+  --background: #1E1E2E;
+  --foreground: #CDD6F4;
+  --cosmos-void: 30 30 46;
+  --cosmos-deep: 35 35 54;
+  --cosmos-surface: 40 40 61;
+  --cosmos-card: 46 46 70;
+  --cosmos-cardHover: 54 54 82;
+  --cosmos-border: 62 62 94;
+  --cosmos-borderLight: 88 91 112;
+  --cosmos-text: 205 214 244;
+  --cosmos-muted: 147 153 178;
+  --starlight-default: #CBA6F7;
+  --accent-tension: #FAB387;
+  --focus-text: #1E1E2E;
+  --nmm-top-highlight: rgba(205, 214, 244, 0.08);
+  --scrollbar-thumb: rgba(88, 91, 112, 0.65);
+  --scrollbar-thumb-hover: rgba(203, 166, 247, 0.85);
+}
+
+[data-theme="matcha"] {
+  --background: #1E2326;
+  --foreground: #D3C6AA;
+  --cosmos-void: 30 35 38;
+  --cosmos-deep: 35 41 45;
+  --cosmos-surface: 39 46 51;
+  --cosmos-card: 46 56 60;
+  --cosmos-cardHover: 55 65 69;
+  --cosmos-border: 65 75 80;
+  --cosmos-borderLight: 86 99 95;
+  --cosmos-text: 211 198 170;
+  --cosmos-muted: 157 169 160;
+  --starlight-default: #A7C080;
+  --accent-tension: #E67E80;
+  --focus-text: #1E2326;
+  --nmm-top-highlight: rgba(211, 198, 170, 0.08);
+  --scrollbar-thumb: rgba(86, 99, 95, 0.65);
+  --scrollbar-thumb-hover: rgba(167, 192, 128, 0.85);
+}
+
+[data-theme="oat"] {
+  --background: #22201E;
+  --foreground: #E5DFD5;
+  --cosmos-void: 34 32 30;
+  --cosmos-deep: 40 37 35;
+  --cosmos-surface: 46 43 40;
+  --cosmos-card: 54 50 46;
+  --cosmos-cardHover: 64 59 54;
+  --cosmos-border: 74 68 63;
+  --cosmos-borderLight: 99 91 84;
+  --cosmos-text: 229 223 213;
+  --cosmos-muted: 168 159 148;
+  --starlight-default: #D4A373;
+  --accent-tension: #A3B18A;
+  --focus-text: #22201E;
+  --nmm-top-highlight: rgba(229, 223, 213, 0.08);
+  --scrollbar-thumb: rgba(99, 91, 84, 0.65);
+  --scrollbar-thumb-hover: rgba(212, 163, 115, 0.85);
+}
+
+[data-theme="latte"] {
+  --background: #EFF1F5;
+  --foreground: #4C4F69;
+  --cosmos-void: 239 241 245;
+  --cosmos-deep: 230 233 239;
+  --cosmos-surface: 220 224 232;
+  --cosmos-card: 246 247 250;
+  --cosmos-cardHover: 230 233 239;
+  --cosmos-border: 204 208 218;
+  --cosmos-borderLight: 172 176 190;
+  --cosmos-text: 76 79 105;
+  --cosmos-muted: 108 111 133;
+  --starlight-default: #7287FD;
+  --accent-tension: #DF8E1D;
+  --focus-text: #EFF1F5;
+  --nmm-top-highlight: rgba(255, 255, 255, 0.65);
+  --scrollbar-thumb: rgba(172, 176, 190, 0.7);
+  --scrollbar-thumb-hover: rgba(114, 135, 253, 0.85);
+}
+
+/* ============================================================================
+   ARCHETYPE B: "CYBERPUNK & SEASONAL OSL" (Fluorescent Light-Spill & HUDs)
+   ============================================================================ */
+[data-theme="over-volt-blue"] {
+  --background: #070A12;
+  --foreground: #D8FCFF;
+  --cosmos-void: 7 10 18;
+  --cosmos-deep: 11 16 28;
+  --cosmos-surface: 16 22 38;
+  --cosmos-card: 20 28 48;
+  --cosmos-cardHover: 26 37 62;
+  --cosmos-border: 34 48 82;
+  --cosmos-borderLight: 51 73 122;
+  --cosmos-text: 216 252 255;
+  --cosmos-muted: 124 147 184;
+  --starlight-default: #00F0FF;
+  --accent-tension: #FCEE0A;
+  --focus-text: #D8FCFF;
+  --nmm-top-highlight: rgba(0, 240, 255, 0.22);
+  --scrollbar-thumb: rgba(51, 73, 122, 0.7);
+  --scrollbar-thumb-hover: rgba(0, 240, 255, 0.85);
+}
+
+[data-theme="yakuza-purple"] {
+  --background: #0D0714;
+  --foreground: #FFE6FA;
+  --cosmos-void: 13 7 20;
+  --cosmos-deep: 18 10 28;
+  --cosmos-surface: 23 14 36;
+  --cosmos-card: 30 18 47;
+  --cosmos-cardHover: 39 24 61;
+  --cosmos-border: 54 32 84;
+  --cosmos-borderLight: 82 48 126;
+  --cosmos-text: 255 230 250;
+  --cosmos-muted: 158 130 184;
+  --starlight-default: #D900FF;
+  --accent-tension: #FFB800;
+  --focus-text: #FFE6FA;
+  --nmm-top-highlight: rgba(217, 0, 255, 0.22);
+  --scrollbar-thumb: rgba(82, 48, 126, 0.7);
+  --scrollbar-thumb-hover: rgba(217, 0, 255, 0.85);
+}
+
+[data-theme="red-dragon"] {
+  --background: #0A0808;
+  --foreground: #FFF0ED;
+  --cosmos-void: 10 8 8;
+  --cosmos-deep: 16 12 13;
+  --cosmos-surface: 22 17 18;
+  --cosmos-card: 30 22 24;
+  --cosmos-cardHover: 40 29 32;
+  --cosmos-border: 58 39 43;
+  --cosmos-borderLight: 89 56 62;
+  --cosmos-text: 255 240 237;
+  --cosmos-muted: 168 138 142;
+  --starlight-default: #FF1E42;
+  --accent-tension: #73F3FF;
+  --focus-text: #FFF0ED;
+  --nmm-top-highlight: rgba(255, 30, 66, 0.24);
+  --scrollbar-thumb: rgba(89, 56, 62, 0.7);
+  --scrollbar-thumb-hover: rgba(255, 30, 66, 0.85);
+}
+
+[data-theme="neon-green"] {
+  --background: #060D09;
+  --foreground: #E2FFEE;
+  --cosmos-void: 6 13 9;
+  --cosmos-deep: 10 20 14;
+  --cosmos-surface: 14 28 20;
+  --cosmos-card: 19 38 27;
+  --cosmos-cardHover: 25 50 36;
+  --cosmos-border: 35 70 50;
+  --cosmos-borderLight: 52 105 75;
+  --cosmos-text: 226 255 238;
+  --cosmos-muted: 127 168 144;
+  --starlight-default: #00FF66;
+  --accent-tension: #FF9900;
+  --focus-text: #E2FFEE;
+  --nmm-top-highlight: rgba(0, 255, 102, 0.22);
+  --scrollbar-thumb: rgba(52, 105, 75, 0.7);
+  --scrollbar-thumb-hover: rgba(0, 255, 102, 0.85);
 }
 
 [data-theme="halloween"] {
-  --background: #09060f;
-  --foreground: #fef2f2;
-  --cosmos-void: 9 6 15;
-  --cosmos-deep: 18 12 29;
-  --cosmos-surface: 27 18 44;
-  --cosmos-card: 36 24 58;
-  --cosmos-cardHover: 49 33 78;
-  --cosmos-border: 77 43 105;
-  --cosmos-borderLight: 109 58 148;
-  --starlight-default: #f97316; /* Glowing pumpkin orange */
-  --scrollbar-thumb: rgba(109, 58, 148, 0.7);
-  --scrollbar-thumb-hover: rgba(249, 115, 22, 0.85);
+  --background: #0B0711;
+  --foreground: #F7E8D8;
+  --cosmos-void: 11 7 17;
+  --cosmos-deep: 16 10 24;
+  --cosmos-surface: 21 14 32;
+  --cosmos-card: 28 19 43;
+  --cosmos-cardHover: 37 25 56;
+  --cosmos-border: 54 35 79;
+  --cosmos-borderLight: 82 53 118;
+  --cosmos-text: 247 232 216;
+  --cosmos-muted: 158 138 168;
+  --starlight-default: #FF6B1A;
+  --accent-tension: #B56BFF;
+  --focus-text: #FFF3E0;
+  --nmm-top-highlight: rgba(255, 107, 26, 0.24);
+  --scrollbar-thumb: rgba(82, 53, 118, 0.7);
+  --scrollbar-thumb-hover: rgba(255, 107, 26, 0.85);
 }
 
+/* ============================================================================
+   BASE SURFACE & ATMOSPHERE PHYSICS
+   ============================================================================ */
 body {
   color: var(--foreground);
-  background: var(--background);
-  background-image: 
-    radial-gradient(1.5px 1.5px at 20px 30px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(1.5px 1.5px at 40px 70px, rgba(255, 209, 102, 0.8), rgba(0,0,0,0)),
-    radial-gradient(1px 1px at 90px 40px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(1.5px 1.5px at 160px 120px, rgba(168, 85, 247, 0.9), rgba(0,0,0,0)),
-    radial-gradient(1px 1px at 230px 190px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(2px 2px at 290px 80px, rgba(56, 189, 248, 0.9), rgba(0,0,0,0)),
-    radial-gradient(1px 1px at 340px 150px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(1.5px 1.5px at 410px 60px, rgba(255, 209, 102, 0.7), rgba(0,0,0,0)),
-    radial-gradient(1px 1px at 480px 210px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(2px 2px at 560px 130px, rgba(244, 114, 182, 0.8), rgba(0,0,0,0)),
-    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(88, 28, 135, 0.22), transparent 70%),
-    radial-gradient(circle at 85% 75%, rgba(14, 116, 144, 0.15), transparent 50%),
-    radial-gradient(circle at 10% 40%, rgba(76, 29, 149, 0.18), transparent 45%);
-  background-repeat: repeat, repeat, repeat, repeat, repeat, repeat, repeat, repeat, repeat, repeat, no-repeat, no-repeat, no-repeat;
-  background-size: 550px 350px, 450px 280px, 350px 350px, 500px 400px, 400px 300px, 600px 450px, 380px 290px, 490px 380px, 420px 310px, 530px 370px, 100% 100%, 100% 100%, 100% 100%;
+  background-color: var(--background);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
     Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
   overflow-x: hidden;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-[data-theme="halloween"] body {
-  background-image: 
-    radial-gradient(1.5px 1.5px at 20px 30px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(1.5px 1.5px at 40px 70px, rgba(249, 115, 22, 0.8), rgba(0,0,0,0)),
-    radial-gradient(1px 1px at 90px 40px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(1.5px 1.5px at 160px 120px, rgba(168, 85, 247, 0.9), rgba(0,0,0,0)),
-    radial-gradient(1px 1px at 230px 190px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(2px 2px at 290px 80px, rgba(34, 197, 94, 0.8), rgba(0,0,0,0)),
-    radial-gradient(1px 1px at 340px 150px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(1.5px 1.5px at 410px 60px, rgba(249, 115, 22, 0.7), rgba(0,0,0,0)),
-    radial-gradient(1px 1px at 480px 210px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(2px 2px at 560px 130px, rgba(168, 85, 247, 0.85), rgba(0,0,0,0)),
-    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(249, 115, 22, 0.2), transparent 70%),
-    radial-gradient(circle at 85% 75%, rgba(139, 92, 246, 0.2), transparent 50%),
-    radial-gradient(circle at 10% 40%, rgba(34, 197, 94, 0.12), transparent 45%);
+/* Archetype A (Creamy): Ultra-matte finish, zero outer neon glow */
+[data-archetype="creamy"] body {
+  background-image: none;
+}
+
+/* Archetype B (OSL): Subtle zenithal atmospheric light spill from top-center */
+[data-archetype="osl"] body {
+  background-image:
+    radial-gradient(ellipse 75% 45% at 50% -12%, color-mix(in srgb, var(--starlight-default) 14%, transparent), transparent 70%),
+    radial-gradient(circle at 88% 82%, color-mix(in srgb, var(--accent-tension) 8%, transparent), transparent 55%);
+  background-repeat: no-repeat;
+}
+
+/* ============================================================================
+   ARCHETYPE FOCUS & TACTILE MATERIALITY PRIMITIVES
+   ============================================================================ */
+
+/* 1. Unified Active Focus Pill (Navigation tabs, View Switcher, Primary CTA) */
+.theme-focus-pill {
+  background-color: var(--starlight-default);
+  color: var(--focus-text);
+  border: 1px solid var(--starlight-default);
+  border-bottom: 2px solid color-mix(in srgb, var(--starlight-default) 68%, #000000);
+  box-shadow: none;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-focus-pill:hover {
+  filter: brightness(1.05);
+}
+
+[data-archetype="osl"] .theme-focus-pill {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--starlight-default) 26%, rgb(var(--cosmos-card))) 0%,
+    color-mix(in srgb, var(--starlight-default) 12%, rgb(var(--cosmos-surface))) 100%
+  );
+  color: var(--focus-text);
+  border: 1px solid color-mix(in srgb, var(--starlight-default) 50%, transparent);
+  border-top: 2px solid var(--starlight-default);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--starlight-default) 24%, transparent);
+}
+
+/* 2. Single-Anchor Calendar Selected Cell (Eliminates "Double-Hats") */
+.theme-selected-cell {
+  background-color: rgb(var(--cosmos-cardHover));
+  box-shadow: inset 0 -2px 0 0 var(--starlight-default);
+}
+
+[data-archetype="osl"] .theme-selected-cell {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--starlight-default) 18%, rgb(var(--cosmos-deep))) 0%,
+    rgb(var(--cosmos-deep)) 85%
+  );
+  box-shadow: inset 0 2px 0 0 var(--starlight-default);
+}
+
+/* 3. Today Date Number Badge (Sculpted Keycap in Creamy / Specular Core in OSL) */
+.theme-today-badge {
+  background-color: var(--starlight-default);
+  color: var(--focus-text);
+  border-bottom: 2px solid color-mix(in srgb, var(--starlight-default) 62%, #000000);
+}
+
+[data-archetype="osl"] .theme-today-badge {
+  background-color: color-mix(in srgb, var(--starlight-default) 24%, rgb(var(--cosmos-surface)));
+  color: var(--focus-text);
+  border: 1px solid color-mix(in srgb, var(--starlight-default) 70%, transparent);
+  border-top: 2px solid var(--starlight-default);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--starlight-default) 30%, transparent);
+}
+
+/* 4. NMM Directional Top-Edge Highlight for Elevated Cards */
+.theme-card-nmm {
+  border-top-color: var(--nmm-top-highlight);
+}
+
+/* ============================================================================
+   DAYLIGHT THEME ("LATTE") CONTRAST HARMONIZATION
+   Ensures legacy text-white / text-slate-* utility classes remain readable
+   as Roasted Espresso ink on warm crema surfaces.
+   ============================================================================ */
+[data-theme="latte"] .text-white:not(.theme-focus-pill):not(.theme-today-badge),
+[data-theme="latte"] .text-slate-100,
+[data-theme="latte"] .text-slate-200 {
+  color: #4C4F69;
+}
+
+[data-theme="latte"] .text-slate-300,
+[data-theme="latte"] .text-slate-400 {
+  color: #6C6F85;
+}
+
+[data-theme="latte"] .text-slate-500 {
+  color: #8C8FA1;
 }
 
 /* Kiosk mode touch ergonomics */
@@ -97,13 +324,13 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Cosmic & Halloween Scrollbar */
+/* Theme Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--cosmos-void);
+  background: rgb(var(--cosmos-void));
 }
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
