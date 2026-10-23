@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { ensureDatabaseSchema } from "@/db/ensure-schema";
+import { ensureDatabaseSchema, purgeExpiredComets } from "@/db/ensure-schema";
 import { users, galaxies, galaxyMembers } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
@@ -92,6 +92,29 @@ export async function verifyGalaxyAccess(
     return true;
   }
 
+  // Fetch target galaxy/comet record first
+  const galaxy = await db
+    .select()
+    .from(galaxies)
+    .where(eq(galaxies.id, galaxyId))
+    .limit(1);
+
+  if (galaxy.length === 0) {
+    return false;
+  }
+
+  // Ephemeral Comets are capability-link spaces accessible until their TTL expires
+  if (galaxy[0].isEphemeral) {
+    if (
+      galaxy[0].expiresAt &&
+      new Date(galaxy[0].expiresAt).getTime() <= Date.now()
+    ) {
+      await purgeExpiredComets();
+      return false;
+    }
+    return true;
+  }
+
   let dbUserId = userId;
 
   // Resolve DB user id if email is available and userId is not found in DB
@@ -111,17 +134,6 @@ export async function verifyGalaxyAccess(
   }
 
   if (!dbUserId) {
-    return false;
-  }
-
-  // Check if owner
-  const galaxy = await db
-    .select()
-    .from(galaxies)
-    .where(eq(galaxies.id, galaxyId))
-    .limit(1);
-
-  if (galaxy.length === 0) {
     return false;
   }
 

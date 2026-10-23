@@ -1,29 +1,24 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { ensureDatabaseSchema } from "@/db/ensure-schema";
+import { ensureDatabaseSchema, purgeExpiredComets } from "@/db/ensure-schema";
 import { galaxies, galaxyMembers, normalizeJoinCode } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { auth } from "@/auth";
 
 export async function POST(req: Request) {
   try {
     await ensureDatabaseSchema();
+    await purgeExpiredComets();
     const session = await auth();
     const userId = session?.user?.id;
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: "You must be signed in to join a galaxy." },
-        { status: 401 }
-      );
-    }
-
     const body = await req.json();
     const rawCode = body?.joinCode;
+    const guestName = body?.guestName;
 
     if (!rawCode || typeof rawCode !== "string") {
       return NextResponse.json(
-        { error: "A valid galaxy join code is required." },
+        { error: "A valid galaxy or comet join code is required." },
         { status: 400 }
       );
     }
@@ -31,27 +26,61 @@ export async function POST(req: Request) {
     const rawUpper = rawCode.trim().toUpperCase();
     const joinCode = normalizeJoinCode(rawCode);
 
-    // 1. Locate the galaxy with this join code (normalized or exact)
+    // 1. Locate the galaxy or comet with this join code (normalized, exact, or slug)
     let matching = await db
       .select()
       .from(galaxies)
-      .where(eq(galaxies.joinCode, joinCode));
+      .where(
+        or(
+          eq(galaxies.joinCode, joinCode),
+          eq(galaxies.joinCode, rawUpper),
+          eq(galaxies.slug, rawCode.trim().toLowerCase())
+        )
+      );
 
-    if (matching.length === 0 && rawUpper !== joinCode) {
-      matching = await db
-        .select()
-        .from(galaxies)
-        .where(eq(galaxies.joinCode, rawUpper));
-    }
-
+    // If it's a permanent galaxy (or not found yet) and user is unauthenticated, require sign-in first
     if (matching.length === 0) {
+      if (!userId) {
+        return NextResponse.json(
+          { error: "You must be signed in to join a galaxy." },
+          { status: 401 }
+        );
+      }
       return NextResponse.json(
-        { error: "No galaxy found matching code: " + joinCode + ". Please check with the galaxy owner." },
+        { error: "No galaxy or comet found matching code: " + joinCode + ". Please check with the owner." },
         { status: 404 }
       );
     }
 
     const targetGalaxy = matching[0];
+
+    // If target is an Ephemeral Comet and user is not signed in, allow guest access!
+    if (targetGalaxy.isEphemeral && !userId) {
+      if (guestName && typeof guestName === "string" && guestName.trim()) {
+        await db.insert(galaxyMembers).values({
+          id: crypto.randomUUID(),
+          galaxyId: targetGalaxy.id,
+          userId: null,
+          displayName: guestName.trim(),
+          role: "member",
+          color: "#06b6d4",
+          avatarIcon: "user",
+        });
+      }
+      return NextResponse.json({
+        success: true,
+        isEphemeral: true,
+        galaxy: targetGalaxy,
+        message: `Connected to ephemeral Comet "${targetGalaxy.name}"!`,
+      });
+    }
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "You must be signed in to join a galaxy." },
+        { status: 401 }
+      );
+    }
 
     // 2. Check if user is already an owner or member
     const existing = await db

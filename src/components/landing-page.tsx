@@ -22,11 +22,24 @@ import { ChangelogModal } from "./changelog-modal";
 interface LandingPageProps {
   onExploreDemo: () => void;
   onJoinCodeSubmit?: (code: string) => void;
+  onLaunchComet?: (options: {
+    name: string;
+    creatorName: string;
+    ttlDays: number;
+  }) => Promise<void> | void;
 }
 
-export function LandingPage({ onExploreDemo, onJoinCodeSubmit }: LandingPageProps) {
+export function LandingPage({
+  onExploreDemo,
+  onJoinCodeSubmit,
+  onLaunchComet,
+}: LandingPageProps) {
   const [quickJoinCode, setQuickJoinCode] = useState("");
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
+  const [cometName, setCometName] = useState("");
+  const [cometCreator, setCometCreator] = useState("");
+  const [cometTtlDays, setCometTtlDays] = useState<number>(150);
+  const [isLaunchingComet, setIsLaunchingComet] = useState(false);
 
   const handleQuickJoin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +49,21 @@ export function LandingPage({ onExploreDemo, onJoinCodeSubmit }: LandingPageProp
       } else {
         signIn("google");
       }
+    }
+  };
+
+  const handleCreateCometSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cometName.trim() || !onLaunchComet) return;
+    setIsLaunchingComet(true);
+    try {
+      await onLaunchComet({
+        name: cometName.trim(),
+        creatorName: cometCreator.trim() || "Comet Host",
+        ttlDays: cometTtlDays,
+      });
+    } finally {
+      setIsLaunchingComet(false);
     }
   };
 
@@ -140,7 +168,7 @@ export function LandingPage({ onExploreDemo, onJoinCodeSubmit }: LandingPageProp
           </button>
         </div>
 
-        {/* Join with Galaxy Code Bar */}
+        {/* Join with Galaxy or Comet Code Bar */}
         <form
           onSubmit={handleQuickJoin}
           className="mt-6 flex flex-col sm:flex-row items-center gap-2 p-1.5 rounded-2xl bg-cosmos-card/80 border border-cosmos-border backdrop-blur-md max-w-md w-full"
@@ -149,17 +177,97 @@ export function LandingPage({ onExploreDemo, onJoinCodeSubmit }: LandingPageProp
             type="text"
             value={quickJoinCode}
             onChange={(e) => setQuickJoinCode(e.target.value.toUpperCase())}
-            placeholder="Have an invite code? (e.g. GLX-8K9)"
-            className="w-full bg-transparent px-4 py-2 text-xs font-mono font-bold text-white placeholder-slate-500 focus:outline-none uppercase"
+            placeholder="Have an invite code? (CMT-4K8A or GLX-8K9)"
+            className="w-full bg-transparent px-4 py-2 text-xs font-mono font-bold text-white placeholder-slate-500 focus:outline-none uppercase min-h-[44px]"
           />
           <button
             type="submit"
-            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-cosmos-surface hover:bg-purple-600/40 text-starlight text-xs font-bold border border-purple-500/30 transition flex items-center justify-center gap-1.5 shrink-0"
+            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-cosmos-surface hover:bg-purple-600/40 text-starlight text-xs font-bold border border-purple-500/30 transition flex items-center justify-center gap-1.5 shrink-0 min-h-[44px]"
           >
-            <span>Join Galaxy</span>
+            <span>Join Space</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </form>
+
+        {/* Instant Ephemeral Comet Builder Card (No Sign-In Required) */}
+        {onLaunchComet && (
+          <div className="mt-8 w-full max-w-3xl rounded-3xl bg-gradient-to-br from-cyan-950/60 via-cosmos-card/90 to-indigo-950/60 border border-cyan-500/30 p-5 sm:p-6 text-left shadow-xl shadow-cyan-500/10 backdrop-blur-md">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">☄️</span>
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                    <span>Launch an Instant Ephemeral Comet</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                      No Login Needed
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-300">
+                    Need a quick multiplayer calendar for a project sprint, team meeting, or friend trip? Spin one up in seconds, export any date window to Google/Apple Calendar (.ics), and let it auto-spin down when done.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <form
+              onSubmit={handleCreateCometSubmit}
+              className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end"
+            >
+              <div className="sm:col-span-5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-cyan-300 mb-1">
+                  Comet Title
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={cometName}
+                  onChange={(e) => setCometName(e.target.value)}
+                  placeholder="e.g. Q4 Sprint Sync, Tahoe Trip"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-cosmos-surface/90 border border-cosmos-border text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 min-h-[48px]"
+                />
+              </div>
+
+              <div className="sm:col-span-3">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  Your Name
+                </label>
+                <input
+                  type="text"
+                  value={cometCreator}
+                  onChange={(e) => setCometCreator(e.target.value)}
+                  placeholder="e.g. Alex"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-cosmos-surface/90 border border-cosmos-border text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 min-h-[48px]"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  Spin-Down TTL
+                </label>
+                <select
+                  value={cometTtlDays}
+                  onChange={(e) => setCometTtlDays(Number(e.target.value))}
+                  className="w-full px-2.5 py-2.5 rounded-xl bg-cosmos-surface/90 border border-cosmos-border text-xs font-bold text-white focus:outline-none focus:border-cyan-400 min-h-[48px]"
+                >
+                  <option value={7}>7 Days</option>
+                  <option value={30}>30 Days</option>
+                  <option value={90}>90 Days</option>
+                  <option value={150}>5 Months</option>
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <button
+                  type="submit"
+                  disabled={isLaunchingComet || !cometName.trim()}
+                  className="w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-white text-xs font-extrabold shadow-lg shadow-cyan-500/25 transition flex items-center justify-center gap-1.5 min-h-[48px]"
+                >
+                  <span>{isLaunchingComet ? "Launching..." : "Launch ☄️"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* Features Grid */}
         <div className="mt-16 sm:mt-24 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 text-left w-full">

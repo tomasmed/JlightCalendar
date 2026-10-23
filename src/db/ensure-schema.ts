@@ -77,7 +77,7 @@ export async function ensureDatabaseSchema(): Promise<void> {
         }
       }
 
-      // 5. Ensure family_color & family_avatar columns in galaxies
+      // 5. Ensure family_color, family_avatar, is_ephemeral & expires_at columns in galaxies
       if (!galaxyCols.has("family_color")) {
         console.log("🛠️ Adding missing column 'family_color' to 'galaxies' table...");
         await client.execute("ALTER TABLE galaxies ADD COLUMN family_color text NOT NULL DEFAULT '#ef4444';");
@@ -87,6 +87,16 @@ export async function ensureDatabaseSchema(): Promise<void> {
         console.log("🛠️ Adding missing column 'family_avatar' to 'galaxies' table...");
         await client.execute("ALTER TABLE galaxies ADD COLUMN family_avatar text NOT NULL DEFAULT 'planet';");
         console.log("✅ Added 'family_avatar' column to 'galaxies'.");
+      }
+      if (!galaxyCols.has("is_ephemeral")) {
+        console.log("🛠️ Adding missing column 'is_ephemeral' to 'galaxies' table...");
+        await client.execute("ALTER TABLE galaxies ADD COLUMN is_ephemeral integer NOT NULL DEFAULT 0;");
+        console.log("✅ Added 'is_ephemeral' column to 'galaxies'.");
+      }
+      if (!galaxyCols.has("expires_at")) {
+        console.log("🛠️ Adding missing column 'expires_at' to 'galaxies' table...");
+        await client.execute("ALTER TABLE galaxies ADD COLUMN expires_at text;");
+        console.log("✅ Added 'expires_at' column to 'galaxies'.");
       }
 
       // 6. Ensure member_ids column in events
@@ -203,4 +213,37 @@ export async function ensureDatabaseSchema(): Promise<void> {
   })();
 
   return ensuringPromise;
+}
+
+/**
+ * Spins down (deletes) all ephemeral Comets whose `expires_at` timestamp has passed.
+ * Returns the list of spun-down Comet IDs.
+ */
+export async function purgeExpiredComets(nowIso?: string): Promise<string[]> {
+  await ensureDatabaseSchema();
+  const cutoff = nowIso || new Date().toISOString();
+  try {
+    const expiredRes = await client.execute({
+      sql: "SELECT id FROM galaxies WHERE is_ephemeral = 1 AND expires_at IS NOT NULL AND expires_at <= ?;",
+      args: [cutoff],
+    });
+    const expiredIds = expiredRes.rows.map((r) => String(r.id)).filter(Boolean);
+    if (expiredIds.length === 0) return [];
+
+    await client.execute("PRAGMA foreign_keys = ON;");
+    for (const id of expiredIds) {
+      await client.execute({ sql: "DELETE FROM events WHERE galaxy_id = ?;", args: [id] });
+      await client.execute({ sql: "DELETE FROM list_items WHERE galaxy_id = ?;", args: [id] });
+      await client.execute({ sql: "DELETE FROM chores WHERE galaxy_id = ?;", args: [id] });
+      await client.execute({ sql: "DELETE FROM meal_plans WHERE galaxy_id = ?;", args: [id] });
+      await client.execute({ sql: "DELETE FROM agent_keys WHERE galaxy_id = ?;", args: [id] });
+      await client.execute({ sql: "DELETE FROM calendars WHERE galaxy_id = ?;", args: [id] });
+      await client.execute({ sql: "DELETE FROM galaxy_members WHERE galaxy_id = ?;", args: [id] });
+      await client.execute({ sql: "DELETE FROM galaxies WHERE id = ?;", args: [id] });
+    }
+    return expiredIds;
+  } catch (err) {
+    console.error("⚠️ Failed to purge expired comets:", err);
+    return [];
+  }
 }

@@ -160,12 +160,22 @@ Response:
 All requests accept \`Authorization: Bearer <token>\`.
 Smart Default: If \`galaxyId\` is omitted, it defaults automatically to your bound Galaxy. If \`memberId\` is omitted on \`POST /api/events\`, \`POST /api/lists\`, or \`POST /api/meals\`, it defaults automatically to your bound Inhabitant.
 
-### Events (\`/api/events\`)
+### Events (\`/api/events\` & \`/api/events/export\`)
 - \`GET /api/events?start=YYYY-MM-DD&end=YYYY-MM-DD\`
 - \`POST /api/events\`
   Body: \`{ "title": "Soccer Practice", "startTime": "2026-10-20T17:00:00", "endTime": "2026-10-20T18:00:00", "location": "Field 2" }\`
 - \`PATCH /api/events\` — \`{ "id": "...", "title": "Updated Title" }\`
 - \`DELETE /api/events?id=...\`
+- \`GET /api/events/export?galaxyId=...&start=YYYY-MM-DD&end=YYYY-MM-DD&mode=expanded|rrule\` — Exports an RFC 5545 \`.ics\` calendar bundle for the specified date window (compatible with Google Calendar, Apple Calendar, and Outlook).
+
+### Ephemeral Comets (\`/api/comets\`)
+Agents can spin up and spin down lightweight, TTL-bounded ephemeral calendars ("Comets") for temporary sprints, meetings, or group trips without requiring human OAuth:
+- \`POST /api/comets\` — Spin up an Ephemeral Comet bundle:
+  Body: \`{ "name": "Q4 Launch Sync", "creatorName": "SchedulerBot", "ttlDays": 150, "mintAgentToken": true, "initialEvents": [{ "title": "Kickoff", "date": "2026-10-25", "startTime": "2026-10-25T10:00:00", "endTime": "2026-10-25T11:00:00" }] }\`
+  Returns \`{ "comet": { "id": "...", "joinCode": "CMT-XXXX-XXXX", "shareUrl": "/?comet=CMT-XXXX-XXXX", "exportIcsUrl": "/api/events/export?galaxyId=...", "expiresAt": "..." }, "agentToken": "jlight_ag_..." }\`
+- \`GET /api/comets?code=CMT-XXXX-XXXX\` — Inspect an active Comet bundle.
+- \`PATCH /api/comets\` — \`{ "action": "copy_to_galaxy", "cometId": "...", "targetGalaxyId": "...", "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD" }\` or \`{ "action": "convert_to_galaxy", "cometId": "..." }\`.
+- \`DELETE /api/comets?id=...\` (or \`?action=purge_expired\`) — Spin down a Comet and cascade-delete its rows.
 
 ### Lists (\`/api/lists\`)
 - \`GET /api/lists?listType=grocery\`

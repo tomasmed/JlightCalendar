@@ -92,6 +92,10 @@ export const galaxies = sqliteTable("galaxies", {
   joinCode: text("join_code").unique(),
   familyColor: text("family_color").notNull().default("#ef4444"),
   familyAvatar: text("family_avatar").notNull().default("planet"),
+  isEphemeral: integer("is_ephemeral", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  expiresAt: text("expires_at"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
@@ -116,20 +120,61 @@ export function generateJoinCode(): string {
 }
 
 /**
+ * Generates a high-entropy, human-friendly 8-character ephemeral Comet code (CMT-XXXX-XXXX).
+ */
+export function generateCometCode(): string {
+  const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+  let part1 = "";
+  let part2 = "";
+  for (let i = 0; i < 4; i++) {
+    part1 += chars.charAt(randomInt(0, chars.length));
+  }
+  for (let i = 0; i < 4; i++) {
+    part2 += chars.charAt(randomInt(0, chars.length));
+  }
+  return `CMT-${part1}-${part2}`;
+}
+
+/**
+ * Generates a URL-safe human-readable slug for an ephemeral Comet or Galaxy.
+ */
+export function generateCometSlug(name: string): string {
+  const base = (name || "comet")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 36) || "comet";
+  const chars = "23456789abcdefghjkmnpqrstuvwxyz";
+  let suffix = "";
+  for (let i = 0; i < 4; i++) {
+    suffix += chars.charAt(randomInt(0, chars.length));
+  }
+  return `${base}-${suffix}`;
+}
+
+/**
  * Normalizes user-submitted join codes:
- * Strips whitespace, hyphens, and handles omitted "GLX-" prefixes for both
- * 8-char (GLX-XXXX-XXXX) and legacy 5-char (GLX-XXXXX) formats.
+ * Strips whitespace, hyphens, and handles omitted "GLX-" or "CMT-" prefixes for both
+ * 8-char (GLX-XXXX-XXXX / CMT-XXXX-XXXX) and legacy 5-char (GLX-XXXXX) formats.
  */
 export function normalizeJoinCode(input: string): string {
   if (!input || typeof input !== "string") return "";
   const raw = input.trim().toUpperCase();
   const stripped = raw.replace(/[^A-Z0-9]/g, "");
 
+  // 8-char with CMT prefix: "CMT8P9A2M4K" -> "CMT-8P9A-2M4K"
+  if (stripped.startsWith("CMT") && stripped.length === 11) {
+    return `CMT-${stripped.slice(3, 7)}-${stripped.slice(7, 11)}`;
+  }
+  // 5-char with CMT prefix: "CMT7SZXX" -> "CMT-7SZXX"
+  if (stripped.startsWith("CMT") && stripped.length === 8) {
+    return `CMT-${stripped.slice(3, 8)}`;
+  }
   // 8-char without prefix: "8P9A2M4K" -> "GLX-8P9A-2M4K"
-  if (stripped.length === 8 && !stripped.startsWith("GLX")) {
+  if (stripped.length === 8 && !stripped.startsWith("GLX") && !stripped.startsWith("CMT")) {
     return `GLX-${stripped.slice(0, 4)}-${stripped.slice(4, 8)}`;
   }
-  // 8-char with prefix: "GLX8P9A2M4K" -> "GLX-8P9A-2M4K"
+  // 8-char with GLX prefix: "GLX8P9A2M4K" -> "GLX-8P9A-2M4K"
   if (stripped.startsWith("GLX") && stripped.length === 11) {
     return `GLX-${stripped.slice(3, 7)}-${stripped.slice(7, 11)}`;
   }
