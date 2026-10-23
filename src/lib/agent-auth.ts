@@ -1,9 +1,10 @@
 import crypto from "crypto";
 import { db } from "@/db";
-import { agentKeys, galaxyMembers } from "@/db/schema";
+import { agentKeys, galaxyMembers, galaxies } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { auth } from "@/auth";
 import { verifyGalaxyAccess } from "./auth-helpers";
+import { purgeExpiredComets } from "@/db/ensure-schema";
 
 export * from "./agent-types";
 import {
@@ -204,6 +205,34 @@ export async function verifyActorGalaxyAccess(
         allowed: false,
         status: 403,
         error: "Forbidden: Agent is not authorized for this galaxy.",
+      };
+    }
+
+    // Verify bound galaxy/comet still exists and has not expired
+    const [targetGalaxy] = await db
+      .select()
+      .from(galaxies)
+      .where(eq(galaxies.id, galaxyId))
+      .limit(1);
+
+    if (!targetGalaxy) {
+      return {
+        allowed: false,
+        status: 404,
+        error: "Target galaxy or comet no longer exists.",
+      };
+    }
+
+    if (
+      targetGalaxy.isEphemeral &&
+      targetGalaxy.expiresAt &&
+      new Date(targetGalaxy.expiresAt).getTime() <= Date.now()
+    ) {
+      await purgeExpiredComets();
+      return {
+        allowed: false,
+        status: 410,
+        error: "This ephemeral Comet calendar has expired and spun down.",
       };
     }
 

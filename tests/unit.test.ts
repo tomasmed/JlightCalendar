@@ -22,6 +22,20 @@ import {
   layoutDayEvents,
   CalendarEvent,
 } from "./../src/components/calendar-view";
+import {
+  escapeIcsText,
+  foldIcsLine,
+  formatIcsDateTime,
+  formatIcsAllDayEndExclusive,
+  filterEventsForTimeWindow,
+  generateIcsCalendar,
+  buildGoogleCalendarTemplateUrl,
+} from "./../src/lib/ics";
+import {
+  generateCometCode,
+  generateCometSlug,
+  normalizeJoinCode,
+} from "./../src/db/schema";
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -395,8 +409,8 @@ assert(
   "KioskHeader defines distinct row-1 and row-2 containers for mobile mode"
 );
 assert(
-  kioskHeaderSource.includes("<span>{accessMode} Mode</span>"),
-  "Access Mode button displays visible '{accessMode} Mode' text label on mobile as well as desktop"
+  !kioskHeaderSource.includes("<span>{accessMode} Mode</span>"),
+  "KioskHeader omits legacy PIN/Access Mode gate button in favor of direct editing"
 );
 assert(
   kioskHeaderSource.includes('data-testid="kiosk-clock-display"') &&
@@ -627,6 +641,116 @@ assert(
 assert(
   mochaGreen !== latteGreen && latteGreen !== oslGreen,
   `Member color materiality adapts distinctly across Creamy Dark (${mochaGreen}), Daylight (${latteGreen}), and OSL (${oslGreen})`
+);
+
+console.log("\n====================================================");
+console.log("☄️  7. Testing Ephemeral Comet Codes & RFC 5545 .ics Portability");
+console.log("====================================================");
+
+const cometCode = generateCometCode();
+assert(
+  /^CMT-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(cometCode),
+  `generateCometCode() produces valid CMT-XXXX-XXXX format (${cometCode})`
+);
+assert(
+  normalizeJoinCode("cmt8p9a2m4k") === "CMT-8P9A-2M4K",
+  "normalizeJoinCode() normalizes unhyphenated CMT code to CMT-8P9A-2M4K"
+);
+const cometSlug = generateCometSlug("Q4 Product Launch & Sync!");
+assert(
+  cometSlug.startsWith("q4-product-launch-sync-") && cometSlug.length > 24,
+  `generateCometSlug() generates URL-safe slug (${cometSlug})`
+);
+
+assert(
+  escapeIcsText("Meeting; Room A, Floor 2\nBring notes") ===
+    "Meeting\\; Room A\\, Floor 2\\nBring notes",
+  "escapeIcsText() escapes semicolons, commas, and newlines per RFC 5545"
+);
+
+const longLine = "DESCRIPTION:" + "A".repeat(100);
+const folded = foldIcsLine(longLine);
+assert(
+  folded.includes("\r\n ") && folded.split("\r\n")[0].length === 75,
+  "foldIcsLine() folds lines > 75 chars with CRLF + space"
+);
+
+assert(
+  formatIcsDateTime("2026-10-25T14:30:00", false) === "20261025T143000",
+  "formatIcsDateTime() formats timed ISO event to YYYYMMDDTHHMMSS"
+);
+assert(
+  formatIcsDateTime("2026-10-25T00:00:00", true) === "20261025" &&
+    formatIcsAllDayEndExclusive("2026-10-25T23:59:59") === "20261026",
+  "All-day .ics DTSTART/DTEND uses exclusive next-day end date (20261025 -> 20261026)"
+);
+
+const sampleIcsEvents = [
+  {
+    id: "evt_kickoff",
+    title: "Sprint Kickoff, Team A",
+    description: "Align on Q4 deliverables",
+    location: "Zoom / Orbit Room",
+    startTime: "2026-11-02T10:00:00",
+    endTime: "2026-11-02T11:00:00",
+    isAllDay: false,
+    memberId: "mem_alex",
+  },
+  {
+    id: "evt_standup",
+    title: "Daily Standup",
+    startTime: "2026-11-02T09:00:00",
+    endTime: "2026-11-02T09:15:00",
+    isAllDay: false,
+    rrule: "FREQ=DAILY",
+    exdates: ["2026-11-04"],
+    memberId: "mem_alex",
+  },
+  {
+    id: "evt_outside",
+    title: "December Retro",
+    startTime: "2026-12-15T15:00:00",
+    endTime: "2026-12-15T16:00:00",
+    isAllDay: false,
+    memberId: "mem_sam",
+  },
+];
+
+const windowExpanded = filterEventsForTimeWindow(sampleIcsEvents, {
+  startDate: "2026-11-02",
+  endDate: "2026-11-05",
+  mode: "expanded",
+});
+// Kickoff on Nov 2 + Daily Standup on Nov 2, Nov 3, Nov 5 (Nov 4 excluded via exdates!) = 4 events; Dec 15 excluded
+assert(
+  windowExpanded.length === 4 &&
+    !windowExpanded.some((e) => e.startTime.startsWith("2026-11-04")) &&
+    !windowExpanded.some((e) => e.id === "evt_outside"),
+  `filterEventsForTimeWindow() expands recurring events inside [2026-11-02, 2026-11-05] and respects exdates (got ${windowExpanded.length})`
+);
+
+const icsDoc = generateIcsCalendar(sampleIcsEvents, {
+  calendarName: "Q4 Sprint Comet",
+  startDate: "2026-11-02",
+  endDate: "2026-11-05",
+  mode: "expanded",
+  participants: [{ id: "mem_alex", displayName: "Alex" }],
+});
+
+assert(
+  icsDoc.startsWith("BEGIN:VCALENDAR\r\n") &&
+    icsDoc.includes("X-WR-CALNAME:Q4 Sprint Comet\r\n") &&
+    icsDoc.includes("SUMMARY:Sprint Kickoff\\, Team A\r\n") &&
+    icsDoc.includes("CATEGORIES:Alex\r\n") &&
+    icsDoc.trimEnd().endsWith("END:VCALENDAR"),
+  "generateIcsCalendar() emits valid RFC 5545 VCALENDAR with escaped summaries and participant categories"
+);
+
+const gcalUrl = buildGoogleCalendarTemplateUrl(sampleIcsEvents[0]);
+assert(
+  gcalUrl.startsWith("https://calendar.google.com/calendar/render?") &&
+    gcalUrl.includes("dates=20261102T100000%2F20261102T110000"),
+  "buildGoogleCalendarTemplateUrl() generates valid 1-click Google Calendar template link"
 );
 
 console.log("\n✨ All unit and static guard tests passed successfully!");

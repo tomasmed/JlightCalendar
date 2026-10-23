@@ -422,6 +422,65 @@ async function cmdMeals(action: string, positional: string[], flags: Record<stri
   }
 }
 
+async function cmdComets(action: string, positional: string[], flags: Record<string, string | boolean>) {
+  if (action === "create" || action === "spinup") {
+    const name = positional[0] || (flags.name as string);
+    const creatorName = (flags.creator as string) || (flags.agent as string) || "Autonomous Envoy";
+    const ttlDays = Number(flags.ttl || 150);
+    if (!name) {
+      console.error('Usage: jlight comets create "Q4 Sprint Sync" [--ttl 150] [--creator "Bot"]');
+      process.exit(1);
+    }
+    const res = await apiRequest("/api/comets", {
+      method: "POST",
+      body: JSON.stringify({
+        name,
+        creatorName,
+        ttlDays,
+        mintAgentToken: true,
+        agentName: creatorName,
+      }),
+    });
+    if (!res.ok) {
+      console.error("❌ Failed to spin up Comet:", res.data);
+      process.exit(1);
+    }
+    if (flags.json) {
+      console.log(JSON.stringify(res.data, null, 2));
+    } else {
+      const c = res.data.comet;
+      console.log(`\n☄️  Spun up Ephemeral Comet: ${c.name}`);
+      console.log(`   ID:          ${c.id}`);
+      console.log(`   Comet Code:  ${c.joinCode}`);
+      console.log(`   Share URL:   ${c.shareUrl}`);
+      console.log(`   Export .ics: ${c.exportIcsUrl}`);
+      console.log(`   Spins Down:  ${c.expiresAt}`);
+      if (res.data.agentToken) {
+        console.log(`   Agent Token: ${res.data.agentToken}`);
+      }
+    }
+  } else if (action === "spindown" || action === "delete") {
+    const id = positional[0] || (flags.id as string);
+    const endpoint = id ? `/api/comets?id=${encodeURIComponent(id)}` : "/api/comets?action=purge_expired";
+    const res = await apiRequest(endpoint, { method: "DELETE" });
+    if (flags.json) console.log(JSON.stringify(res.data, null, 2));
+    else if (res.ok) console.log(`✅ Comet spin-down complete:`, res.data);
+    else console.error("❌ Failed to spin down Comet:", res.data);
+  } else {
+    const code = positional[0] || (flags.code as string) || (flags.id as string);
+    const endpoint = code ? `/api/comets?code=${encodeURIComponent(code)}` : "/api/comets";
+    const res = await apiRequest(endpoint);
+    if (flags.json) console.log(JSON.stringify(res.data, null, 2));
+    else if (res.ok) {
+      const c = res.data.comet;
+      console.log(`\n☄️  Comet: ${c.name} (${c.joinCode}) — Expires: ${c.expiresAt}`);
+      console.log(`   Events: ${c.events?.length || 0} | Participants: ${c.members?.length || 0}`);
+    } else {
+      console.error("❌ Failed to fetch Comet:", res.data);
+    }
+  }
+}
+
 function showHelp() {
   console.log(`
 jlight — Autonomous Agent & CLI Client for JlightCalendar
@@ -483,6 +542,10 @@ async function main() {
       break;
     case "meals":
       await cmdMeals(subAction, restPositional, flags);
+      break;
+    case "comets":
+    case "comet":
+      await cmdComets(subAction, restPositional, flags);
       break;
     default:
       console.error(`Unknown command: ${command}. Run jlight --help for options.`);

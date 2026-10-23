@@ -147,11 +147,11 @@ export function MealsView({ accessMode, activeGalaxyId }: MealsViewProps) {
             Weekly Meal Planner
           </h2>
           <p className="text-xs text-cosmos-muted">
-            Backed to database — plan meals, assign family chefs, and sync grocery ingredients.
+            Plan meals for the week, pick who&apos;s cooking, and add ingredients to the grocery list.
           </p>
         </div>
 
-        {accessMode === "admin" && (
+        {accessMode !== "kid" && (
           <button
             onClick={() => setIsAddModalOpen(true)}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl theme-focus-pill font-bold text-xs transition min-h-[44px] cursor-pointer"

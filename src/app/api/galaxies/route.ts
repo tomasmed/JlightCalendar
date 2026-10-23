@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { db } from "@/db";
-import { ensureDatabaseSchema } from "@/db/ensure-schema";
+import { ensureDatabaseSchema, purgeExpiredComets } from "@/db/ensure-schema";
 import {
   galaxies,
   galaxyMembers,
   calendars,
   events,
   generateJoinCode,
+  normalizeJoinCode,
 } from "@/db/schema";
 import { auth } from "@/auth";
 import { ensureDbUser } from "@/lib/auth-helpers";
@@ -16,6 +17,7 @@ import { resolveRequestActor, verifyActorGalaxyAccess, recordAgentAction } from 
 export async function GET(req: Request) {
   try {
     await ensureDatabaseSchema();
+    await purgeExpiredComets();
     const actor = await resolveRequestActor(req);
 
     if (actor.kind === "invalid_agent") {
@@ -66,6 +68,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const isDemo = searchParams.get("demo") === "true";
+    const cometParam = searchParams.get("comet");
 
     let userGalaxies: (typeof galaxies.$inferSelect)[] = [];
 
@@ -85,8 +88,8 @@ export async function GET(req: Request) {
         (g) => g.ownerId === userId || memberGalaxyIds.has(g.id)
       );
 
-      // 2. If logged in user has no galaxies yet, auto-provision their personal default galaxy
-      if (userGalaxies.length === 0) {
+      // 2. If logged in user has no permanent galaxies yet, auto-provision their personal default galaxy
+      if (!userGalaxies.some((g) => !g.isEphemeral)) {
         const galaxyId = crypto.randomUUID();
         const userName = session?.user?.name;
         const galaxyName = userName
@@ -143,7 +146,7 @@ export async function GET(req: Request) {
           .select()
           .from(galaxies)
           .where(eq(galaxies.id, galaxyId));
-        userGalaxies = freshGalaxy;
+        userGalaxies = [...freshGalaxy, ...userGalaxies];
       }
     } else if (isDemo) {
       // For unauthenticated sandbox demo mode, return ONLY the demo Sol Family Galaxy
@@ -152,9 +155,38 @@ export async function GET(req: Request) {
         .from(galaxies)
         .where(eq(galaxies.id, "galaxy_sol_family"));
       userGalaxies = demoGalaxies;
-    } else {
-      // Unauthenticated non-demo requests receive empty list (strict privacy)
+    } else if (!cometParam) {
+      // Unauthenticated non-demo, non-comet requests receive empty list (strict privacy)
       return NextResponse.json({ galaxies: [] });
+    }
+
+    // If a specific Ephemeral Comet was requested via ?comet=..., include it if active
+    if (cometParam && cometParam.trim()) {
+      const rawComet = cometParam.trim();
+      const normCode = normalizeJoinCode(rawComet);
+      const matchedComets = await db
+        .select()
+        .from(galaxies)
+        .where(
+          or(
+            eq(galaxies.id, rawComet),
+            eq(galaxies.joinCode, normCode),
+            eq(galaxies.joinCode, rawComet.toUpperCase()),
+            eq(galaxies.slug, rawComet.toLowerCase())
+          )
+        )
+        .limit(1);
+
+      if (
+        matchedComets.length > 0 &&
+        matchedComets[0].isEphemeral &&
+        (!matchedComets[0].expiresAt ||
+          new Date(matchedComets[0].expiresAt).getTime() > Date.now())
+      ) {
+        if (!userGalaxies.some((g) => g.id === matchedComets[0].id)) {
+          userGalaxies = [matchedComets[0], ...userGalaxies];
+        }
+      }
     }
 
     // Enrich each galaxy with its inhabitants and calendars
@@ -337,7 +369,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "galaxyId is required" }, { status: 400 });
     }
 
-    const access = await verifyActorGalaxyAccess(actor, galaxyId, { requireAdmin: true });
+    const access = await verifyActorGalaxyAccess(actor, galaxyId, { requireWrite: true });
     if (!access.allowed) {
       return NextResponse.json(
         { error: access.error || "You do not have permission to update this galaxy." },

@@ -255,10 +255,11 @@ export function InhabitantsModal({
             </div>
             <div>
               <h2 className="text-xl font-black text-white tracking-wide">
-                Galaxy Inhabitants
+                People &amp; Group Colors
               </h2>
               <p className="text-xs text-slate-400">
-                People, kids, and pets in <span className="text-starlight font-bold">{galaxyName}</span>
+                Add people, pick colors, and customize{" "}
+                <span className="text-starlight font-bold">{galaxyName}</span>
               </p>
             </div>
           </div>
@@ -272,8 +273,8 @@ export function InhabitantsModal({
 
         {/* Content */}
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
-          {/* Family Identity (Admin Mode Only) */}
-          {accessMode === "admin" && (
+          {/* Everyone / Group Identity */}
+          {accessMode !== "kid" && (
             <div className="p-4 rounded-2xl bg-cosmos-deep/80 border border-cosmos-borderLight/60 space-y-3.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -287,10 +288,10 @@ export function InhabitantsModal({
                   </div>
                   <div>
                     <span className="text-xs font-black uppercase tracking-wider text-white block">
-                      Whole-Family Identity
+                      &ldquo;Everyone&rdquo; Badge &amp; Color
                     </span>
                     <span className="text-[10px] text-slate-400">
-                      Applied to family-wide events and shared schedules
+                      Used when an event is for the whole group
                     </span>
                   </div>
                 </div>
@@ -315,7 +316,7 @@ export function InhabitantsModal({
                     ) : (
                       <>
                         <Check className="w-3.5 h-3.5" />
-                        <span>Save Identity</span>
+                        <span>Save Group Style</span>
                       </>
                     )}
                   </button>
@@ -325,7 +326,7 @@ export function InhabitantsModal({
               {/* Cosmic Avatar Selector */}
               <div>
                 <label className="text-[10px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
-                  Cosmic Family Icon (Galaxy Emblem)
+                  Group Icon
                 </label>
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                   {COSMIC_FAMILY_AVATARS.map((cosmic) => {
@@ -355,7 +356,7 @@ export function InhabitantsModal({
               {/* Family Color Preset Selector (Default Red #ef4444) */}
               <div>
                 <label className="text-[10px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
-                  Family Color (Default: Red)
+                  Group Color
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {COLOR_PRESETS.map((color) => (
@@ -381,14 +382,8 @@ export function InhabitantsModal({
           <div>
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-black uppercase tracking-wider text-slate-400 block">
-                Active Crew & Companions ({inhabitants.length})
+                People ({inhabitants.length})
               </span>
-              {accessMode !== "admin" && (
-                <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                  <Lock className="w-3 h-3 text-slate-500" />
-                  <span>Admin mode required to remove members</span>
-                </span>
-              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -396,7 +391,7 @@ export function InhabitantsModal({
                 const Icon = getIcon(inhabitant.avatarIcon);
                 const isOwner = inhabitant.role === "owner";
                 const canRemove =
-                  accessMode === "admin" && !isOwner && !!onRemoveInhabitant;
+                  accessMode !== "kid" && !isOwner && !!onRemoveInhabitant;
 
                 return (
                   <div
@@ -444,18 +439,18 @@ export function InhabitantsModal({
 
                     {/* Actions: Edit & Remove */}
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {accessMode === "admin" && !!onUpdateInhabitant && (
+                      {accessMode !== "kid" && !!onUpdateInhabitant && (
                         <button
                           type="button"
                           onClick={() => startEditing(inhabitant)}
-                          title={`Edit ${inhabitant.displayName}'s color or avatar`}
+                          title={`Edit ${inhabitant.displayName}'s color or icon`}
                           className="p-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/25 text-purple-300 hover:text-white border border-purple-500/30 transition min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 cursor-pointer"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
                       )}
 
-                      {/* Remove Action Button (Strictly Admin Mode & Non-Owner) */}
+                      {/* Remove Action Button */}
                       {canRemove && (
                         <button
                           type="button"
@@ -463,7 +458,7 @@ export function InhabitantsModal({
                             setRemoveError(null);
                             setMemberToRemove(inhabitant);
                           }}
-                          title={`Remove ${inhabitant.displayName} from galaxy`}
+                          title={`Remove ${inhabitant.displayName}`}
                           className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 hover:text-rose-200 border border-rose-500/30 transition min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -476,7 +471,7 @@ export function InhabitantsModal({
             </div>
           </div>
 
-          {/* Add Inhabitant Form (Suppressed in Kid Mode) */}
+          {/* Add Person Form */}
           {accessMode !== "kid" && (
             <form
               onSubmit={handleAdd}
@@ -484,18 +479,18 @@ export function InhabitantsModal({
             >
             <div className="flex items-center justify-between">
               <span className="text-xs font-black uppercase tracking-wider text-starlight flex items-center gap-2">
-                <Plus className="w-4 h-4" /> Add Inhabitant / Companion (e.g. Java the Dog)
+                <Plus className="w-4 h-4" /> Add a Person or Pet
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
-                  Name / Identifier
+                  Name
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Java, Grandma Sue, Baby Leo"
+                  placeholder="e.g. Alex, Sam, Grandma Sue, Java 🐕"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl bg-cosmos-surface border border-cosmos-border text-white text-sm font-medium focus:outline-none focus:border-purple-500 min-h-[48px]"
@@ -505,7 +500,7 @@ export function InhabitantsModal({
 
               <div>
                 <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
-                  Role in Galaxy
+                  Role
                 </label>
                 <select
                   value={role}
@@ -514,10 +509,10 @@ export function InhabitantsModal({
                   }
                   className="w-full px-4 py-3 rounded-xl bg-cosmos-surface border border-cosmos-border text-white text-sm font-medium focus:outline-none focus:border-purple-500 min-h-[48px]"
                 >
-                  <option value="member">Family Member (Standard)</option>
-                  <option value="admin">Admin / Parent</option>
-                  <option value="kid">Child / Kid Profile</option>
-                  <option value="pet">Pet / Companion (Java, etc.)</option>
+                  <option value="member">Person / Member</option>
+                  <option value="admin">Organizer / Parent</option>
+                  <option value="kid">Kid</option>
+                  <option value="pet">Pet</option>
                 </select>
               </div>
             </div>
@@ -583,10 +578,10 @@ export function InhabitantsModal({
               <button
                 type="submit"
                 disabled={isSubmitting || !name.trim()}
-                className="px-5 py-3 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black text-sm tracking-wide shadow-lg shadow-purple-500/30 transition disabled:opacity-50 min-h-[48px] flex items-center gap-2"
+                className="px-5 py-3 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black text-sm tracking-wide shadow-lg shadow-purple-500/30 transition disabled:opacity-50 min-h-[48px] flex items-center gap-2 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                <span>{isSubmitting ? "Adding..." : "Add to Galaxy"}</span>
+                <span>{isSubmitting ? "Adding..." : "Add Person"}</span>
               </button>
             </div>
           </form>

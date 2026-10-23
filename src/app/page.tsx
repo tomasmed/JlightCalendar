@@ -19,17 +19,18 @@ import { Inhabitant, InhabitantsModal } from "@/components/inhabitants-modal";
 import { CreateGalaxyModal } from "@/components/create-galaxy-modal";
 import { JoinGalaxyModal } from "@/components/join-galaxy-modal";
 import { AgentWallModal } from "@/components/agent-wall-modal";
+import { ExportCalendarModal } from "@/components/export-calendar-modal";
 import { LandingPage } from "@/components/landing-page";
 import { CalendarEventData } from "@/components/event-modal";
 import { useSession, signIn } from "next-auth/react";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRight, Download, Copy, Check, Globe2 } from "lucide-react";
 
 export default function HomePage() {
   const { data: session, status } = useSession();
   const user = session?.user;
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("calendar");
-  const [accessMode, setAccessMode] = useState<AccessMode>("standard");
+  const [accessMode, setAccessMode] = useState<AccessMode>("admin");
   const [isModeModalOpen, setIsModeModalOpen] = useState(false);
   const [isSleeping, setIsSleeping] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
@@ -48,16 +49,25 @@ export default function HomePage() {
   const [isAgentWallModalOpen, setIsAgentWallModalOpen] = useState(false);
   const [agentWallInitialTab, setAgentWallInitialTab] = useState<"wall" | "mint" | "claim">("wall");
   const [pendingClaimBotCode, setPendingClaimBotCode] = useState("");
+  const [activeCometParam, setActiveCometParam] = useState<string>("");
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [copiedCometLink, setCopiedCometLink] = useState(false);
+  const [isConvertingComet, setIsConvertingComet] = useState(false);
 
-  // Inspect URL parameters on mount (?join=..., ?demo=true, or ?claimBot=BOT-XXXX)
+  // Inspect URL parameters on mount (?join=..., ?comet=..., ?demo=true, or ?claimBot=BOT-XXXX)
   useEffect(() => {
     if (typeof window !== "undefined") {
       const searchParams = new URLSearchParams(window.location.search);
       const joinParam = searchParams.get("join");
+      const cometParam = searchParams.get("comet");
       const demoParam = searchParams.get("demo");
       const claimBotParam = searchParams.get("claimBot");
 
-      if (joinParam) {
+      if (cometParam) {
+        setActiveCometParam(cometParam.trim());
+      } else if (joinParam && joinParam.trim().toUpperCase().startsWith("CMT")) {
+        setActiveCometParam(joinParam.trim().toUpperCase());
+      } else if (joinParam) {
         setPendingJoinCode(joinParam.toUpperCase());
         setIsJoinGalaxyModalOpen(true);
       }
@@ -73,9 +83,18 @@ export default function HomePage() {
   }, []);
 
   // Fetch Galaxies from API
-  const fetchGalaxies = async (targetGalaxyId?: string) => {
+  const fetchGalaxies = async (targetGalaxyId?: string, cometOverride?: string) => {
     try {
-      const url = !session?.user && isDemoMode ? "/api/galaxies?demo=true" : "/api/galaxies";
+      const cometCode = cometOverride !== undefined ? cometOverride : activeCometParam;
+      const params = new URLSearchParams();
+      if (!session?.user && isDemoMode && !cometCode) {
+        params.set("demo", "true");
+      }
+      if (cometCode) {
+        params.set("comet", cometCode);
+      }
+      const qs = params.toString();
+      const url = qs ? `/api/galaxies?${qs}` : "/api/galaxies";
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -83,6 +102,19 @@ export default function HomePage() {
         setGalaxies(list);
         if (targetGalaxyId && list.some((g) => g.id === targetGalaxyId)) {
           setActiveGalaxyId(targetGalaxyId);
+        } else if (cometCode) {
+          const matchedComet = list.find(
+            (g) =>
+              g.id === cometCode ||
+              g.joinCode?.toUpperCase() === cometCode.toUpperCase() ||
+              g.slug?.toLowerCase() === cometCode.toLowerCase() ||
+              g.isEphemeral
+          );
+          if (matchedComet) {
+            setActiveGalaxyId(matchedComet.id);
+          } else if (list.length > 0) {
+            setActiveGalaxyId(list[0].id);
+          }
         } else if (list.length > 0 && (!activeGalaxyId || !list.some((g) => g.id === activeGalaxyId))) {
           setActiveGalaxyId(list[0].id);
         } else if (session?.user && list.length === 0) {
@@ -132,7 +164,7 @@ export default function HomePage() {
     if (status !== "loading") {
       fetchGalaxies();
     }
-  }, [session?.user?.id, isDemoMode, status]);
+  }, [session?.user?.id, isDemoMode, activeCometParam, status]);
 
   useEffect(() => {
     if (activeGalaxyId) {
@@ -338,14 +370,93 @@ export default function HomePage() {
     }
   };
 
-  // If user is unauthenticated and not exploring demo kiosk, display the Landing Page
-  if (status !== "loading" && !session?.user && !isDemoMode) {
+  // Handle Launching an Instant Ephemeral Comet (No Login Required)
+  const handleLaunchComet = async (options: {
+    name: string;
+    creatorName: string;
+    ttlDays: number;
+  }) => {
+    try {
+      const res = await fetch("/api/comets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(options),
+      });
+      const data = await res.json();
+      if (res.ok && data.comet) {
+        const code = data.comet.joinCode || data.comet.id;
+        if (typeof window !== "undefined") {
+          window.history.replaceState(
+            {},
+            "",
+            `/?comet=${encodeURIComponent(code)}`
+          );
+        }
+        setActiveCometParam(code);
+        setGalaxies((prev) => [
+          data.comet,
+          ...prev.filter((g) => g.id !== data.comet.id),
+        ]);
+        setActiveGalaxyId(data.comet.id);
+        setActiveTab("calendar");
+      }
+    } catch (err) {
+      console.error("Failed to launch Ephemeral Comet:", err);
+    }
+  };
+
+  // Handle Converting an Ephemeral Comet into a Permanent Galaxy (OAuth User)
+  const handleConvertCometToGalaxy = async (cometId: string) => {
+    if (!cometId) return;
+    if (!session?.user) {
+      signIn("google");
+      return;
+    }
+    setIsConvertingComet(true);
+    try {
+      const res = await fetch("/api/comets", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "convert_to_galaxy",
+          cometId,
+        }),
+      });
+      if (res.ok) {
+        setActiveCometParam("");
+        if (typeof window !== "undefined") {
+          window.history.replaceState({}, "", "/");
+        }
+        await fetchGalaxies(cometId, "");
+      }
+    } catch (err) {
+      console.error("Failed to convert Comet to Galaxy:", err);
+    } finally {
+      setIsConvertingComet(false);
+    }
+  };
+
+  // If user is unauthenticated and not exploring demo kiosk or an Ephemeral Comet, display the Landing Page
+  if (status !== "loading" && !session?.user && !isDemoMode && !activeCometParam) {
     return (
       <LandingPage
         onExploreDemo={() => setIsDemoMode(true)}
+        onLaunchComet={handleLaunchComet}
         onJoinCodeSubmit={(code) => {
-          setPendingJoinCode(code);
-          setIsJoinGalaxyModalOpen(true);
+          const upper = code.trim().toUpperCase();
+          if (upper.startsWith("CMT")) {
+            if (typeof window !== "undefined") {
+              window.history.replaceState(
+                {},
+                "",
+                `/?comet=${encodeURIComponent(upper)}`
+              );
+            }
+            setActiveCometParam(upper);
+          } else {
+            setPendingJoinCode(upper);
+            setIsJoinGalaxyModalOpen(true);
+          }
         }}
       />
     );
@@ -443,6 +554,113 @@ export default function HomePage() {
         initialClaimCode={pendingClaimBotCode}
       />
 
+      {/* Time-Window .ics Export & Galaxy Portability Modal */}
+      <ExportCalendarModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        galaxyId={activeGalaxyId || currentGalaxy?.id || ""}
+        galaxyName={currentGalaxy?.name || "Calendar"}
+        isEphemeral={Boolean(currentGalaxy?.isEphemeral)}
+        inhabitants={inhabitants}
+        events={events}
+        permanentGalaxies={galaxies
+          .filter((g) => !g.isEphemeral)
+          .map((g) => ({ id: g.id, name: g.name }))}
+        onCopiedToGalaxy={async () => {
+          await fetchGalaxies();
+        }}
+      />
+
+      {/* Ephemeral Comet Status & Portability Banner */}
+      {currentGalaxy?.isEphemeral && (
+        <div className="bg-gradient-to-r from-cyan-950 via-slate-900 to-indigo-950 border-b border-cyan-500/40 px-3 py-1.5 text-xs flex flex-wrap items-center justify-between gap-2 shrink-0 z-50">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="flex items-center gap-1.5 text-cyan-300 font-extrabold text-[11px] sm:text-xs">
+              <span>☄️ Ephemeral Comet</span>
+              {currentGalaxy.joinCode && (
+                <span className="px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/30 font-mono text-white">
+                  {currentGalaxy.joinCode}
+                </span>
+              )}
+            </span>
+            {currentGalaxy.expiresAt && (
+              <span className="text-slate-400 text-[11px] hidden sm:inline">
+                • Auto-spins down{" "}
+                {new Date(currentGalaxy.expiresAt).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  const code = currentGalaxy.joinCode || currentGalaxy.id;
+                  const shareUrl = `${window.location.origin}/?comet=${encodeURIComponent(code)}`;
+                  navigator.clipboard.writeText(shareUrl);
+                  setCopiedCometLink(true);
+                  setTimeout(() => setCopiedCometLink(false), 2000);
+                }
+              }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cosmos-surface hover:bg-cosmos-cardHover border border-cyan-500/30 text-cyan-200 font-bold text-[11px] transition"
+            >
+              {copiedCometLink ? (
+                <>
+                  <Check className="w-3 h-3 text-emerald-400" />
+                  <span className="text-emerald-300">Link Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3 h-3" />
+                  <span>Share Link</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsExportModalOpen(true)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[11px] transition shadow-sm"
+            >
+              <Download className="w-3 h-3" />
+              <span>Export .ics</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={isConvertingComet}
+              onClick={() => handleConvertCometToGalaxy(currentGalaxy.id)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[11px] transition shadow-sm"
+            >
+              <Globe2 className="w-3 h-3" />
+              <span>
+                {session?.user
+                  ? isConvertingComet
+                    ? "Converting..."
+                    : "Convert to Permanent Galaxy"
+                  : "Sign In to Keep Forever"}
+              </span>
+            </button>
+
+            {!session?.user && (
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveCometParam("");
+                  if (typeof window !== "undefined") {
+                    window.history.replaceState({}, "", "/");
+                  }
+                }}
+                className="px-2 py-1 rounded-lg text-slate-400 hover:text-white font-bold text-[11px] transition"
+              >
+                Exit
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Demo Mode Notice Banner (Only shown if unauthenticated user is previewing demo) */}
       {isDemoMode && !session?.user && (
         <div className="bg-gradient-to-r from-purple-950 via-indigo-950 to-purple-950 border-b border-purple-500/40 px-3 py-1.5 text-center text-xs flex items-center justify-center gap-2 sm:gap-3 shrink-0 z-50">
@@ -493,6 +711,7 @@ export default function HomePage() {
               setAgentWallInitialTab("wall");
               setIsAgentWallModalOpen(true);
             }}
+            onOpenExportModal={() => setIsExportModalOpen(true)}
             user={user}
           />
 
@@ -540,6 +759,7 @@ export default function HomePage() {
             activeTab={activeTab}
             onTabChange={(tab) => setActiveTab(tab)}
             accessMode={accessMode}
+            isEphemeral={Boolean(currentGalaxy?.isEphemeral)}
           />
         </>
       )}

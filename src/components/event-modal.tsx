@@ -168,7 +168,7 @@ export function EventModal({
   if (!isOpen) return null;
 
   const isReadOnly = accessMode === "kid";
-  const canDelete = !isReadOnly && accessMode === "admin" && Boolean(eventToEdit?.id);
+  const canDelete = !isReadOnly && Boolean(eventToEdit?.id);
 
   // Toggle member chip
   const handleToggleMember = (mId: string) => {
@@ -288,13 +288,13 @@ export function EventModal({
                 {isReadOnly
                   ? "Event Details"
                   : eventToEdit?.id
-                  ? "Modify Orbital Event"
-                  : "Schedule New Event"}
+                  ? "Edit Event"
+                  : "New Event"}
               </h2>
               <p className="text-xs text-slate-400">
                 {isReadOnly
-                  ? "Viewing scheduled family activity"
-                  : "Assign to inhabitants and choose orbital colors"}
+                  ? "Viewing event details"
+                  : "Pick who's going and choose a color"}
               </p>
             </div>
           </div>
@@ -432,23 +432,23 @@ export function EventModal({
             </select>
           </div>
 
-          {/* Assigned Inhabitants (Multi-Select Chips + Whole Family) */}
+          {/* Assigned People (Multi-Select Chips + Everyone) */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
-                Assigned Inhabitants
+                Who&apos;s Going
               </label>
               <span className="text-[10px] text-slate-400">
                 {selectedMemberIds.length === 0
-                  ? "🌟 Whole Family event"
+                  ? "🌟 Everyone"
                   : selectedMemberIds.length === 1
-                  ? "Single crew assignment"
-                  : `Shared event (${selectedMemberIds.length} members)`}
+                  ? "1 person selected"
+                  : `Shared event (${selectedMemberIds.length} people)`}
               </span>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {/* Whole Family Chip */}
+              {/* Everyone Chip */}
               <button
                 type="button"
                 disabled={isReadOnly}
@@ -463,7 +463,7 @@ export function EventModal({
                   className: "w-3.5 h-3.5",
                   style: { color: familyColor },
                 })}
-                <span>Whole Family</span>
+                <span>Everyone</span>
               </button>
 
               {/* Individual Member Chips */}
@@ -524,7 +524,7 @@ export function EventModal({
           {!isReadOnly && (
             <div>
               <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
-                Orbital Badge Color
+                Event Color
               </label>
               <div className="flex items-center gap-2 flex-wrap">
                 {COLOR_PRESETS.map((preset) => (

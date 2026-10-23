@@ -31,6 +31,7 @@ import {
   Info,
   Palette,
   Bot,
+  Download,
 } from "lucide-react";
 import { signIn, signOut } from "next-auth/react";
 import { ChangelogModal } from "./changelog-modal";
@@ -48,11 +49,14 @@ export type ActiveTab = "calendar" | "chores" | "meals" | "lists" | "photos";
 export interface GalaxyItem {
   id: string;
   name: string;
+  slug?: string | null;
   theme: string;
   icon: string;
   familyColor?: string | null;
   familyAvatar?: string | null;
   joinCode?: string | null;
+  isEphemeral?: boolean | null;
+  expiresAt?: string | null;
   members?: { id: string; displayName: string; avatarIcon: string; role: string }[];
   calendars?: { id: string; name: string; isPrimary: boolean }[];
 }
@@ -79,6 +83,7 @@ interface KioskHeaderProps {
   onOpenCreateGalaxyModal?: () => void;
   onOpenJoinGalaxyModal?: () => void;
   onOpenAgentWallModal?: () => void;
+  onOpenExportModal?: () => void;
   user?: {
     name?: string | null;
     email?: string | null;
@@ -99,6 +104,7 @@ export function KioskHeader({
   onOpenCreateGalaxyModal,
   onOpenJoinGalaxyModal,
   onOpenAgentWallModal,
+  onOpenExportModal,
   user,
 }: KioskHeaderProps) {
   const [time, setTime] = useState("");
@@ -253,13 +259,17 @@ export function KioskHeader({
       joinCode: "GLX-HOME",
     };
 
-  const tabs: { id: ActiveTab; label: string; icon: React.ElementType }[] = [
+  const allTabs: { id: ActiveTab; label: string; icon: React.ElementType }[] = [
     { id: "calendar", label: "Calendar", icon: Calendar },
     { id: "chores", label: "Chores", icon: CheckSquare },
     { id: "meals", label: "Meals", icon: Utensils },
     { id: "lists", label: "Lists", icon: ListTodo },
     { id: "photos", label: "Photos", icon: ImageIcon },
   ];
+
+  const tabs = activeGalaxy.isEphemeral
+    ? allTabs.filter((t) => t.id === "calendar" || t.id === "lists")
+    : allTabs;
 
   const creamyThemes = THEME_OPTIONS.filter((t) => t.archetype === "creamy");
   const oslThemes = THEME_OPTIONS.filter((t) => t.archetype === "osl");
@@ -329,7 +339,7 @@ export function KioskHeader({
             </div>
             <div className="flex flex-col text-left max-w-[130px] sm:max-w-[160px] md:max-w-[140px] truncate">
               <span className="text-[8px] font-black uppercase tracking-widest text-starlight leading-none">
-                Galaxy
+                {activeGalaxy.isEphemeral ? "☄️ Comet" : "Galaxy"}
               </span>
               <span className="truncate text-cosmos-text text-xs font-bold">
                 {activeGalaxy.name}
@@ -441,7 +451,7 @@ export function KioskHeader({
                     className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface flex items-center gap-2 transition"
                   >
                     <Users className="w-3.5 h-3.5 text-starlight" />
-                    <span>Manage Inhabitants & Pets</span>
+                    <span>People &amp; Group Colors</span>
                   </button>
                 )}
 
@@ -510,26 +520,8 @@ export function KioskHeader({
         data-testid="kiosk-header-row-2"
         className="w-full md:w-auto flex items-center justify-between md:justify-end gap-1 sm:gap-2 pt-1.5 md:pt-0 border-t border-cosmos-border/50 md:border-t-0 shrink-0"
       >
-        {/* Left group on Mobile Row 2: Access Mode Trigger & User Profile/Login */}
+        {/* Left group on Mobile Row 2: User Profile/Login */}
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 md:contents">
-          {/* 3-Tier Access Mode Trigger (Subtle ambient indicator until hovered) */}
-          <button
-            onClick={onOpenModeModal}
-            className="order-1 md:order-5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold uppercase tracking-wider text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface/60 transition min-h-[44px] shrink-0"
-            title="Switch Access Mode (Admin / Standard / Kid)"
-          >
-            {accessMode === "admin" && (
-              <Shield className="w-3.5 h-3.5 text-starlight-tension shrink-0" />
-            )}
-            {accessMode === "standard" && (
-              <User className="w-3.5 h-3.5 text-starlight shrink-0" />
-            )}
-            {accessMode === "kid" && (
-              <Baby className="w-3.5 h-3.5 text-starlight shrink-0" />
-            )}
-            <span>{accessMode} Mode</span>
-          </button>
-
           {/* User OAuth Profile or Sign In Button */}
           <div className="order-2 md:order-1 shrink-0">
             {user ? (
@@ -753,6 +745,21 @@ export function KioskHeader({
             )}
           </div>
 
+          {/* Export .ics Calendar Portability Button */}
+          {onOpenExportModal && (
+            <button
+              onClick={onOpenExportModal}
+              title="Export Date Window to .ics (Google / Apple Calendar)"
+              aria-label="Export calendar events to .ics"
+              className="md:order-3 px-2.5 py-2 rounded-lg text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface/60 transition min-w-[44px] min-h-[44px] flex items-center justify-center gap-1.5 shrink-0"
+            >
+              <Download className="w-4 h-4 text-cyan-400" />
+              <span className="hidden xl:inline text-[11px] font-bold">
+                Export .ics
+              </span>
+            </button>
+          )}
+
           {/* What's New Changelog Info Button (Ambient borderless utility) */}
           <button
             onClick={() => setIsChangelogOpen(true)}
@@ -763,14 +770,16 @@ export function KioskHeader({
             <Info className="w-4 h-4" />
           </button>
 
-          {/* Night Sleep Button (Ambient borderless utility) */}
-          <button
-            onClick={onToggleSleep}
-            title="Night Sleep Mode (OLED Protection)"
-            className="md:order-4 p-2 rounded-lg text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface/60 transition min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
-          >
-            <Moon className="w-4 h-4" />
-          </button>
+          {/* Night Sleep Button (Hidden for Ephemeral Comets) */}
+          {!activeGalaxy.isEphemeral && (
+            <button
+              onClick={onToggleSleep}
+              title="Night Sleep Mode (OLED Protection)"
+              className="md:order-4 p-2 rounded-lg text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface/60 transition min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
+            >
+              <Moon className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 

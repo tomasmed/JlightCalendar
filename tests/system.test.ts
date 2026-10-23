@@ -74,6 +74,8 @@ async function runSystemTests() {
   const agentWhoamiRoute = await import("../src/app/api/agent/whoami/route");
   const agentConnectRoute = await import("../src/app/api/agent/connect/route");
   const agentConnectApproveRoute = await import("../src/app/api/agent/connect/approve/route");
+  const cometsRoute = await import("../src/app/api/comets/route");
+  const eventsExportRoute = await import("../src/app/api/events/export/route");
 
   console.log("\n====================================================");
   console.log("👩‍🚀 2. Creating Users & Provisioning Galaxies");
@@ -950,6 +952,202 @@ async function runSystemTests() {
   assert(
     Boolean(buffedKey && buffedKey.status === "revoked" && buffedKey.rune === "∅" && buffedKey.revokedAt),
     "Bot Wall lists revoked agent with status='revoked', rune='∅', and revokedAt tombstone"
+  );
+
+  console.log("\n====================================================");
+  console.log("☄️  8. Ephemeral Comets & RFC 5545 .ics Portability");
+  console.log("====================================================");
+
+  // Sign out human session to verify unauthenticated / agentic Comet spin-up
+  setMockTestSession(null);
+
+  const spinUpRes = await cometsRoute.POST(
+    new Request("http://localhost:3000/api/comets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Q4 Product Sprint Sync",
+        creatorName: "SprintCoordinatorBot",
+        ttlDays: 150,
+        mintAgentToken: true,
+        agentName: "SprintCoordinatorBot",
+        initialParticipants: [{ displayName: "Teammate Sam", color: "#10b981" }],
+        initialEvents: [
+          {
+            title: "Sprint Planning Meeting",
+            date: "2026-11-03",
+            startTime: "2026-11-03T10:00:00",
+            endTime: "2026-11-03T11:00:00",
+            location: "Room 42 / Meet",
+          },
+          {
+            title: "December Post-Launch Review",
+            date: "2026-12-20",
+            startTime: "2026-12-20T14:00:00",
+            endTime: "2026-12-20T15:00:00",
+          },
+        ],
+        initialListItems: [{ title: "Prepare sprint deck", listType: "todo" }],
+      }),
+    })
+  );
+  assert(spinUpRes.status === 200, "POST /api/comets spins up Ephemeral Comet without requiring OAuth");
+  const spinUpData = await spinUpRes.json();
+  const comet = spinUpData.comet;
+  const cometAgentToken: string = spinUpData.agentToken;
+
+  assert(
+    Boolean(
+      comet &&
+        comet.id &&
+        comet.isEphemeral === true &&
+        comet.joinCode.startsWith("CMT-") &&
+        comet.expiresAt &&
+        cometAgentToken &&
+        cometAgentToken.startsWith("jlight_ag_")
+    ),
+    `Provisioned Ephemeral Comet (${comet.joinCode}) with minted agent token and 150-day TTL`
+  );
+
+  // Lookup Comet by human-readable CMT code via GET /api/comets?code=...
+  const getCometRes = await cometsRoute.GET(
+    new Request(`http://localhost:3000/api/comets?code=${comet.joinCode}`)
+  );
+  const getCometData = await getCometRes.json();
+  assert(
+    getCometRes.status === 200 &&
+      getCometData.comet.id === comet.id &&
+      getCometData.comet.events.length === 2 &&
+      getCometData.comet.members.length === 2,
+    "GET /api/comets?code=CMT-... resolves Comet bundle with seeded events and participants"
+  );
+
+  // Agent uses its minted Comet PAT to add another event to the Comet
+  const agentCometEventRes = await eventsRoute.POST(
+    new Request("http://localhost:3000/api/events", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${cometAgentToken}`,
+      },
+      body: JSON.stringify({
+        title: "Design Critique with Friends",
+        startTime: "2026-11-05T15:00:00",
+        endTime: "2026-11-05T16:00:00",
+      }),
+    })
+  );
+  assert(
+    agentCometEventRes.status === 200,
+    "Minted Comet Agent PAT can create events directly on the Ephemeral Comet"
+  );
+
+  // Export time-bounded window [2026-11-01 to 2026-11-10] as RFC 5545 .ics
+  const exportIcsRes = await eventsExportRoute.GET(
+    new Request(
+      `http://localhost:3000/api/events/export?galaxyId=${comet.id}&start=2026-11-01&end=2026-11-10`
+    )
+  );
+  const icsText = await exportIcsRes.text();
+  assert(
+    Boolean(
+      exportIcsRes.status === 200 &&
+        exportIcsRes.headers.get("content-type")?.includes("text/calendar") &&
+        icsText.includes("BEGIN:VCALENDAR") &&
+        icsText.includes("SUMMARY:Sprint Planning Meeting") &&
+        icsText.includes("SUMMARY:Design Critique with Friends") &&
+        !icsText.includes("December Post-Launch Review")
+    ),
+    "GET /api/events/export exports RFC 5545 .ics strictly filtered to [2026-11-01, 2026-11-10]"
+  );
+
+  // Sign back in as Captain Alice to test copying Comet events to her permanent Galaxy & converting Comet
+  setMockTestSession({
+    user: {
+      id: userAliceId!,
+      email: "alice@jlight.test",
+      name: "Captain Alice",
+    },
+  });
+
+  const copyToGalaxyRes = await cometsRoute.PATCH(
+    new Request("http://localhost:3000/api/comets", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "copy_to_galaxy",
+        cometId: comet.id,
+        targetGalaxyId: galaxyId,
+        startDate: "2026-11-01",
+        endDate: "2026-11-10",
+      }),
+    })
+  );
+  const copyToGalaxyData = await copyToGalaxyRes.json();
+  assert(
+    copyToGalaxyRes.status === 200 && copyToGalaxyData.copiedCount === 2,
+    `PATCH /api/comets (copy_to_galaxy) copied ${copyToGalaxyData.copiedCount} bounded Nov events into Alice's permanent Galaxy`
+  );
+
+  // Convert Comet to a permanent Galaxy via OAuth session
+  const convertRes = await cometsRoute.PATCH(
+    new Request("http://localhost:3000/api/comets", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "convert_to_galaxy",
+        cometId: comet.id,
+      }),
+    })
+  );
+  const convertData = await convertRes.json();
+  assert(
+    convertRes.status === 200 &&
+      convertData.converted === true &&
+      convertData.galaxy.isEphemeral === false &&
+      convertData.galaxy.expiresAt === null &&
+      convertData.galaxy.joinCode.startsWith("GLX-"),
+    "PATCH /api/comets (convert_to_galaxy) promotes Ephemeral Comet to a permanent Household Galaxy"
+  );
+
+  // Test Ephemeral Spin-Down: create an already-expired Comet and verify automatic cascade cleanup
+  const expiredSpinRes = await cometsRoute.POST(
+    new Request("http://localhost:3000/api/comets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Short-Lived Expired Comet",
+        expiresAt: "2020-01-01T00:00:00.000Z",
+        initialEvents: [
+          {
+            title: "Vanishing Meeting",
+            date: "2020-01-01",
+            startTime: "2020-01-01T10:00:00",
+            endTime: "2020-01-01T11:00:00",
+          },
+        ],
+      }),
+    })
+  );
+  const expiredSpinData = await expiredSpinRes.json();
+  const expiredCometId = expiredSpinData.comet.id;
+
+  // Accessing GET /api/comets triggers purgeExpiredComets() and returns 404
+  const fetchExpiredRes = await cometsRoute.GET(
+    new Request(`http://localhost:3000/api/comets?id=${expiredCometId}`)
+  );
+  assert(
+    fetchExpiredRes.status === 404 || fetchExpiredRes.status === 410,
+    "Expired Ephemeral Comet automatically spins down and returns 404/410 on lookup"
+  );
+
+  const orphanedEventsCheck = await client.execute({
+    sql: "SELECT count(*) as cnt FROM events WHERE galaxy_id = ?;",
+    args: [expiredCometId],
+  });
+  assert(
+    Number(orphanedEventsCheck.rows[0].cnt) === 0,
+    "Spin-down cascade-deleted all child events of the expired Comet"
   );
 
   // Close client & clean up temporary SQLite DB files

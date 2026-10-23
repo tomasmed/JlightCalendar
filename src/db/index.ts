@@ -5,6 +5,7 @@ import * as schema from "./schema";
 
 if (process.env.JLIGHT_TEST_MODE !== "true") {
   dotenv.config({ path: ".env.local" });
+  dotenv.config({ path: "../../.env.local" });
   dotenv.config();
 }
 

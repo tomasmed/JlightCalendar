@@ -234,10 +234,10 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <h2 className="text-lg sm:text-2xl md:text-3xl font-black text-cosmos-text truncate">
-              Daily Chores & Routines
+              Daily Chores &amp; Routines
             </h2>
             <p className="text-[11px] sm:text-xs text-cosmos-muted hidden sm:block">
-              Backed to database — check off tasks to earn family reward stars!
+              Check off tasks to earn reward stars!
             </p>
           </div>
 
@@ -265,7 +265,7 @@ export function ChoresView({ accessMode, activeGalaxyId }: ChoresViewProps) {
                 : "bg-cosmos-surface border border-cosmos-border text-cosmos-muted hover:text-cosmos-text"
             }`}
           >
-            All Members
+            Everyone
           </button>
           {members.map((m) => {
             const isSelected = selectedMemberId === m.id;
