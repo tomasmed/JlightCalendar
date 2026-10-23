@@ -369,7 +369,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "galaxyId is required" }, { status: 400 });
     }
 
-    const access = await verifyActorGalaxyAccess(actor, galaxyId, { requireAdmin: true });
+    const access = await verifyActorGalaxyAccess(actor, galaxyId, { requireWrite: true });
     if (!access.allowed) {
       return NextResponse.json(
         { error: access.error || "You do not have permission to update this galaxy." },

@@ -30,7 +30,7 @@ export default function HomePage() {
   const user = session?.user;
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("calendar");
-  const [accessMode, setAccessMode] = useState<AccessMode>("standard");
+  const [accessMode, setAccessMode] = useState<AccessMode>("admin");
   const [isModeModalOpen, setIsModeModalOpen] = useState(false);
   const [isSleeping, setIsSleeping] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);

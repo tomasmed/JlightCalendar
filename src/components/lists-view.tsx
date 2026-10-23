@@ -141,10 +141,10 @@ export function ListsView({ accessMode, activeGalaxyId }: ListsViewProps) {
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 md:pb-4 border-b border-cosmos-border">
         <div>
           <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-cosmos-text">
-            Shared Grocery List
+            Shared List
           </h2>
           <p className="text-xs text-cosmos-muted">
-            Backed to database — syncs groceries & items across family devices.
+            Groceries, packing items, and shared to-dos for everyone.
           </p>
         </div>
 
@@ -169,7 +169,7 @@ export function ListsView({ accessMode, activeGalaxyId }: ListsViewProps) {
               : "bg-cosmos-surface border border-cosmos-border text-cosmos-muted hover:text-cosmos-text"
           }`}
         >
-          All Members
+          Everyone
         </button>
         {members.map((m) => {
           const isSelected = selectedMemberId === m.id;

@@ -46,7 +46,7 @@ export interface Member {
 }
 
 export const SAMPLE_MEMBERS: Member[] = [
-  { id: "all", name: "All Family", color: "#ffd166", avatarIcon: "sparkles" },
+  { id: "all", name: "Everyone", color: "#ffd166", avatarIcon: "sparkles" },
   { id: "mem_mom", name: "Mom", color: "#ec4899", avatarIcon: "user" },
   { id: "mem_dad", name: "Dad", color: "#10b981", avatarIcon: "user" },
   { id: "mem_leo", name: "Leo", color: "#8b5cf6", avatarIcon: "baby" },
@@ -614,7 +614,7 @@ export function CalendarView({
   const memberList: Member[] = [
     {
       id: "all",
-      name: "All Family",
+      name: "Everyone",
       color: adaptMemberColor(familyColor || "#ef4444", activeTheme),
       avatarIcon: familyAvatar || "planet",
     },
@@ -1198,11 +1198,11 @@ export function CalendarView({
           {accessMode !== "kid" && (
             <button
               onClick={() => setIsInhabitantsModalOpen(true)}
-              title="Manage Galaxy Inhabitants"
-              className="px-2.5 py-1 sm:py-1.5 rounded-xl border border-dashed border-cosmos-border text-cosmos-muted hover:text-starlight hover:border-starlight transition text-[11px] sm:text-xs font-bold flex items-center gap-1 min-h-[38px] sm:min-h-[44px] min-w-0 shrink-0"
+              title="Add or edit people and colors"
+              className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-dashed border-cosmos-border text-cosmos-muted hover:text-starlight hover:border-starlight transition text-[11px] sm:text-xs font-bold flex items-center gap-1 min-h-[38px] sm:min-h-[44px] min-w-0 shrink-0 cursor-pointer"
             >
-              <Users className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Manage</span>
+              <Plus className="w-3.5 h-3.5 text-starlight" />
+              <span>People</span>
             </button>
           )}
         </div>
@@ -1424,8 +1424,8 @@ export function CalendarView({
                           .map((id) => memberList.find((m) => m.id === id)?.name || id)
                           .join(", ")
                       : evt.memberId
-                      ? memberList.find((m) => m.id === evt.memberId)?.name || "Family"
-                      : "🌟 Whole Family";
+                      ? memberList.find((m) => m.id === evt.memberId)?.name || "Everyone"
+                      : "🌟 Everyone";
 
                   return (
                     <div
@@ -1553,8 +1553,8 @@ export function CalendarView({
                 const assignedNames = (evt.memberIds && evt.memberIds.length > 0)
                   ? evt.memberIds.map((id) => memberList.find((m) => m.id === id)?.name || id).join(", ")
                   : evt.memberId
-                  ? memberList.find((m) => m.id === evt.memberId)?.name || "Family"
-                  : "🌟 Whole Family";
+                  ? memberList.find((m) => m.id === evt.memberId)?.name || "Everyone"
+                  : "🌟 Everyone";
 
                 return (
                   <div
@@ -1927,8 +1927,8 @@ export function CalendarView({
                                     {(evt.memberIds && evt.memberIds.length > 0)
                                       ? evt.memberIds.map((id) => memberList.find((m) => m.id === id)?.name || id).join(", ")
                                       : evt.memberId
-                                      ? memberList.find((m) => m.id === evt.memberId)?.name || "Family"
-                                      : "🌟 Whole Family"}
+                                      ? memberList.find((m) => m.id === evt.memberId)?.name || "Everyone"
+                                      : "🌟 Everyone"}
                                   </span>
                                 </span>
                               </div>
@@ -1956,8 +1956,8 @@ export function CalendarView({
             const assignedNames = (evt.memberIds && evt.memberIds.length > 0)
               ? evt.memberIds.map((id) => memberList.find((m) => m.id === id)?.name || id).join(", ")
               : evt.memberId
-              ? memberList.find((m) => m.id === evt.memberId)?.name || "Family"
-              : "🌟 Whole Family";
+              ? memberList.find((m) => m.id === evt.memberId)?.name || "Everyone"
+              : "🌟 Everyone";
 
             return (
               <div
@@ -2054,8 +2054,8 @@ export function CalendarView({
                   const assignedNames = (evt.memberIds && evt.memberIds.length > 0)
                     ? evt.memberIds.map((id) => memberList.find((m) => m.id === id)?.name || id).join(", ")
                     : evt.memberId
-                    ? memberList.find((m) => m.id === evt.memberId)?.name || "Family"
-                    : "🌟 Whole Family";
+                    ? memberList.find((m) => m.id === evt.memberId)?.name || "Everyone"
+                    : "🌟 Everyone";
 
                   return (
                     <div

@@ -409,8 +409,8 @@ assert(
   "KioskHeader defines distinct row-1 and row-2 containers for mobile mode"
 );
 assert(
-  kioskHeaderSource.includes("<span>{accessMode} Mode</span>"),
-  "Access Mode button displays visible '{accessMode} Mode' text label on mobile as well as desktop"
+  !kioskHeaderSource.includes("<span>{accessMode} Mode</span>"),
+  "KioskHeader omits legacy PIN/Access Mode gate button in favor of direct editing"
 );
 assert(
   kioskHeaderSource.includes('data-testid="kiosk-clock-display"') &&
