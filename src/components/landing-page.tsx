@@ -88,7 +88,7 @@ export function LandingPage({
               Jlight<span className="text-starlight">Calendar</span>
             </span>
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-              Celestial Family Kiosk
+              Shared Calendars for Home &amp; Group Plans
             </span>
           </div>
         </div>
@@ -130,17 +130,17 @@ export function LandingPage({
 
       {/* Hero Section */}
       <main className="flex-1 flex flex-col items-center justify-center text-center px-4 sm:px-6 pt-10 pb-16 relative z-10 max-w-5xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-bold mb-6 backdrop-blur-sm animate-pulse">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-bold mb-6 backdrop-blur-sm">
           <Sparkles className="w-3.5 h-3.5 text-starlight" />
-          <span>Next-Generation Smart Family Display</span>
+          <span>For Households, Friends &amp; Quick Group Plans</span>
         </div>
 
         <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.1] max-w-4xl text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-100 to-starlight">
-          Bring Calm & Harmony to Your Family Orbit
+          One Shared Calendar Everyone Actually Checks
         </h1>
 
         <p className="mt-6 text-base sm:text-xl text-slate-300 max-w-2xl font-medium leading-relaxed">
-          The wall-mounted smart calendar and companion kiosk engineered for busy households. Sync family schedules, gamify chores with stars, organize meals, and manage shared group galaxies with total privacy.
+          Keep your household on the same page with color-coded schedules, chores, and meal plans—or spin up a temporary calendar for a trip or project in seconds, with no sign-up required.
         </p>
 
         {/* Primary CTA Buttons */}
@@ -155,7 +155,7 @@ export function LandingPage({
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
             </svg>
-            <span>Get Started with Google</span>
+            <span>Sign In for Home Calendar</span>
             <ArrowRight className="w-4 h-4 ml-1" />
           </button>
 
@@ -164,7 +164,7 @@ export function LandingPage({
             className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 py-4 rounded-2xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border hover:border-purple-500/50 text-slate-200 font-bold text-base transition min-h-[52px]"
           >
             <Eye className="w-5 h-5 text-starlight-cyan" />
-            <span>Explore Demo Kiosk</span>
+            <span>See Sample Calendar</span>
           </button>
         </div>
 
@@ -177,14 +177,14 @@ export function LandingPage({
             type="text"
             value={quickJoinCode}
             onChange={(e) => setQuickJoinCode(e.target.value.toUpperCase())}
-            placeholder="Have an invite code? (CMT-4K8A or GLX-8K9)"
+            placeholder="Enter invite code (e.g. CMT-4K8A or GLX-8K9)"
             className="w-full bg-transparent px-4 py-2 text-xs font-mono font-bold text-white placeholder-slate-500 focus:outline-none uppercase min-h-[44px]"
           />
           <button
             type="submit"
             className="w-full sm:w-auto px-4 py-2 rounded-xl bg-cosmos-surface hover:bg-purple-600/40 text-starlight text-xs font-bold border border-purple-500/30 transition flex items-center justify-center gap-1.5 shrink-0 min-h-[44px]"
           >
-            <span>Join Space</span>
+            <span>Open Calendar</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </form>
@@ -197,13 +197,13 @@ export function LandingPage({
                 <span className="text-xl">☄️</span>
                 <div>
                   <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
-                    <span>Launch an Instant Ephemeral Comet</span>
+                    <span>Start a Temporary Shared Calendar</span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                      No Login Needed
+                      No Account Needed
                     </span>
                   </h2>
                   <p className="text-xs text-slate-300">
-                    Need a quick multiplayer calendar for a project sprint, team meeting, or friend trip? Spin one up in seconds, export any date window to Google/Apple Calendar (.ics), and let it auto-spin down when done.
+                    Planning a weekend trip, a quick project sprint, or a few meetings with friends? Create a shared Comet calendar, send the link, and export your dates to Google or Apple Calendar whenever you&apos;re ready.
                   </p>
                 </div>
               </div>
@@ -215,14 +215,14 @@ export function LandingPage({
             >
               <div className="sm:col-span-5">
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-cyan-300 mb-1">
-                  Comet Title
+                  Calendar Name
                 </label>
                 <input
                   type="text"
                   required
                   value={cometName}
                   onChange={(e) => setCometName(e.target.value)}
-                  placeholder="e.g. Q4 Sprint Sync, Tahoe Trip"
+                  placeholder="e.g. Q4 Sprint, Cabin Weekend"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-cosmos-surface/90 border border-cosmos-border text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 min-h-[48px]"
                 />
               </div>
@@ -242,7 +242,7 @@ export function LandingPage({
 
               <div className="sm:col-span-2">
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                  Spin-Down TTL
+                  Keep For
                 </label>
                 <select
                   value={cometTtlDays}
@@ -262,7 +262,7 @@ export function LandingPage({
                   disabled={isLaunchingComet || !cometName.trim()}
                   className="w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-white text-xs font-extrabold shadow-lg shadow-cyan-500/25 transition flex items-center justify-center gap-1.5 min-h-[48px]"
                 >
-                  <span>{isLaunchingComet ? "Launching..." : "Launch ☄️"}</span>
+                  <span>{isLaunchingComet ? "Creating..." : "Create ☄️"}</span>
                 </button>
               </div>
             </form>
@@ -277,10 +277,10 @@ export function LandingPage({
               <Globe2 className="w-6 h-6 text-starlight" />
             </div>
             <h3 className="text-lg font-bold text-white mb-2">
-              Multi-Galaxy Privacy
+              Separate Spaces for Every Group
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Every household lives in its own private galaxy. Seamlessly invite grandparents, co-parents, or vacation groups via Join Codes while keeping your family data strictly isolated.
+              Keep your household schedule private while sharing a separate calendar with grandparents, co-parents, or a weekend trip group using a simple invite code.
             </p>
           </div>
 
@@ -290,10 +290,10 @@ export function LandingPage({
               <Shield className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-bold text-white mb-2">
-              3-Tier Kiosk Access
+              Kid-Safe &amp; Guest-Friendly
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              PIN-protected Parent Admin controls keep settings secure. Switch to Standard mode for guests or Kid Mode with simplified icons and protected editing.
+              Lock settings with a quick parent PIN so kids can check off their chores on an iPad or kitchen screen without accidentally deleting appointments.
             </p>
           </div>
 
@@ -303,10 +303,10 @@ export function LandingPage({
               <Star className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-bold text-white mb-2">
-              Gamified Star Chores
+              Chores Kids Actually Check Off
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Turn daily routines into cosmic quests. Kids earn star points for completing chores and redeem them for family rewards and privileges.
+              Assign daily or weekly tasks and let kids earn stars as they finish them—simple, visual, and easy to follow without nagging.
             </p>
           </div>
 
@@ -316,10 +316,10 @@ export function LandingPage({
               <Calendar className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-bold text-white mb-2">
-              Physical Month & Day Views
+              Color-Coded by Person (Even Pets)
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Touchscreen-optimized 7-column calendar grid with color-coded family constellation pills, instant day overviews, and lateral swipe navigation.
+              Give everyone their own color—including the dog&apos;s vet visits—and switch between month, week, and side-by-side day views at a glance.
             </p>
           </div>
 
@@ -329,10 +329,10 @@ export function LandingPage({
               <Utensils className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-bold text-white mb-2">
-              Meal Plans & Shared Lists
+              Dinner Plans &amp; Shared Lists
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Know what&apos;s for dinner all week. One tap adds recipe ingredients straight to your real-time shared family grocery list.
+              Plan the week&apos;s meals together and keep a live grocery, packing, or to-do list that stays updated across everyone&apos;s phone.
             </p>
           </div>
 
@@ -342,10 +342,10 @@ export function LandingPage({
               <Moon className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-bold text-white mb-2">
-              OLED Sleep & Touch Ergonomics
+              Export Dates Anywhere (.ics)
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Designed specifically for wall kiosks with minimum 48px touch targets, ambient weather integration, and scheduled true-black night sleep mode.
+              Export any date window to Google Calendar, Apple Calendar, or Outlook in one click—or subscribe with a live calendar link.
             </p>
           </div>
         </div>
@@ -353,7 +353,7 @@ export function LandingPage({
 
       {/* Footer */}
       <footer className="w-full border-t border-cosmos-border/60 py-6 px-4 text-center text-xs text-slate-500 relative z-10">
-        <p>JlightCalendar — Autonomous Family Kiosk & Calendar Platform</p>
+        <p>JlightCalendar — Shared Calendars for Families, Friends &amp; Teams</p>
       </footer>
     </div>
   );
