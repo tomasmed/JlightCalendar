@@ -32,6 +32,7 @@ import {
   Palette,
   Bot,
   Download,
+  X,
 } from "lucide-react";
 import { signIn, signOut } from "next-auth/react";
 import { ChangelogModal } from "./changelog-modal";
@@ -117,6 +118,17 @@ export function KioskHeader({
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const currentTheme = useActiveTheme();
   const activeThemeOption = getThemeOption(currentTheme);
+
+  useEffect(() => {
+    if (!showThemeMenu) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowThemeMenu(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showThemeMenu]);
 
   const handleSelectTheme = (nextTheme: AppTheme) => {
     applyTheme(nextTheme);
@@ -626,9 +638,17 @@ export function KioskHeader({
             </button>
 
             {showThemeMenu && (
+              <>
+                {/* Mobile Backdrop for full-screen modal dismissal */}
+                <div
+                  data-testid="theme-picker-backdrop"
+                  className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 md:hidden animate-in fade-in"
+                  onClick={() => setShowThemeMenu(false)}
+                  aria-hidden="true"
+                />
               <div
                 data-testid="theme-picker-menu"
-                className="absolute top-12 right-0 w-80 sm:w-96 bg-cosmos-card border border-cosmos-borderLight rounded-2xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 max-h-[82vh] overflow-y-auto"
+                className="fixed inset-x-3 top-1/2 -translate-y-1/2 z-50 max-w-sm sm:max-w-md mx-auto md:absolute md:top-12 md:right-0 md:translate-y-0 md:inset-auto md:mx-0 md:max-w-none md:w-80 lg:w-96 bg-cosmos-card border border-cosmos-borderLight rounded-2xl shadow-2xl p-3 animate-in fade-in zoom-in-95 max-h-[85vh] md:max-h-[82vh] overflow-y-auto"
               >
                 <div className="px-2 pb-2 border-b border-cosmos-border flex items-center justify-between">
                   <div>
@@ -639,9 +659,19 @@ export function KioskHeader({
                       Per-device atmosphere & materiality
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cosmos-surface text-starlight font-bold border border-cosmos-border">
-                    {activeThemeOption.archetype === "creamy" ? "Matte PBT" : "Cyber OSL"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cosmos-surface text-starlight font-bold border border-cosmos-border">
+                      {activeThemeOption.archetype === "creamy" ? "Matte PBT" : "Cyber OSL"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowThemeMenu(false)}
+                      aria-label="Close Theme Studio"
+                      className="p-1 rounded-lg text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface/70 transition"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Archetype A: Super Creamy */}
@@ -742,7 +772,8 @@ export function KioskHeader({
                   </div>
                 </div>
               </div>
-            )}
+            </>
+          )}
           </div>
 
           {/* Export .ics Calendar Portability Button */}
