@@ -423,13 +423,13 @@ assert(
   "KioskHeader renders dedicated backdrop overlay for mobile theme picker modal dismissal"
 );
 assert(
-  kioskHeaderSource.includes("fixed inset-x-3 top-1/2 -translate-y-1/2") &&
-    kioskHeaderSource.includes("max-w-sm sm:max-w-md mx-auto"),
-  "KioskHeader theme picker modal is centered and constrained to prevent viewport overflow on mobile"
+  kioskHeaderSource.includes("w-full max-w-sm sm:max-w-md my-auto") &&
+    kioskHeaderSource.includes("max-h-[85vh] overflow-y-auto"),
+  "KioskHeader theme picker modal uses vertical auto-margins and viewport height constraints to prevent top clipping on mobile"
 );
 assert(
-  kioskHeaderSource.includes("md:absolute md:top-12 md:right-0") &&
-    kioskHeaderSource.includes("md:translate-y-0"),
+  kioskHeaderSource.includes("hidden md:block absolute top-12 right-0") &&
+    kioskHeaderSource.includes("w-80 lg:w-96"),
   "KioskHeader theme picker reverts to localized absolute dropdown below button on desktop"
 );
 assert(

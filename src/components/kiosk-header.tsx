@@ -294,11 +294,138 @@ export function KioskHeader({
     }
   };
 
+  const renderThemeMenuContent = () => (
+    <>
+      <div className="px-2 pb-2 border-b border-cosmos-border flex items-center justify-between">
+        <div>
+          <span className="text-xs font-black text-cosmos-text block">
+            Theme Studio
+          </span>
+          <span className="text-[10px] text-cosmos-muted font-mono">
+            Per-device atmosphere & materiality
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cosmos-surface text-starlight font-bold border border-cosmos-border">
+            {activeThemeOption.archetype === "creamy" ? "Matte PBT" : "Cyber OSL"}
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowThemeMenu(false)}
+            aria-label="Close Theme Studio"
+            className="p-1 rounded-lg text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface/70 transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Archetype A: Super Creamy */}
+      <div className="mt-2.5">
+        <div className="px-2 pb-1 flex items-center justify-between text-[10px] font-mono font-bold uppercase tracking-wider text-cosmos-muted">
+          <span>Archetype A // Super Creamy</span>
+          <span>Matte PBT</span>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {creamyThemes.map((t) => {
+            const isSelected = t.id === currentTheme;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                data-testid={`theme-option-${t.id}`}
+                onClick={() => handleSelectTheme(t.id)}
+                className={`p-2 rounded-xl text-left transition flex flex-col justify-between gap-1.5 min-h-[60px] border ${
+                  isSelected
+                    ? "bg-cosmos-surface border-starlight shadow-sm"
+                    : "bg-cosmos-deep/60 border-cosmos-border/70 hover:bg-cosmos-surface/70 hover:border-cosmos-borderLight"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1 w-full">
+                  <span className="text-xs font-bold text-cosmos-text truncate">
+                    {t.emoji} {t.shortName}
+                  </span>
+                  {isSelected && (
+                    <Check className="w-3.5 h-3.5 text-starlight shrink-0" />
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  {[
+                    t.palette.canvas,
+                    t.palette.surface,
+                    t.palette.accentPrimary,
+                    t.palette.accentTension,
+                  ].map((hex, i) => (
+                    <span
+                      key={i}
+                      className="w-3.5 h-2 rounded-[2px] border border-black/20"
+                      style={{ backgroundColor: hex }}
+                    />
+                  ))}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Archetype B: Cyberpunk & Seasonal OSL */}
+      <div className="mt-3 pt-2.5 border-t border-cosmos-border/60">
+        <div className="px-2 pb-1 flex items-center justify-between text-[10px] font-mono font-bold uppercase tracking-wider text-cosmos-muted">
+          <span>Archetype B // Fluorescent OSL</span>
+          <span>Light-Spill</span>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {oslThemes.map((t) => {
+            const isSelected = t.id === currentTheme;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                data-testid={`theme-option-${t.id}`}
+                onClick={() => handleSelectTheme(t.id)}
+                className={`p-2 rounded-xl text-left transition flex flex-col justify-between gap-1.5 min-h-[60px] border ${
+                  isSelected
+                    ? "bg-cosmos-surface border-starlight shadow-sm"
+                    : "bg-cosmos-deep/60 border-cosmos-border/70 hover:bg-cosmos-surface/70 hover:border-cosmos-borderLight"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1 w-full">
+                  <span className="text-xs font-bold text-cosmos-text truncate">
+                    {t.emoji} {t.shortName}
+                  </span>
+                  {isSelected && (
+                    <Check className="w-3.5 h-3.5 text-starlight shrink-0" />
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  {[
+                    t.palette.canvas,
+                    t.palette.surface,
+                    t.palette.accentPrimary,
+                    t.palette.accentTension,
+                  ].map((hex, i) => (
+                    <span
+                      key={i}
+                      className="w-3.5 h-2 rounded-[2px] border border-black/20"
+                      style={{ backgroundColor: hex }}
+                    />
+                  ))}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <header
       data-testid="kiosk-header"
-      className="h-auto md:h-20 bg-cosmos-deep/95 border-b border-cosmos-border px-2.5 sm:px-4 md:px-4 lg:px-6 py-1.5 md:py-0 flex flex-col md:flex-row md:items-center md:justify-between gap-1.5 md:gap-0 select-none backdrop-blur-xl relative z-40 max-w-full"
+      className="h-auto md:h-20 border-b border-cosmos-border px-2.5 sm:px-4 md:px-4 lg:px-6 py-1.5 md:py-0 flex flex-col md:flex-row md:items-center md:justify-between gap-1.5 md:gap-0 select-none relative z-40 max-w-full"
     >
+      <div className="absolute inset-0 bg-cosmos-deep/95 backdrop-blur-xl pointer-events-none -z-10" />
       {/* ROW 1 (Mobile) / LEFT (Desktop): Clock, Ambient Weather & Calendar Galaxy Switcher */}
       <div
         data-testid="kiosk-header-row-1"
@@ -639,141 +766,30 @@ export function KioskHeader({
 
             {showThemeMenu && (
               <>
-                {/* Mobile Backdrop for full-screen modal dismissal */}
+                {/* Mobile Full-Screen Modal Overlay */}
                 <div
                   data-testid="theme-picker-backdrop"
-                  className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 md:hidden animate-in fade-in"
+                  className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 md:hidden flex flex-col items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in"
                   onClick={() => setShowThemeMenu(false)}
-                  aria-hidden="true"
-                />
-              <div
-                data-testid="theme-picker-menu"
-                className="fixed inset-x-3 top-1/2 -translate-y-1/2 z-50 max-w-sm sm:max-w-md mx-auto md:absolute md:top-12 md:right-0 md:translate-y-0 md:inset-auto md:mx-0 md:max-w-none md:w-80 lg:w-96 bg-cosmos-card border border-cosmos-borderLight rounded-2xl shadow-2xl p-3 animate-in fade-in zoom-in-95 max-h-[85vh] md:max-h-[82vh] overflow-y-auto"
-              >
-                <div className="px-2 pb-2 border-b border-cosmos-border flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-black text-cosmos-text block">
-                      Theme Studio
-                    </span>
-                    <span className="text-[10px] text-cosmos-muted font-mono">
-                      Per-device atmosphere & materiality
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cosmos-surface text-starlight font-bold border border-cosmos-border">
-                      {activeThemeOption.archetype === "creamy" ? "Matte PBT" : "Cyber OSL"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowThemeMenu(false)}
-                      aria-label="Close Theme Studio"
-                      className="p-1 rounded-lg text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface/70 transition"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                >
+                  <div
+                    data-testid="theme-picker-menu"
+                    className="w-full max-w-sm sm:max-w-md my-auto bg-cosmos-card border border-cosmos-borderLight rounded-2xl shadow-2xl p-3 max-h-[85vh] overflow-y-auto animate-in zoom-in-95"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {renderThemeMenuContent()}
                   </div>
                 </div>
 
-                {/* Archetype A: Super Creamy */}
-                <div className="mt-2.5">
-                  <div className="px-2 pb-1 flex items-center justify-between text-[10px] font-mono font-bold uppercase tracking-wider text-cosmos-muted">
-                    <span>Archetype A // Super Creamy</span>
-                    <span>Matte PBT</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {creamyThemes.map((t) => {
-                      const isSelected = t.id === currentTheme;
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          data-testid={`theme-option-${t.id}`}
-                          onClick={() => handleSelectTheme(t.id)}
-                          className={`p-2 rounded-xl text-left transition flex flex-col justify-between gap-1.5 min-h-[60px] border ${
-                            isSelected
-                              ? "bg-cosmos-surface border-starlight shadow-sm"
-                              : "bg-cosmos-deep/60 border-cosmos-border/70 hover:bg-cosmos-surface/70 hover:border-cosmos-borderLight"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-1 w-full">
-                            <span className="text-xs font-bold text-cosmos-text truncate">
-                              {t.emoji} {t.shortName}
-                            </span>
-                            {isSelected && (
-                              <Check className="w-3.5 h-3.5 text-starlight shrink-0" />
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {[
-                              t.palette.canvas,
-                              t.palette.surface,
-                              t.palette.accentPrimary,
-                              t.palette.accentTension,
-                            ].map((hex, i) => (
-                              <span
-                                key={i}
-                                className="w-3.5 h-2 rounded-[2px] border border-black/20"
-                                style={{ backgroundColor: hex }}
-                              />
-                            ))}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+                {/* Desktop Dropdown */}
+                <div
+                  data-testid="theme-picker-menu"
+                  className="hidden md:block absolute top-12 right-0 w-80 lg:w-96 bg-cosmos-card border border-cosmos-borderLight rounded-2xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 max-h-[82vh] overflow-y-auto"
+                >
+                  {renderThemeMenuContent()}
                 </div>
-
-                {/* Archetype B: Cyberpunk & Seasonal OSL */}
-                <div className="mt-3 pt-2.5 border-t border-cosmos-border/60">
-                  <div className="px-2 pb-1 flex items-center justify-between text-[10px] font-mono font-bold uppercase tracking-wider text-cosmos-muted">
-                    <span>Archetype B // Fluorescent OSL</span>
-                    <span>Light-Spill</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {oslThemes.map((t) => {
-                      const isSelected = t.id === currentTheme;
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          data-testid={`theme-option-${t.id}`}
-                          onClick={() => handleSelectTheme(t.id)}
-                          className={`p-2 rounded-xl text-left transition flex flex-col justify-between gap-1.5 min-h-[60px] border ${
-                            isSelected
-                              ? "bg-cosmos-surface border-starlight shadow-sm"
-                              : "bg-cosmos-deep/60 border-cosmos-border/70 hover:bg-cosmos-surface/70 hover:border-cosmos-borderLight"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-1 w-full">
-                            <span className="text-xs font-bold text-cosmos-text truncate">
-                              {t.emoji} {t.shortName}
-                            </span>
-                            {isSelected && (
-                              <Check className="w-3.5 h-3.5 text-starlight shrink-0" />
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {[
-                              t.palette.canvas,
-                              t.palette.surface,
-                              t.palette.accentPrimary,
-                              t.palette.accentTension,
-                            ].map((hex, i) => (
-                              <span
-                                key={i}
-                                className="w-3.5 h-2 rounded-[2px] border border-black/20"
-                                style={{ backgroundColor: hex }}
-                              />
-                            ))}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+              </>
+            )}
           </div>
 
           {/* Export .ics Calendar Portability Button */}
