@@ -772,6 +772,52 @@ assert(
   "buildGoogleCalendarTemplateUrl() generates valid 1-click Google Calendar template link"
 );
 
+// ====================================================
+// 🤖 9. Testing CI Code Reviewer Workflow & Small Device UI/UX Lens
+// ====================================================
+console.log(
+  "\n====================================================\n🤖 9. Testing CI Code Reviewer Configuration & UI/UX Lens\n===================================================="
+);
+
+const workflowPath = path.resolve(__dirname, "../.github/workflows/code-review.yml");
+assert(fs.existsSync(workflowPath), ".github/workflows/code-review.yml exists");
+const workflowContent = fs.readFileSync(workflowPath, "utf-8");
+assert(
+  workflowContent.includes("uses: tomasmed/ci-code-reviewer@master") || workflowContent.includes("uses: tomasmed/ci-code-reviewer@v1"),
+  "Workflow invokes tomasmed/ci-code-reviewer@v1 action"
+);
+assert(
+  workflowContent.includes("pull_request:") &&
+    workflowContent.includes("pull-requests: write"),
+  "Workflow configures pull_request trigger with pull-requests: write permissions"
+);
+
+const configPath = path.resolve(__dirname, "../.ci-reviewer.yml");
+assert(fs.existsSync(configPath), ".ci-reviewer.yml configuration file exists");
+const configContent = fs.readFileSync(configPath, "utf-8");
+assert(
+  configContent.includes("model:") && (configContent.includes("gemini-2.0-flash") || configContent.includes("claude-3-5-sonnet")),
+  ".ci-reviewer.yml configures default LLM model"
+);
+assert(
+  configContent.includes("small_device_ui_ux"),
+  ".ci-reviewer.yml defines dedicated 'small_device_ui_ux' review lens"
+);
+assert(
+  configContent.includes("48px x 48px") &&
+    configContent.includes("docs/adr/0013-recurring-events-and-mobile-touch-ux.md"),
+  ".ci-reviewer.yml lens checks 48px touch targets and injects ADR 0013 mobile UX context"
+);
+
+const markdownLensPath = path.resolve(__dirname, "../.ci-reviewer/lenses/small-device-ui-ux.md");
+assert(fs.existsSync(markdownLensPath), ".ci-reviewer/lenses/small-device-ui-ux.md markdown lens exists");
+const markdownLensContent = fs.readFileSync(markdownLensPath, "utf-8");
+assert(
+  markdownLensContent.includes("name: small_device_ui_ux") &&
+    markdownLensContent.includes("Lead UI/UX Designer and Mobile Interaction Specialist"),
+  "Markdown lens contains frontmatter and specialized UI/UX persona prompt"
+);
+
 console.log("\n✨ All unit and static guard tests passed successfully!");
 
 

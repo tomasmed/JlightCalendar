@@ -1,0 +1,154 @@
+version: "1"
+
+# Target LLM (LiteLLM provider/model notation)
+# Supported: gemini/gemini-2.0-flash, anthropic/claude-3-5-sonnet-20241022, openai/gpt-4o, etc.
+model: "gemini/gemini-2.0-flash"
+
+# Agent harness: "native" (fastest, lightweight) or "strands" (AWS Strands with MCP)
+harness: "native"
+
+filters:
+  ignore_patterns:
+    - "**/*.lock"
+    - "**/package-lock.json"
+    - "**/pnpm-lock.yaml"
+    - "**/yarn.lock"
+    - "**/dist/**"
+    - "**/build/**"
+    - "**/.next/**"
+    - "**/out/**"
+    - "**/coverage/**"
+    - "**/*.min.js"
+    - "**/*.min.css"
+    - "**/*.tsbuildinfo"
+    - "**/*.db*"
+    - "**/*.svg"
+    - "public/sw.js"
+  max_diff_lines: 3000
+
+rules:
+  # Flag pull requests that add complex logic without test coverage
+  require_tests: true
+
+  # Check for OWASP Top 10 vulnerabilities and hardcoded secrets
+  check_security: true
+
+  # Cross-reference with in-repo docs/adr/ and architecture rules
+  check_architecture: true
+
+  # Custom guidelines specific to JlightCalendar tech stack & architecture
+  custom_guidelines:
+    - "React Rules of Hooks: All React hooks (useState, useEffect, useRef, useMemo, useCallback, useSession, etc.) must be declared unconditionally at the very top of component functions—never after early returns (e.g., if (!isOpen) return null;)."
+    - "Touch Ergonomics & Kiosks: All clickable interactive elements (buttons, inputs, toggle chips, modal actions) must have a minimum hit target of 48px x 48px to support touchscreen wall kiosks and mobile fingers."
+    - "Access Modes: Strictly respect the active access mode ('admin', 'standard', 'kid'). Suppress or disable destructive actions, configuration, and editing when in kid mode."
+    - "Local Wall-Clock Time: Calendar event calculations must use local wall-clock time and explicitly avoid .toISOString() conversions for local event scheduling to prevent UTC timezone drift across views (ADR 0013)."
+    - "Database Schema & Migrations: Keep runtime idempotent migrations in src/db/ensure-schema.ts in sync with Drizzle schema changes in src/db/schema.ts and migrations in drizzle/."
+    - "No Unauthenticated Data Leakage: Verify that all API routes check session authentication and enforce galaxy-level isolation before reading or mutating family data."
+
+voting:
+  enabled: false
+  allow_approve: true
+  allow_request_changes: true
+
+# Specialized Review Lenses (Sub-Agent Turns)
+lenses:
+  - name: "architecture_adrs"
+    description: "Evaluates changes against in-repo ADRs and module boundaries."
+    prompt: |
+      You are an expert Software Architect sub-agent.
+      Evaluate the git diff strictly through the lens of architectural integrity and in-repo ADRs:
+      1. Cross-reference the changes with any provided Architecture Decision Records (ADRs in docs/adr/).
+      2. Verify module boundary separation (e.g., UI layer not calling database directly, domain models free of framework dependencies).
+      3. Flag prohibited new external dependencies or architectural drift as critical blockers.
+    context_files:
+      - "docs/adr/*.md"
+      - "docs/specs/*.md"
+      - "AGENTS.md"
+    file_patterns: []
+    blocking: true
+    enabled: true
+
+  - name: "security_owasp"
+    description: "Audits diff for OWASP vulnerabilities, secret leaks, and insecure data handling."
+    prompt: |
+      You are an expert Application Security (AppSec) sub-agent.
+      Audit the git diff strictly for security flaws:
+      1. Check for hardcoded credentials, API keys, tokens, or private secrets.
+      2. Look for injection risks (SQL, shell/command, XSS, SSRF).
+      3. Ensure all user inputs and external webhook payloads are strictly validated.
+      4. Ensure multi-tenant galaxy isolation is strictly maintained across queries.
+      Flag any security vulnerabilities as critical blockers.
+    context_files:
+      - "docs/adr/0007-multi-galaxy-domain-model-and-auth.md"
+      - "docs/adr/0009-galaxy-privacy-and-join-codes.md"
+    file_patterns: []
+    blocking: true
+    enabled: true
+
+  - name: "test_integrity"
+    description: "Scrutinizes test modifications and enforces anti-lazy-assert discipline."
+    prompt: |
+      You are an expert QA and Test Integrity sub-agent.
+      Audit the test code and test assertions in this git diff:
+      1. Anti-Lazy-Assert: Flag hollow assertions (e.g. 'assert True', trivial identity checks, empty test stubs).
+      2. Over-Mocking: Flag tests that mock everything and test nothing of the real logic.
+      3. Coverage Quality: Ensure tests verify actual behavior, edge cases, and failure modes.
+      4. In-Repo Suites: Verify that new features add test cases to tests/unit.test.ts or tests/system.test.ts.
+      Flag hollow tests or deleted assertions as blockers.
+    context_files:
+      - "tests/unit.test.ts"
+      - "tests/system.test.ts"
+      - "AGENTS.md"
+    file_patterns:
+      - "tests/**"
+      - "src/**"
+    blocking: true
+    enabled: true
+
+  - name: "small_device_ui_ux"
+    description: "UI/UX Designer review lens catching regressions and usability issues on small devices, mobile viewports, and wall touch kiosks."
+    prompt: |
+      You are a Lead UI/UX Designer and Mobile Interaction Specialist sub-agent.
+      Your mission is to audit every front-end change with extreme scrutiny from the perspective of small mobile devices (e.g. 360px–412px viewports such as Samsung Galaxy S24/S26+ and iPhone SE) and wall-mounted touch kiosks.
+
+      Carefully inspect the git diff for any changes that degrade the user experience on small devices:
+
+      1. 🎯 Touch Targets & Ergonomics:
+         - Are all interactive elements (buttons, icons, chips, inputs, modal triggers, pagination/swipe tabs) at least 48px x 48px (or min-h-[48px] min-w-[48px] / h-12 w-12)?
+         - Is there adequate breathing room (at least 8px padding/gap) between adjacent tap targets to prevent frustrating fat-finger mis-taps on phones and wall kiosks?
+         - Never allow tiny unpadded icon buttons or text-only links without hit-target expansion.
+
+      2. 📱 Viewport Clipping, Horizontal Overflow & Fixed Widths:
+         - Watch out for accidental hardcoded widths (e.g. w-[500px], min-w-[700px]) that lack responsive variants (sm:, md:) or missing overflow-x scroll wrappers. On small screens (360px–412px), fixed widths blow out the viewport and cause unintended page horizontal scrolling.
+         - Ensure responsive containers use fluid classes (w-full, max-w-..., p-3 sm:p-6).
+         - Verify that modals, bottom sheets, and dialogs have max-w-full or w-[calc(100%-2rem)] with scrollable bodies (max-h-[85vh] overflow-y-auto) so content is never cut off when mobile virtual keyboards pop up.
+
+      3. 👆 Mobile Touch Gestures & Scroll Hijacking:
+         - Check touch/pointer handlers (onTouchStart, onTouchMove, onTouchEnd, swipe detectors) to ensure they do not hijack native vertical or horizontal scrolling.
+         - Verify swipe directions (e.g. swiping right-to-left moves forward in time, swiping left-to-right moves backward, as specified in ADR 0013).
+         - Never require desktop-only interactions like mouse hover (:hover or group-hover) for critical actions or revealing necessary buttons—touch devices have no persistent hover state!
+
+      4. 🔠 Typography, Readability & Information Density:
+         - Does text remain legible on compact displays without aggressive wrapping or overflow clipping?
+         - Are long labels, titles, and attendee names protected with truncate or line-clamp?
+         - Is critical information visible above the fold on short screens (e.g. landscape or small mobile devices)?
+
+      5. 🛡️ Access Mode Adaptation & Visual Hygiene:
+         - In Kid mode or Ambient/Kiosk screens, ensure clutter is reduced and destructive controls remain hidden.
+         - Verify contrast and touch readability against ambient backgrounds.
+
+      Flag any regression that harms small device usability, creates horizontal scroll leakage, or violates 48px touch ergonomics as a critical blocker or warning.
+    context_files:
+      - "docs/adr/0003-display-hygiene-and-kiosk.md"
+      - "docs/adr/0013-recurring-events-and-mobile-touch-ux.md"
+      - "docs/specs/recurring-events-and-mobile-touch-ux.md"
+      - "AGENTS.md"
+    file_patterns:
+      - "src/components/**"
+      - "src/app/**"
+      - "src/styles/**"
+      - "src/hooks/**"
+      - "public/**"
+      - "tailwind.config.*"
+    blocking: true
+    enabled: true
