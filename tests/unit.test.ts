@@ -417,6 +417,25 @@ assert(
     kioskHeaderSource.includes("hidden sm:flex"),
   "KioskHeader hides redundant kiosk clock on <640px mobile phones where OS clock is visible"
 );
+assert(
+  kioskHeaderSource.includes('data-testid="theme-picker-backdrop"') &&
+    kioskHeaderSource.includes("fixed inset-0 bg-black/75 backdrop-blur-sm z-50 md:hidden"),
+  "KioskHeader renders dedicated backdrop overlay for mobile theme picker modal dismissal"
+);
+assert(
+  kioskHeaderSource.includes("w-full max-w-sm sm:max-w-md my-auto") &&
+    kioskHeaderSource.includes("max-h-[85vh] overflow-y-auto"),
+  "KioskHeader theme picker modal uses vertical auto-margins and viewport height constraints to prevent top clipping on mobile"
+);
+assert(
+  kioskHeaderSource.includes("hidden md:block absolute top-12 right-0") &&
+    kioskHeaderSource.includes("w-80 lg:w-96"),
+  "KioskHeader theme picker reverts to localized absolute dropdown below button on desktop"
+);
+assert(
+  kioskHeaderSource.includes('aria-label="Close Theme Studio"'),
+  "KioskHeader theme picker modal provides accessible close button"
+);
 
 console.log("\n====================================================");
 console.log("🧪 7. Testing Mobile Redesign (Split Month Agenda, FABs, Unified Chores Strip)");

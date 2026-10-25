@@ -44,6 +44,7 @@
 - **Two-Row Mobile Top Banner (`KioskHeader`)**:
   - **Row 1 (`kiosk-header-row-1`)**: Hides the redundant kiosk live clock on `<640px` phones (`hidden sm:flex` on `kiosk-clock-display` since mobile OS status bars already display the live time), showing the compact Weather pill on the left and the Galaxy Switcher Dropdown on the right (`right-0 md:left-0`).
   - **Row 2 (`kiosk-header-row-2`)**: Separated by a subtle top border (`border-t border-cosmos-border/50 md:border-t-0`), displays the 3-Tier Access Mode button with an always-visible text label (`{accessMode} Mode`) and the User OAuth / Login button on the left, and the quick utility icon buttons (Theme Toggle, What's New Changelog, Night Sleep) on the right.
+  - **Theme Studio Mobile Modal & Desktop Dropdown**: On mobile viewports (`< md`), the Theme Studio palette selector opens as a centered, constrained modal with a dark blur backdrop (`fixed inset-0 bg-black/75 backdrop-blur-sm z-50 md:hidden`), an accessible `X` close button, and tap-outside/Escape dismissal, preventing horizontal screen overflow. On desktop (`>= md`), it smoothly transitions into a localized dropdown below the button.
 - **Mobile Split Month + Live Agenda View (`CalendarView`)**:
   - On narrow mobile viewports (`< 640px`), `CalendarView` defaults to `"month"` view and renders a split-screen layout:
     - **Upper Pane**: Compact 7-column monthly grid with constellation member indicator dots and a glowing highlight ring on the active selected date (`selectedAgendaDate`).
