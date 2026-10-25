@@ -25,12 +25,12 @@ jobs:
       - name: Run CI Code Reviewer
         uses: tomasmed/ci-code-reviewer@master
         with:
-          model: "anthropic/claude-3-5-sonnet-20241022"
+          model: "gemini/gemini-2.0-flash"
           github_token: ${{ secrets.GITHUB_TOKEN }}
           config_path: ".ci-reviewer.yml"
           harness: "native"
         env:
-          # Model API keys (configure at least one in GitHub Secrets)
+          # Model API keys (configure in GitHub Secrets)
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
