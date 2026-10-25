@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run CI Code Reviewer
-        uses: tomasmed/ci-code-reviewer@v1
+        uses: tomasmed/ci-code-reviewer@master
         with:
           model: "anthropic/claude-3-5-sonnet-20241022"
           github_token: ${{ secrets.GITHUB_TOKEN }}

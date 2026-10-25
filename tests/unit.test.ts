@@ -783,7 +783,7 @@ const workflowPath = path.resolve(__dirname, "../.github/workflows/code-review.y
 assert(fs.existsSync(workflowPath), ".github/workflows/code-review.yml exists");
 const workflowContent = fs.readFileSync(workflowPath, "utf-8");
 assert(
-  workflowContent.includes("uses: tomasmed/ci-code-reviewer@v1"),
+  workflowContent.includes("uses: tomasmed/ci-code-reviewer@master") || workflowContent.includes("uses: tomasmed/ci-code-reviewer@v1"),
   "Workflow invokes tomasmed/ci-code-reviewer@v1 action"
 );
 assert(
