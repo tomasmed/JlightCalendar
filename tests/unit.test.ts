@@ -1002,7 +1002,7 @@ const configPath = path.resolve(__dirname, "../.ci-reviewer.yml");
 assert(fs.existsSync(configPath), ".ci-reviewer.yml configuration file exists");
 const configContent = fs.readFileSync(configPath, "utf-8");
 assert(
-  configContent.includes("model:") && (configContent.includes("gemini-2.0-flash") || configContent.includes("claude-3-5-sonnet")),
+  configContent.includes("model:") && (configContent.includes("gemini-3.8-flash") || configContent.includes("gemini-2.0-flash") || configContent.includes("claude-3-5-sonnet")),
   ".ci-reviewer.yml configures default LLM model"
 );
 assert(
