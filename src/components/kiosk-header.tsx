@@ -32,6 +32,7 @@ import {
   Palette,
   Bot,
   Download,
+  Upload,
   X,
 } from "lucide-react";
 import { signIn, signOut } from "next-auth/react";
@@ -85,6 +86,7 @@ interface KioskHeaderProps {
   onOpenJoinGalaxyModal?: () => void;
   onOpenAgentWallModal?: () => void;
   onOpenExportModal?: () => void;
+  onOpenImportModal?: () => void;
   user?: {
     name?: string | null;
     email?: string | null;
@@ -106,6 +108,7 @@ export function KioskHeader({
   onOpenJoinGalaxyModal,
   onOpenAgentWallModal,
   onOpenExportModal,
+  onOpenImportModal,
   user,
 }: KioskHeaderProps) {
   const [time, setTime] = useState("");
@@ -803,6 +806,21 @@ export function KioskHeader({
               <Download className="w-4 h-4 text-cyan-400" />
               <span className="hidden xl:inline text-[11px] font-bold">
                 Export .ics
+              </span>
+            </button>
+          )}
+
+          {/* Import .ics Calendar Button */}
+          {onOpenImportModal && (
+            <button
+              onClick={onOpenImportModal}
+              title="Import .ics Calendar (Google / Apple / Outlook)"
+              aria-label="Import calendar events from .ics"
+              className="md:order-3 px-2.5 py-2 rounded-lg text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface/60 transition min-w-[44px] min-h-[44px] flex items-center justify-center gap-1.5 shrink-0"
+            >
+              <Upload className="w-4 h-4 text-emerald-400" />
+              <span className="hidden xl:inline text-[11px] font-bold">
+                Import .ics
               </span>
             </button>
           )}

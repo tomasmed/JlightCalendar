@@ -20,6 +20,7 @@ import { CreateGalaxyModal } from "@/components/create-galaxy-modal";
 import { JoinGalaxyModal } from "@/components/join-galaxy-modal";
 import { AgentWallModal } from "@/components/agent-wall-modal";
 import { ExportCalendarModal } from "@/components/export-calendar-modal";
+import { ImportCalendarModal } from "@/components/import-calendar-modal";
 import { LandingPage } from "@/components/landing-page";
 import { CalendarEventData } from "@/components/event-modal";
 import { useSession, signIn } from "next-auth/react";
@@ -51,6 +52,7 @@ export default function HomePage() {
   const [pendingClaimBotCode, setPendingClaimBotCode] = useState("");
   const [activeCometParam, setActiveCometParam] = useState<string>("");
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [copiedCometLink, setCopiedCometLink] = useState(false);
   const [isConvertingComet, setIsConvertingComet] = useState(false);
 
@@ -571,6 +573,21 @@ export default function HomePage() {
         }}
       />
 
+      {/* RFC 5545 .ics Import Modal */}
+      <ImportCalendarModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        galaxyId={activeGalaxyId || currentGalaxy?.id || ""}
+        galaxyName={currentGalaxy?.name || "Calendar"}
+        inhabitants={inhabitants}
+        familyColor={currentGalaxy?.familyColor || "#ef4444"}
+        onImportComplete={async () => {
+          if (activeGalaxyId) {
+            await fetchEvents(activeGalaxyId);
+          }
+        }}
+      />
+
       {/* Ephemeral Comet Status & Portability Banner */}
       {currentGalaxy?.isEphemeral && (
         <div className="bg-gradient-to-r from-cyan-950 via-slate-900 to-indigo-950 border-b border-cyan-500/40 px-3 py-1.5 text-xs flex flex-wrap items-center justify-between gap-2 shrink-0 z-50">
@@ -712,6 +729,7 @@ export default function HomePage() {
               setIsAgentWallModalOpen(true);
             }}
             onOpenExportModal={() => setIsExportModalOpen(true)}
+            onOpenImportModal={() => setIsImportModalOpen(true)}
             user={user}
           />
 

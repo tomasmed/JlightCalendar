@@ -78,6 +78,15 @@ export async function POST(req: Request) {
       rrule,
       exdates,
       colorOverride,
+      url,
+      status: eventStatus,
+      priority,
+      transparency,
+      classification,
+      geo,
+      organizer,
+      attendees,
+      alarms,
     } = body;
 
     const galaxyId =
@@ -143,6 +152,22 @@ export async function POST(req: Request) {
       ? exdates
       : null;
 
+    const organizerString = organizer
+      ? typeof organizer === "string"
+        ? organizer
+        : JSON.stringify(organizer)
+      : null;
+    const attendeesString = attendees
+      ? typeof attendees === "string"
+        ? attendees
+        : JSON.stringify(attendees)
+      : null;
+    const alarmsString = alarms
+      ? typeof alarms === "string"
+        ? alarms
+        : JSON.stringify(alarms)
+      : null;
+
     const id = crypto.randomUUID();
     const createdByAgentId = actor.kind === "agent" ? actor.agent.id : null;
 
@@ -161,6 +186,15 @@ export async function POST(req: Request) {
       rrule: rrule || null,
       exdates: exdatesString,
       colorOverride: colorOverride || null,
+      url: url || null,
+      status: eventStatus || null,
+      priority: typeof priority === "number" ? priority : null,
+      transparency: transparency || null,
+      classification: classification || null,
+      geo: geo || null,
+      organizer: organizerString,
+      attendees: attendeesString,
+      alarms: alarmsString,
       createdByAgentId,
     });
 
@@ -244,6 +278,15 @@ export async function PATCH(req: Request) {
       "rrule",
       "exdates",
       "colorOverride",
+      "url",
+      "status",
+      "priority",
+      "transparency",
+      "classification",
+      "geo",
+      "organizer",
+      "attendees",
+      "alarms",
     ];
 
     for (const key of allowedKeys) {
@@ -266,6 +309,18 @@ export async function PATCH(req: Request) {
       } else if (typeof updatePayload.exdates !== "string" && updatePayload.exdates !== null) {
         updatePayload.exdates = null;
       }
+    }
+
+    if ("organizer" in updatePayload && typeof updatePayload.organizer === "object" && updatePayload.organizer !== null) {
+      updatePayload.organizer = JSON.stringify(updatePayload.organizer);
+    }
+
+    if ("attendees" in updatePayload && Array.isArray(updatePayload.attendees)) {
+      updatePayload.attendees = JSON.stringify(updatePayload.attendees);
+    }
+
+    if ("alarms" in updatePayload && Array.isArray(updatePayload.alarms)) {
+      updatePayload.alarms = JSON.stringify(updatePayload.alarms);
     }
 
     if (actor.kind === "agent") {

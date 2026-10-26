@@ -265,6 +265,16 @@ export const events = sqliteTable("events", {
   rrule: text("rrule"),
   exdates: text("exdates"), // JSON array or comma-separated list of YYYY-MM-DD excluded dates
   colorOverride: text("color_override"),
+  // RFC 5545 Lossless Metadata & Future Kiosk Features
+  url: text("url"),
+  status: text("status"), // CONFIRMED | TENTATIVE | CANCELLED
+  priority: integer("priority"), // 1 - 9
+  transparency: text("transparency"), // OPAQUE | TRANSPARENT
+  classification: text("classification"), // PUBLIC | PRIVATE | CONFIDENTIAL
+  geo: text("geo"), // "lat;lon"
+  organizer: text("organizer"), // JSON string: { name, email }
+  attendees: text("attendees"), // JSON string: [{ name, email, status, role }]
+  alarms: text("alarms"), // JSON string: [{ trigger, action, description }]
   createdByAgentId: text("created_by_agent_id"),
   createdAt: text("created_at")
     .notNull()
