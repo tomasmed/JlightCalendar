@@ -1,8 +1,8 @@
 version: "1"
 
 # Target LLM (LiteLLM provider/model notation)
-# Supported: gemini/gemini-2.0-flash, anthropic/claude-3-5-sonnet-20241022, openai/gpt-4o, etc.
-model: "gemini/gemini-2.0-flash"
+# Supported: gemini/gemini-3.8-flash, anthropic/claude-3-5-sonnet-20241022, openai/gpt-4o, etc.
+model: "gemini/gemini-3.8-flash"
 
 # Agent harness: "native" (fastest, lightweight) or "strands" (AWS Strands with MCP)
 harness: "native"

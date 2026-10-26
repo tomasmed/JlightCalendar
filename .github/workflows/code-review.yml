@@ -25,7 +25,7 @@ jobs:
       - name: Run CI Code Reviewer
         uses: tomasmed/ci-code-reviewer@master
         with:
-          model: "gemini/gemini-2.0-flash"
+          model: "gemini/gemini-3.8-flash"
           github_token: ${{ secrets.GITHUB_TOKEN }}
           config_path: ".ci-reviewer.yml"
           harness: "native"
