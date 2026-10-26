@@ -820,6 +820,14 @@ const sampleIcsContent = [
   "SUMMARY:Gym Class\\, 5th Grade",
   "DESCRIPTION:Bring sneakers and water bottle.\\nLockers provided.",
   "LOCATION:Gymnasium B",
+  "URL:https://academy.org/gym",
+  "STATUS:CONFIRMED",
+  "PRIORITY:1",
+  "TRANSP:OPAQUE",
+  "CLASS:PUBLIC",
+  "GEO:37.386013;-122.082932",
+  "ORGANIZER;CN=Coach Carter:mailto:carter@academy.org",
+  "ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;CN=Leo:mailto:leo@jlight.test",
   "DTSTART:20261103T133000",
   "DTEND:20261103T143000",
   "CATEGORIES:School,Physical Education",
@@ -862,8 +870,19 @@ assert(
     gymEvt.location === "Gymnasium B" &&
     gymEvt.startTime === "2026-11-03T13:30:00" &&
     gymEvt.endTime === "2026-11-03T14:30:00" &&
-    gymEvt.isAllDay === false,
-  "parseIcsCalendar() parses timed event with unescaped description and location"
+    gymEvt.isAllDay === false &&
+    gymEvt.url === "https://academy.org/gym" &&
+    gymEvt.status === "CONFIRMED" &&
+    gymEvt.priority === 1 &&
+    gymEvt.transparency === "OPAQUE" &&
+    gymEvt.classification === "PUBLIC" &&
+    gymEvt.geo === "37.386013;-122.082932" &&
+    gymEvt.organizer?.name === "Coach Carter" &&
+    gymEvt.organizer?.email === "carter@academy.org" &&
+    gymEvt.attendees?.[0]?.name === "Leo" &&
+    gymEvt.attendees?.[0]?.email === "leo@jlight.test" &&
+    gymEvt.attendees?.[0]?.status === "ACCEPTED",
+  "parseIcsCalendar() parses URL, STATUS, PRIORITY, TRANSP, CLASS, GEO, ORGANIZER, and ATTENDEE"
 );
 
 const holidayEvt = parsedCal.events.find((e) => e.externalUid === "school_holiday_002@academy.org");
@@ -883,8 +902,46 @@ assert(
     bandEvt.rrule === "FREQ=WEEKLY;BYDAY=WE" &&
     Array.isArray(bandEvt.exdates) &&
     bandEvt.exdates.includes("2026-11-25") &&
-    bandEvt.endTime === "2026-11-04T16:30:00",
-  "parseIcsCalendar() parses DURATION, RRULE, and EXDATE while safely ignoring nested VALARM"
+    bandEvt.endTime === "2026-11-04T16:30:00" &&
+    bandEvt.alarms?.[0]?.trigger === "-PT15M" &&
+    bandEvt.alarms?.[0]?.action === "DISPLAY" &&
+    bandEvt.alarms?.[0]?.description === "Reminder",
+  "parseIcsCalendar() parses DURATION, RRULE, EXDATE, and VALARM"
+);
+
+// Round-trip verification: generateIcsCalendar -> parseIcsCalendar
+const richEvent = {
+  id: "evt_rich",
+  title: "Parent Teacher Conference",
+  startTime: "2026-11-03T16:00:00",
+  endTime: "2026-11-03T16:30:00",
+  url: "https://meet.google.com/abc-defg-hij",
+  status: "CONFIRMED",
+  priority: 2,
+  transparency: "OPAQUE",
+  classification: "PRIVATE",
+  geo: "40.7128;-74.0060",
+  organizer: { name: "Principal Vance", email: "vance@school.org" },
+  attendees: [{ name: "Alice", email: "alice@jlight.test", status: "ACCEPTED" }],
+  alarms: [{ trigger: "-PT30M", action: "DISPLAY", description: "Meeting soon" }],
+};
+
+const richDoc = generateIcsCalendar([richEvent], {
+  calendarName: "Rich Export",
+  startDate: "2026-11-03",
+  endDate: "2026-11-03",
+});
+const richParsed = parseIcsCalendar(richDoc);
+assert(
+  richParsed.events.length === 1 &&
+    richParsed.events[0].url === "https://meet.google.com/abc-defg-hij" &&
+    richParsed.events[0].status === "CONFIRMED" &&
+    richParsed.events[0].priority === 2 &&
+    richParsed.events[0].classification === "PRIVATE" &&
+    richParsed.events[0].organizer?.name === "Principal Vance" &&
+    richParsed.events[0].attendees?.[0]?.name === "Alice" &&
+    richParsed.events[0].alarms?.[0]?.trigger === "-PT30M",
+  "generateIcsCalendar() and parseIcsCalendar() provide lossless round-trip for all RFC 5545 properties"
 );
 
 // Round-trip verification: generateIcsCalendar -> parseIcsCalendar

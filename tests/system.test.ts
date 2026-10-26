@@ -38,6 +38,8 @@ async function runSystemTests() {
   console.log("====================================================");
 
   const { db, client } = await import("../src/db");
+  const { events } = await import("../src/db/schema");
+  const { eq } = await import("drizzle-orm");
   const { migrate } = await import("drizzle-orm/libsql/migrator");
   const { ensureDatabaseSchema } = await import("../src/db/ensure-schema");
   const { setMockTestSession } = await import("../src/auth");
@@ -1081,6 +1083,10 @@ async function runSystemTests() {
     "SUMMARY:Robotics Club Workshop",
     "DESCRIPTION:Bring laptops and robot chassis.",
     "LOCATION:Science Lab 4",
+    "URL:https://school.org/robotics",
+    "STATUS:CONFIRMED",
+    "PRIORITY:1",
+    "ORGANIZER;CN=Dr. Turing:mailto:turing@school.org",
     "DTSTART:20261112T160000",
     "DTEND:20261112T173000",
     "END:VEVENT",
@@ -1124,6 +1130,21 @@ async function runSystemTests() {
         importData.calendarName === "Robotics & Academic Calendar"
     ),
     "POST /api/events/import successfully parsed and imported 3 RFC 5545 events assigned to Leo"
+  );
+
+  const [persistedRobotics] = await db
+    .select()
+    .from(events)
+    .where(eq(events.externalUid, "robotics_workshop_001@school.org"));
+  assert(
+    Boolean(
+      persistedRobotics &&
+        persistedRobotics.url === "https://school.org/robotics" &&
+        persistedRobotics.status === "CONFIRMED" &&
+        persistedRobotics.priority === 1 &&
+        persistedRobotics.organizer?.includes("Dr. Turing")
+    ),
+    "POST /api/events/import persists lossless RFC 5545 properties (URL, STATUS, PRIORITY, ORGANIZER) in DB"
   );
 
   // Re-run import with deduplicate=true to verify deduplication

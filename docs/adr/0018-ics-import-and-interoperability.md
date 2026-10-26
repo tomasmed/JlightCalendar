@@ -14,14 +14,20 @@ However, calendar migration and interoperability is a two-way street. Families, 
    - Safely isolates nested component blocks (e.g., `BEGIN:VALARM ... END:VALARM` and `BEGIN:VTIMEZONE ... END:VTIMEZONE`) to prevent alarm alarms or timezone parameters from polluting event descriptions.
    - Converts exclusive all-day `DTEND` dates per RFC 5545 (e.g., `DTSTART:20261111`, `DTEND:20261112`) to inclusive local end timestamps (`2026-11-11T23:59:59`) to eliminate multi-day bleed on wall kiosks.
 
-2. **Dedicated REST API (`POST /api/events/import`)**:
+2. **Lossless RFC 5545 Backend Foundation (`src/db/schema.ts` & `src/db/ensure-schema.ts`)**:
+   - Extended the `events` table with first-class columns for standard RFC 5545 properties: `url`, `status` (`CONFIRMED` / `TENTATIVE` / `CANCELLED`), `priority` (1-9), `transparency` (`OPAQUE` / `TRANSPARENT`), `classification` (`PUBLIC` / `PRIVATE` / `CONFIDENTIAL`), `geo` coordinates, `organizer` metadata, `attendees` array, and `alarms` (`VALARM` triggers).
+   - Ensured zero downtime / automatic runtime schema healing via `ensureDatabaseSchema()`.
+   - Enabled full round-trip preservation: importing an external calendar and re-exporting it preserves all rich metadata, meeting links, attendance status, and reminder alarms without stripping data.
+   - Decoupled backend ingestion from UI rollout: frontend views stay uncluttered today while allowing future UI additions (e.g. video call shortcuts, cancelled strikethroughs, or alarm chimes) to instantly leverage pre-existing data without database migrations.
+
+3. **Dedicated REST API (`POST /api/events/import`)**:
    - Accepts `application/json`, `multipart/form-data` (file uploads), or `text/calendar` payloads.
    - Enforces actor permissions via `verifyActorGalaxyAccess(actor, galaxyId, { requireWrite: true })`.
    - Incorporates smart deduplication: detects existing events in the target Galaxy by `externalUid` or composite signature (`title__startTime`) to prevent duplicate records when re-importing updated calendars.
    - Allows optional assignment of all imported events to a specific family member/inhabitant, or sets them as shared whole-family events (`memberId = null`).
    - Returns structured metadata: `{ success: true, calendarName, totalFound, importedCount, skippedCount, events }`.
 
-3. **Touch-Ergonomic UI (`ImportCalendarModal` & `KioskHeader`)**:
+4. **Touch-Ergonomic UI (`ImportCalendarModal` & `KioskHeader`)**:
    - `ImportCalendarModal`: Provides dual input modes:
      - Drag-and-drop file upload zone with file picker.
      - Direct raw text paste for quick clipboard imports.
@@ -30,7 +36,7 @@ However, calendar migration and interoperability is a two-way street. Families, 
    - Adheres strictly to the `>= 48px x 48px` kiosk touch ergonomics and React Rules of Hooks AST requirements.
    - Added an ambient `Import .ics` button in `KioskHeader` adjacent to `Export .ics`.
 
-4. **Agent & CLI Interoperability (`src/app/llms.txt/route.ts`)**:
+5. **Agent & CLI Interoperability (`src/app/llms.txt/route.ts`)**:
    - Autonomous AI agents operating with `jlight_ag_...` PAT tokens can invoke `POST /api/events/import` directly to synchronize external schedules into family calendars.
 
 ## Consequences

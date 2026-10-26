@@ -197,6 +197,17 @@ export async function POST(req: Request) {
         evt.exdates && evt.exdates.length > 0
           ? JSON.stringify(evt.exdates)
           : null;
+      const organizerString = evt.organizer
+        ? JSON.stringify(evt.organizer)
+        : null;
+      const attendeesString =
+        evt.attendees && evt.attendees.length > 0
+          ? JSON.stringify(evt.attendees)
+          : null;
+      const alarmsString =
+        evt.alarms && evt.alarms.length > 0
+          ? JSON.stringify(evt.alarms)
+          : null;
 
       await db.insert(events).values({
         id,
@@ -213,6 +224,15 @@ export async function POST(req: Request) {
         isAllDay: evt.isAllDay,
         rrule: evt.rrule || null,
         exdates: exdatesString,
+        url: evt.url || null,
+        status: evt.status || null,
+        priority: evt.priority || null,
+        transparency: evt.transparency || null,
+        classification: evt.classification || null,
+        geo: evt.geo || null,
+        organizer: organizerString,
+        attendees: attendeesString,
+        alarms: alarmsString,
         createdByAgentId,
       });
 

@@ -21,6 +21,15 @@ export interface IcsExportableEvent {
   memberId?: string | null;
   memberIds?: string[] | string | null;
   colorOverride?: string | null;
+  url?: string | null;
+  status?: string | null;
+  priority?: number | null;
+  transparency?: string | null;
+  classification?: string | null;
+  geo?: string | null;
+  organizer?: string | { name?: string; email?: string } | null;
+  attendees?: string | Array<{ name?: string; email?: string; status?: string; role?: string }> | null;
+  alarms?: string | Array<{ trigger?: string; action?: string; description?: string }> | null;
   createdAt?: string | null;
 }
 
@@ -42,6 +51,24 @@ export interface IcsExportOptions {
   prodId?: string;
 }
 
+export interface ParsedIcsAlarm {
+  trigger?: string;
+  action?: string;
+  description?: string;
+}
+
+export interface ParsedIcsAttendee {
+  name?: string;
+  email?: string;
+  status?: string;
+  role?: string;
+}
+
+export interface ParsedIcsOrganizer {
+  name?: string;
+  email?: string;
+}
+
 export interface ParsedIcsEvent {
   externalUid: string;
   title: string;
@@ -53,6 +80,15 @@ export interface ParsedIcsEvent {
   rrule?: string | null;
   exdates?: string[];
   categories?: string[];
+  url?: string | null;
+  status?: string | null;
+  priority?: number | null;
+  transparency?: string | null;
+  classification?: string | null;
+  geo?: string | null;
+  organizer?: ParsedIcsOrganizer | null;
+  attendees?: ParsedIcsAttendee[];
+  alarms?: ParsedIcsAlarm[];
 }
 
 export interface ParsedIcsCalendar {
@@ -364,6 +400,106 @@ export function generateIcsCalendar(
       lines.push(foldIcsLine(`LOCATION:${escapeIcsText(evt.location)}`));
     }
 
+    if (evt.url) {
+      lines.push(foldIcsLine(`URL:${evt.url.trim()}`));
+    }
+
+    if (evt.status) {
+      lines.push(`STATUS:${evt.status.toUpperCase().trim()}`);
+    }
+
+    if (typeof evt.priority === "number" && !isNaN(evt.priority)) {
+      lines.push(`PRIORITY:${evt.priority}`);
+    }
+
+    if (evt.transparency) {
+      lines.push(`TRANSP:${evt.transparency.toUpperCase().trim()}`);
+    }
+
+    if (evt.classification) {
+      lines.push(`CLASS:${evt.classification.toUpperCase().trim()}`);
+    }
+
+    if (evt.geo) {
+      lines.push(`GEO:${evt.geo.trim()}`);
+    }
+
+    if (evt.organizer) {
+      let org = evt.organizer;
+      if (typeof org === "string") {
+        try {
+          org = JSON.parse(org);
+        } catch {
+          org = { email: evt.organizer as string };
+        }
+      }
+      if (typeof org === "object" && org !== null) {
+        const cn = org.name ? `;CN=${escapeIcsText(org.name)}` : "";
+        lines.push(
+          foldIcsLine(
+            `ORGANIZER${cn}:mailto:${org.email || "noreply@jlightcalendar.local"}`
+          )
+        );
+      }
+    }
+
+    if (evt.attendees) {
+      let atts = evt.attendees;
+      if (typeof atts === "string") {
+        try {
+          atts = JSON.parse(atts);
+        } catch {
+          atts = [];
+        }
+      }
+      if (Array.isArray(atts)) {
+        for (const att of atts) {
+          if (att && typeof att === "object") {
+            const role = att.role ? `;ROLE=${att.role.toUpperCase()}` : "";
+            const partstat = att.status
+              ? `;PARTSTAT=${att.status.toUpperCase()}`
+              : "";
+            const cn = att.name ? `;CN=${escapeIcsText(att.name)}` : "";
+            lines.push(
+              foldIcsLine(
+                `ATTENDEE${role}${partstat}${cn}:mailto:${
+                  att.email || "guest@jlightcalendar.local"
+                }`
+              )
+            );
+          }
+        }
+      }
+    }
+
+    if (evt.alarms) {
+      let alms = evt.alarms;
+      if (typeof alms === "string") {
+        try {
+          alms = JSON.parse(alms);
+        } catch {
+          alms = [];
+        }
+      }
+      if (Array.isArray(alms)) {
+        for (const alm of alms) {
+          if (alm && typeof alm === "object") {
+            lines.push("BEGIN:VALARM");
+            lines.push(`TRIGGER:${alm.trigger || "-PT15M"}`);
+            lines.push(`ACTION:${(alm.action || "DISPLAY").toUpperCase()}`);
+            if (alm.description || evt.title) {
+              lines.push(
+                foldIcsLine(
+                  `DESCRIPTION:${escapeIcsText(alm.description || evt.title)}`
+                )
+              );
+            }
+            lines.push("END:VALARM");
+          }
+        }
+      }
+    }
+
     // Preserve RRULE + EXDATE when exported in rrule mode
     if (evt.rrule && rruleToFrequency(evt.rrule) !== "none") {
       let rruleClean = evt.rrule.replace(/^RRULE:/i, "").trim();
@@ -550,11 +686,21 @@ export function parseIcsCalendar(icsContent: string): ParsedIcsCalendar {
     rruleRaw?: string;
     exdates: string[];
     categories: string[];
+    url?: string;
+    status?: string;
+    priority?: number;
+    transparency?: string;
+    classification?: string;
+    geo?: string;
+    organizer?: ParsedIcsOrganizer;
+    attendees: ParsedIcsAttendee[];
+    alarms: ParsedIcsAlarm[];
   }
 
   let inVCalendar = false;
   let inVEvent = false;
   let inVAlarm = false;
+  let currentAlarm: Partial<ParsedIcsAlarm> | null = null;
   let currentEvent: RawEventCollector | null = null;
 
   for (const rawLine of rawLines) {
@@ -572,13 +718,21 @@ export function parseIcsCalendar(icsContent: string): ParsedIcsCalendar {
 
     if (line === "BEGIN:VALARM") {
       inVAlarm = true;
+      currentAlarm = {};
       continue;
     }
     if (line === "END:VALARM") {
       inVAlarm = false;
+      if (currentEvent && currentAlarm) {
+        currentEvent.alarms.push({
+          trigger: currentAlarm.trigger,
+          action: currentAlarm.action || "DISPLAY",
+          description: currentAlarm.description,
+        });
+      }
+      currentAlarm = null;
       continue;
     }
-    if (inVAlarm) continue;
 
     if (line === "BEGIN:VEVENT") {
       inVEvent = true;
@@ -587,6 +741,8 @@ export function parseIcsCalendar(icsContent: string): ParsedIcsCalendar {
         dtEndParams: {},
         exdates: [],
         categories: [],
+        attendees: [],
+        alarms: [],
       };
       continue;
     }
@@ -658,6 +814,15 @@ export function parseIcsCalendar(icsContent: string): ParsedIcsCalendar {
           rrule: currentEvent.rruleRaw ? currentEvent.rruleRaw.replace(/^RRULE:/i, "").trim() : null,
           exdates: currentEvent.exdates.length > 0 ? currentEvent.exdates : undefined,
           categories: currentEvent.categories.length > 0 ? currentEvent.categories : undefined,
+          url: currentEvent.url || null,
+          status: currentEvent.status || null,
+          priority: currentEvent.priority || null,
+          transparency: currentEvent.transparency || null,
+          classification: currentEvent.classification || null,
+          geo: currentEvent.geo || null,
+          organizer: currentEvent.organizer || null,
+          attendees: currentEvent.attendees.length > 0 ? currentEvent.attendees : undefined,
+          alarms: currentEvent.alarms.length > 0 ? currentEvent.alarms : undefined,
         });
       }
       currentEvent = null;
@@ -690,6 +855,17 @@ export function parseIcsCalendar(icsContent: string): ParsedIcsCalendar {
       }
     }
 
+    if (inVAlarm && currentAlarm) {
+      if (propName === "TRIGGER") {
+        currentAlarm.trigger = propValue.trim();
+      } else if (propName === "ACTION") {
+        currentAlarm.action = propValue.trim();
+      } else if (propName === "DESCRIPTION") {
+        currentAlarm.description = unescapeIcsText(propValue);
+      }
+      continue;
+    }
+
     if (inVEvent && currentEvent) {
       switch (propName) {
         case "UID":
@@ -704,6 +880,45 @@ export function parseIcsCalendar(icsContent: string): ParsedIcsCalendar {
         case "LOCATION":
           currentEvent.location = propValue;
           break;
+        case "URL":
+          currentEvent.url = propValue.trim();
+          break;
+        case "STATUS":
+          currentEvent.status = propValue.trim().toUpperCase();
+          break;
+        case "PRIORITY": {
+          const pri = parseInt(propValue.trim(), 10);
+          if (!isNaN(pri)) currentEvent.priority = pri;
+          break;
+        }
+        case "TRANSP":
+          currentEvent.transparency = propValue.trim().toUpperCase();
+          break;
+        case "CLASS":
+          currentEvent.classification = propValue.trim().toUpperCase();
+          break;
+        case "GEO":
+          currentEvent.geo = propValue.trim();
+          break;
+        case "ORGANIZER": {
+          const orgEmail = propValue.replace(/^mailto:/i, "").trim();
+          const orgName = params["CN"] ? unescapeIcsText(params["CN"]) : undefined;
+          currentEvent.organizer = { name: orgName, email: orgEmail };
+          break;
+        }
+        case "ATTENDEE": {
+          const attEmail = propValue.replace(/^mailto:/i, "").trim();
+          const attName = params["CN"] ? unescapeIcsText(params["CN"]) : undefined;
+          const attRole = params["ROLE"] ? params["ROLE"].toUpperCase() : undefined;
+          const attStatus = params["PARTSTAT"] ? params["PARTSTAT"].toUpperCase() : undefined;
+          currentEvent.attendees.push({
+            name: attName,
+            email: attEmail,
+            role: attRole,
+            status: attStatus,
+          });
+          break;
+        }
         case "DTSTART":
           currentEvent.dtStartRaw = propValue.trim();
           currentEvent.dtStartParams = params;

@@ -126,6 +126,15 @@ export async function ensureDatabaseSchema(): Promise<void> {
             rrule text,
             exdates text,
             color_override text,
+            url text,
+            status text,
+            priority integer,
+            transparency text,
+            classification text,
+            geo text,
+            organizer text,
+            attendees text,
+            alarms text,
             created_by_agent_id text,
             created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
           );
@@ -290,6 +299,33 @@ export async function ensureDatabaseSchema(): Promise<void> {
           console.log("🛠️ Adding missing column 'exdates' to 'events' table...");
           await client.execute("ALTER TABLE events ADD COLUMN exdates text;");
           console.log("✅ Added 'exdates' column to 'events'.");
+        }
+        if (!eventCols.has("url")) {
+          await client.execute("ALTER TABLE events ADD COLUMN url text;");
+        }
+        if (!eventCols.has("status")) {
+          await client.execute("ALTER TABLE events ADD COLUMN status text;");
+        }
+        if (!eventCols.has("priority")) {
+          await client.execute("ALTER TABLE events ADD COLUMN priority integer;");
+        }
+        if (!eventCols.has("transparency")) {
+          await client.execute("ALTER TABLE events ADD COLUMN transparency text;");
+        }
+        if (!eventCols.has("classification")) {
+          await client.execute("ALTER TABLE events ADD COLUMN classification text;");
+        }
+        if (!eventCols.has("geo")) {
+          await client.execute("ALTER TABLE events ADD COLUMN geo text;");
+        }
+        if (!eventCols.has("organizer")) {
+          await client.execute("ALTER TABLE events ADD COLUMN organizer text;");
+        }
+        if (!eventCols.has("attendees")) {
+          await client.execute("ALTER TABLE events ADD COLUMN attendees text;");
+        }
+        if (!eventCols.has("alarms")) {
+          await client.execute("ALTER TABLE events ADD COLUMN alarms text;");
         }
       }
 
