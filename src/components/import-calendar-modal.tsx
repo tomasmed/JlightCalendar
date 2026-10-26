@@ -18,6 +18,7 @@ import {
 import { Inhabitant } from "./inhabitants-modal";
 import { parseIcsCalendar, ParsedIcsCalendar } from "@/lib/ics";
 import { getRecurrenceLabel } from "@/lib/recurrence";
+import { adaptMemberColor, useActiveTheme } from "@/lib/theme";
 
 export interface ImportCalendarModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export interface ImportCalendarModalProps {
   galaxyId: string;
   galaxyName: string;
   inhabitants: Inhabitant[];
+  familyColor?: string;
   onImportComplete?: () => void;
 }
 
@@ -34,9 +36,11 @@ export function ImportCalendarModal({
   galaxyId,
   galaxyName,
   inhabitants,
+  familyColor = "#ef4444",
   onImportComplete,
 }: ImportCalendarModalProps) {
   // All React hooks declared unconditionally at top
+  const activeTheme = useActiveTheme();
   const [tab, setTab] = useState<"file" | "paste">("file");
   const [icsText, setIcsText] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
@@ -55,6 +59,17 @@ export function ImportCalendarModal({
   const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Compute theme-adapted member color for the currently selected inhabitant
+  const activeMemberColor = useMemo(() => {
+    if (selectedMemberId === "all") {
+      return adaptMemberColor(familyColor || "#ef4444", activeTheme);
+    }
+    const member = inhabitants.find((inh) => inh.id === selectedMemberId);
+    return member
+      ? adaptMemberColor(member.color, activeTheme)
+      : adaptMemberColor(familyColor || "#ef4444", activeTheme);
+  }, [selectedMemberId, inhabitants, familyColor, activeTheme]);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -200,7 +215,7 @@ export function ImportCalendarModal({
         {/* Modal Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-cosmos-border shrink-0 bg-cosmos-surface/80">
           <div className="flex items-center gap-2.5">
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+            <div className="p-2.5 rounded-xl bg-starlight/10 border border-starlight/20 text-starlight">
               <Upload className="w-5 h-5" />
             </div>
             <div>
@@ -212,7 +227,7 @@ export function ImportCalendarModal({
               </h2>
               <p className="text-xs text-cosmos-muted">
                 Import events into{" "}
-                <span className="text-emerald-400 font-semibold">
+                <span className="text-starlight font-semibold">
                   {galaxyName}
                 </span>{" "}
                 from Google, Apple, or Outlook
@@ -222,7 +237,7 @@ export function ImportCalendarModal({
           <button
             onClick={onClose}
             aria-label="Close import calendar modal"
-            className="p-2.5 rounded-xl text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-card transition min-w-[48px] min-h-[48px] flex items-center justify-center"
+            className="p-2.5 rounded-xl text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-card transition min-w-[48px] min-h-[48px] flex items-center justify-center cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -233,7 +248,7 @@ export function ImportCalendarModal({
           {importResult ? (
             /* Success State */
             <div className="py-8 flex flex-col items-center text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <div className="w-16 h-16 rounded-full bg-starlight/20 border border-starlight/30 flex items-center justify-center text-starlight">
                 <CheckCircle2 className="w-9 h-9" />
               </div>
               <div className="space-y-1">
@@ -242,7 +257,7 @@ export function ImportCalendarModal({
                 </h3>
                 <p className="text-sm text-cosmos-muted max-w-md">
                   Successfully added{" "}
-                  <span className="text-emerald-400 font-bold">
+                  <span className="text-starlight font-bold">
                     {importResult.importedCount}
                   </span>{" "}
                   event{importResult.importedCount === 1 ? "" : "s"} to{" "}
@@ -267,13 +282,13 @@ export function ImportCalendarModal({
                     setIcsText("");
                     setFileName(null);
                   }}
-                  className="px-4 py-3 rounded-xl border border-cosmos-border bg-cosmos-card hover:bg-cosmos-cardHover text-sm font-semibold text-cosmos-text transition min-h-[48px]"
+                  className="px-4 py-3 rounded-xl border border-cosmos-border bg-cosmos-card hover:bg-cosmos-cardHover text-sm font-semibold text-cosmos-text transition min-h-[48px] cursor-pointer"
                 >
                   Import Another File
                 </button>
                 <button
                   onClick={onClose}
-                  className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-sm font-bold text-black transition min-h-[48px] shadow-lg shadow-emerald-500/20"
+                  className="px-6 py-3 rounded-xl theme-focus-pill text-sm font-bold transition min-h-[48px] shadow-lg cursor-pointer"
                 >
                   Done
                 </button>
@@ -283,13 +298,13 @@ export function ImportCalendarModal({
             /* Upload / Configuration State */
             <>
               {/* Method Switcher Tabs */}
-              <div className="flex rounded-xl bg-cosmos-canvas/60 p-1 border border-cosmos-border shrink-0">
+              <div className="flex rounded-xl bg-cosmos-deep/60 p-1 border border-cosmos-border shrink-0">
                 <button
                   type="button"
                   onClick={() => setTab("file")}
-                  className={`flex-1 py-2.5 px-3 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition min-h-[44px] ${
+                  className={`flex-1 py-2.5 px-3 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition min-h-[44px] cursor-pointer ${
                     tab === "file"
-                      ? "bg-cosmos-card text-emerald-400 shadow-sm border border-emerald-500/20"
+                      ? "theme-focus-pill"
                       : "text-cosmos-muted hover:text-cosmos-text"
                   }`}
                 >
@@ -299,9 +314,9 @@ export function ImportCalendarModal({
                 <button
                   type="button"
                   onClick={() => setTab("paste")}
-                  className={`flex-1 py-2.5 px-3 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition min-h-[44px] ${
+                  className={`flex-1 py-2.5 px-3 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition min-h-[44px] cursor-pointer ${
                     tab === "paste"
-                      ? "bg-cosmos-card text-emerald-400 shadow-sm border border-emerald-500/20"
+                      ? "theme-focus-pill"
                       : "text-cosmos-muted hover:text-cosmos-text"
                   }`}
                 >
@@ -329,17 +344,17 @@ export function ImportCalendarModal({
                     onClick={() => fileInputRef.current?.click()}
                     className={`border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition flex flex-col items-center justify-center gap-3 ${
                       isDragging
-                        ? "border-emerald-400 bg-emerald-500/10 scale-[0.99]"
-                        : "border-cosmos-border hover:border-emerald-500/40 bg-cosmos-canvas/40 hover:bg-cosmos-card/40"
+                        ? "border-starlight bg-starlight/10 scale-[0.99]"
+                        : "border-cosmos-border hover:border-starlight/40 bg-cosmos-surface/40 hover:bg-cosmos-card/40"
                     }`}
                   >
-                    <div className="p-3.5 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <div className="p-3.5 rounded-2xl bg-starlight/10 text-starlight border border-starlight/20">
                       <Calendar className="w-7 h-7" />
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-cosmos-text">
                         {fileName ? (
-                          <span className="text-emerald-400">{fileName}</span>
+                          <span className="text-starlight font-bold">{fileName}</span>
                         ) : (
                           "Click to browse or drag & drop .ics file"
                         )}
@@ -354,7 +369,7 @@ export function ImportCalendarModal({
                         e.stopPropagation();
                         fileInputRef.current?.click();
                       }}
-                      className="mt-1 px-4 py-2 rounded-xl text-xs font-bold bg-cosmos-card hover:bg-cosmos-cardHover border border-cosmos-border text-cosmos-text transition min-h-[44px] flex items-center justify-center"
+                      className="mt-1 px-4 py-2 rounded-xl text-xs font-bold bg-cosmos-card hover:bg-cosmos-cardHover border border-cosmos-border text-cosmos-text transition min-h-[44px] flex items-center justify-center cursor-pointer"
                     >
                       Select File
                     </button>
@@ -376,7 +391,7 @@ export function ImportCalendarModal({
                     value={icsText}
                     onChange={(e) => handlePasteChange(e.target.value)}
                     placeholder="BEGIN:VCALENDAR&#10;VERSION:2.0&#10;PRODID:-//Example//EN&#10;BEGIN:VEVENT&#10;SUMMARY:Soccer Practice&#10;..."
-                    className="w-full h-36 p-3.5 rounded-xl bg-cosmos-canvas border border-cosmos-border text-xs font-mono text-cosmos-text focus:outline-none focus:border-emerald-400 transition"
+                    className="w-full h-36 p-3.5 rounded-xl bg-cosmos-surface border border-cosmos-border text-xs font-mono text-cosmos-text focus:outline-none focus:border-starlight focus:ring-1 focus:ring-starlight transition"
                   />
                   {icsText && !parsedCalendar && (
                     <button
@@ -384,7 +399,7 @@ export function ImportCalendarModal({
                       onClick={() =>
                         handleParseContent(icsText, "Pasted Content")
                       }
-                      className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-black hover:bg-emerald-400 transition min-h-[44px]"
+                      className="px-4 py-2 rounded-xl text-xs font-bold theme-focus-pill transition min-h-[44px] cursor-pointer"
                     >
                       Parse Calendar
                     </button>
@@ -404,9 +419,9 @@ export function ImportCalendarModal({
               {parsedCalendar && eventCount > 0 && (
                 <div className="space-y-4 pt-2 border-t border-cosmos-border">
                   {/* Summary Bar */}
-                  <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
+                  <div className="p-3.5 rounded-xl bg-starlight/10 border border-starlight/20 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <Sparkles className="w-4 h-4 text-emerald-400" />
+                      <Sparkles className="w-4 h-4 text-starlight" />
                       <span className="text-xs sm:text-sm font-bold text-cosmos-text">
                         Ready to import {eventCount} event
                         {eventCount === 1 ? "" : "s"}
@@ -415,7 +430,7 @@ export function ImportCalendarModal({
                           : ""}
                       </span>
                     </div>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-starlight/20 text-starlight border border-starlight/30">
                       RFC 5545 Verified
                     </span>
                   </div>
@@ -424,42 +439,83 @@ export function ImportCalendarModal({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* Attribution / Inhabitant assignment */}
                     <div className="space-y-1.5">
-                      <label
-                        htmlFor="import-member-select"
-                        className="block text-xs font-semibold text-cosmos-muted flex items-center gap-1.5"
-                      >
-                        <Users className="w-3.5 h-3.5" />
-                        <span>Assign to Family Member</span>
-                      </label>
-                      <select
-                        id="import-member-select"
-                        value={selectedMemberId}
-                        onChange={(e) => setSelectedMemberId(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl bg-cosmos-canvas border border-cosmos-border text-xs sm:text-sm text-cosmos-text focus:outline-none focus:border-emerald-400 transition min-h-[48px]"
-                      >
-                        <option value="all">
-                          Whole Family / Shared (No single owner)
-                        </option>
-                        {inhabitants.map((inh) => (
-                          <option key={inh.id} value={inh.id}>
-                            {inh.displayName} ({inh.role})
+                      <div className="flex items-center justify-between">
+                        <label
+                          htmlFor="import-member-select"
+                          className="text-xs font-semibold text-cosmos-muted flex items-center gap-1.5"
+                        >
+                          <Users className="w-3.5 h-3.5 text-starlight" />
+                          <span>Assign to Family Member</span>
+                        </label>
+                        <span
+                          className="text-[11px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1.5 transition-colors"
+                          style={{
+                            borderColor: `${activeMemberColor}50`,
+                            backgroundColor: `${activeMemberColor}1a`,
+                            color: activeMemberColor,
+                          }}
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0 shadow-sm"
+                            style={{ backgroundColor: activeMemberColor }}
+                          />
+                          <span>
+                            {selectedMemberId === "all"
+                              ? "Everyone"
+                              : inhabitants.find((i) => i.id === selectedMemberId)?.displayName || "Member"}
+                          </span>
+                        </span>
+                      </div>
+
+                      <div className="relative">
+                        <div
+                          className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full shrink-0 pointer-events-none shadow-sm transition-colors duration-150 border border-cosmos-border"
+                          style={{ backgroundColor: activeMemberColor }}
+                        />
+                        <select
+                          id="import-member-select"
+                          value={selectedMemberId}
+                          onChange={(e) => setSelectedMemberId(e.target.value)}
+                          className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-cosmos-surface border border-cosmos-border text-xs sm:text-sm text-cosmos-text focus:outline-none focus:border-starlight focus:ring-1 focus:ring-starlight transition min-h-[48px] cursor-pointer"
+                          style={{
+                            borderLeftWidth: "4px",
+                            borderLeftColor: activeMemberColor,
+                          }}
+                        >
+                          <option
+                            value="all"
+                            className="bg-cosmos-card text-cosmos-text py-1"
+                          >
+                            🌟 Whole Family / Shared (No single owner)
                           </option>
-                        ))}
-                      </select>
+                          {inhabitants.map((inh) => {
+                            const adaptedColor = adaptMemberColor(inh.color, activeTheme);
+                            return (
+                              <option
+                                key={inh.id}
+                                value={inh.id}
+                                className="bg-cosmos-card text-cosmos-text py-1"
+                              >
+                                ● {inh.displayName} ({inh.role})
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
                     </div>
 
                     {/* Deduplication Toggle */}
                     <div className="flex items-end">
                       <label
                         htmlFor="import-dedup-checkbox"
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-cosmos-canvas border border-cosmos-border cursor-pointer hover:bg-cosmos-card/40 transition min-h-[48px]"
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-cosmos-surface border border-cosmos-border cursor-pointer hover:bg-cosmos-card/40 transition min-h-[48px]"
                       >
                         <input
                           id="import-dedup-checkbox"
                           type="checkbox"
                           checked={deduplicate}
                           onChange={(e) => setDeduplicate(e.target.checked)}
-                          className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-400 border-cosmos-border bg-cosmos-surface"
+                          className="w-4 h-4 rounded text-starlight focus:ring-starlight border-cosmos-border bg-cosmos-surface"
                         />
                         <div className="text-xs">
                           <span className="font-semibold text-cosmos-text block">
@@ -478,7 +534,7 @@ export function ImportCalendarModal({
                     <span className="text-xs font-semibold text-cosmos-muted uppercase tracking-wider block">
                       Events Preview ({Math.min(eventCount, 5)} of {eventCount})
                     </span>
-                    <div className="max-h-48 overflow-y-auto space-y-2 rounded-xl bg-cosmos-canvas/40 p-2 border border-cosmos-border">
+                    <div className="max-h-48 overflow-y-auto space-y-2 rounded-xl bg-cosmos-surface/40 p-2 border border-cosmos-border">
                       {parsedCalendar.events.slice(0, 5).map((evt, idx) => (
                         <div
                           key={`${evt.externalUid}-${idx}`}
@@ -489,7 +545,7 @@ export function ImportCalendarModal({
                               {evt.title}
                             </span>
                             {evt.rrule && (
-                              <span className="text-[10px] flex items-center gap-1 text-cyan-400 font-medium">
+                              <span className="text-[10px] flex items-center gap-1 text-starlight font-medium">
                                 <Repeat className="w-3 h-3" />
                                 {getRecurrenceLabel(evt.rrule)}
                               </span>
@@ -497,14 +553,14 @@ export function ImportCalendarModal({
                           </div>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-cosmos-muted text-[11px]">
                             <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3 text-emerald-400" />
+                              <Clock className="w-3 h-3 text-starlight" />
                               {evt.isAllDay
                                 ? `${evt.startTime.slice(0, 10)} (All Day)`
                                 : `${evt.startTime.replace("T", " ")}`}
                             </span>
                             {evt.location && (
                               <span className="flex items-center gap-1 truncate max-w-[150px]">
-                                <MapPin className="w-3 h-3 text-amber-400" />
+                                <MapPin className="w-3 h-3 text-starlight-tension" />
                                 {evt.location}
                               </span>
                             )}
@@ -530,7 +586,7 @@ export function ImportCalendarModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-cosmos-border bg-cosmos-card hover:bg-cosmos-cardHover text-xs sm:text-sm font-semibold text-cosmos-text transition min-h-[48px]"
+              className="px-4 py-2.5 rounded-xl border border-cosmos-border bg-cosmos-card hover:bg-cosmos-cardHover text-xs sm:text-sm font-semibold text-cosmos-text transition min-h-[48px] cursor-pointer"
             >
               Cancel
             </button>
@@ -538,15 +594,15 @@ export function ImportCalendarModal({
               type="button"
               disabled={!parsedCalendar || eventCount === 0 || isImporting}
               onClick={handleExecuteImport}
-              className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition min-h-[48px] shadow-lg ${
+              className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition min-h-[48px] shadow-lg cursor-pointer ${
                 parsedCalendar && eventCount > 0 && !isImporting
-                  ? "bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-500/20"
+                  ? "theme-focus-pill"
                   : "bg-cosmos-card border border-cosmos-border text-cosmos-muted cursor-not-allowed"
               }`}
             >
               {isImporting ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
                   <span>Importing...</span>
                 </>
               ) : (

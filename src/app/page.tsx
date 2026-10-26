@@ -580,6 +580,7 @@ export default function HomePage() {
         galaxyId={activeGalaxyId || currentGalaxy?.id || ""}
         galaxyName={currentGalaxy?.name || "Calendar"}
         inhabitants={inhabitants}
+        familyColor={currentGalaxy?.familyColor || "#ef4444"}
         onImportComplete={async () => {
           if (activeGalaxyId) {
             await fetchEvents(activeGalaxyId);

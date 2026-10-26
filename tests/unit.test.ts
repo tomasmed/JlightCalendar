@@ -959,6 +959,25 @@ assert(
   "Round-trip RFC 5545 export and import preserves event titles and recurrence rules"
 );
 
+// Verification of ImportCalendarModal theme and member color inheritance
+const importModalPath = path.resolve(__dirname, "../src/components/import-calendar-modal.tsx");
+assert(fs.existsSync(importModalPath), "import-calendar-modal.tsx exists");
+const importModalContent = fs.readFileSync(importModalPath, "utf-8");
+assert(
+  importModalContent.includes("adaptMemberColor") &&
+    importModalContent.includes("useActiveTheme"),
+  "ImportCalendarModal imports adaptMemberColor and useActiveTheme"
+);
+assert(
+  importModalContent.includes("borderLeftColor: activeMemberColor") &&
+    importModalContent.includes("activeMemberColor"),
+  "ImportCalendarModal binds selected member's theme-adapted color to dropdown border and badge"
+);
+assert(
+  !importModalContent.includes("bg-cosmos-canvas"),
+  "ImportCalendarModal eliminates invalid bg-cosmos-canvas class in favor of valid theme tokens"
+);
+
 // ====================================================
 // 🤖 9. Testing CI Code Reviewer Workflow & Small Device UI/UX Lens
 // ====================================================
