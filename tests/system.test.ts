@@ -76,6 +76,7 @@ async function runSystemTests() {
   const agentConnectApproveRoute = await import("../src/app/api/agent/connect/approve/route");
   const cometsRoute = await import("../src/app/api/comets/route");
   const eventsExportRoute = await import("../src/app/api/events/export/route");
+  const eventsImportRoute = await import("../src/app/api/events/import/route");
 
   console.log("\n====================================================");
   console.log("👩‍🚀 2. Creating Users & Provisioning Galaxies");
@@ -1059,6 +1060,111 @@ async function runSystemTests() {
         !icsText.includes("December Post-Launch Review")
     ),
     "GET /api/events/export exports RFC 5545 .ics strictly filtered to [2026-11-01, 2026-11-10]"
+  );
+
+  // Test POST /api/events/import to import events from RFC 5545 .ics into Alice's permanent Galaxy
+  setMockTestSession({
+    user: {
+      id: userAliceId!,
+      email: "alice@jlight.test",
+      name: "Captain Alice",
+    },
+  });
+
+  const sampleIcsToImport = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Test School//Schedule v1.0//EN",
+    "X-WR-CALNAME:Robotics & Academic Calendar",
+    "BEGIN:VEVENT",
+    "UID:robotics_workshop_001@school.org",
+    "SUMMARY:Robotics Club Workshop",
+    "DESCRIPTION:Bring laptops and robot chassis.",
+    "LOCATION:Science Lab 4",
+    "DTSTART:20261112T160000",
+    "DTEND:20261112T173000",
+    "END:VEVENT",
+    "BEGIN:VEVENT",
+    "UID:district_inservice_002@school.org",
+    "SUMMARY:District Teacher In-Service Day",
+    "DTSTART;VALUE=DATE:20261113",
+    "DTEND;VALUE=DATE:20261114",
+    "END:VEVENT",
+    "BEGIN:VEVENT",
+    "UID:math_tutoring_003@school.org",
+    "SUMMARY:Weekly Math Tutoring",
+    "DTSTART:20261116T150000",
+    "DURATION:PT1H",
+    "RRULE:FREQ=WEEKLY",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+
+  const importRes = await eventsImportRoute.POST(
+    new Request("http://localhost:3000/api/events/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        galaxyId,
+        icsText: sampleIcsToImport,
+        memberId: leoMemberId,
+        deduplicate: true,
+      }),
+    })
+  );
+
+  const importData = await importRes.json();
+  assert(
+    Boolean(
+      importRes.status === 200 &&
+        importData.success === true &&
+        importData.totalFound === 3 &&
+        importData.importedCount === 3 &&
+        importData.skippedCount === 0 &&
+        importData.calendarName === "Robotics & Academic Calendar"
+    ),
+    "POST /api/events/import successfully parsed and imported 3 RFC 5545 events assigned to Leo"
+  );
+
+  // Re-run import with deduplicate=true to verify deduplication
+  const dedupImportRes = await eventsImportRoute.POST(
+    new Request("http://localhost:3000/api/events/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        galaxyId,
+        icsText: sampleIcsToImport,
+        memberId: leoMemberId,
+        deduplicate: true,
+      }),
+    })
+  );
+  const dedupImportData = await dedupImportRes.json();
+  assert(
+    Boolean(
+      dedupImportRes.status === 200 &&
+        dedupImportData.success === true &&
+        dedupImportData.importedCount === 0 &&
+        dedupImportData.skippedCount === 3
+    ),
+    "POST /api/events/import deduplicates existing events using externalUid and signature (3 skipped)"
+  );
+
+  // Unauthorized actor test: Unauthenticated user gets 403
+  setMockTestSession(null);
+  const unauthorizedImportRes = await eventsImportRoute.POST(
+    new Request("http://localhost:3000/api/events/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        galaxyId,
+        icsText: sampleIcsToImport,
+      }),
+    })
+  );
+  assert(
+    unauthorizedImportRes.status === 403,
+    "POST /api/events/import rejects unauthorized actor with 403 Forbidden"
   );
 
   // Sign back in as Captain Alice to test copying Comet events to her permanent Galaxy & converting Comet

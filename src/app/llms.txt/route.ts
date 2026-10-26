@@ -160,13 +160,15 @@ Response:
 All requests accept \`Authorization: Bearer <token>\`.
 Smart Default: If \`galaxyId\` is omitted, it defaults automatically to your bound Galaxy. If \`memberId\` is omitted on \`POST /api/events\`, \`POST /api/lists\`, or \`POST /api/meals\`, it defaults automatically to your bound Inhabitant.
 
-### Events (\`/api/events\` & \`/api/events/export\`)
+### Events (\`/api/events\`, \`/api/events/export\` & \`/api/events/import\`)
 - \`GET /api/events?start=YYYY-MM-DD&end=YYYY-MM-DD\`
 - \`POST /api/events\`
   Body: \`{ "title": "Soccer Practice", "startTime": "2026-10-20T17:00:00", "endTime": "2026-10-20T18:00:00", "location": "Field 2" }\`
 - \`PATCH /api/events\` — \`{ "id": "...", "title": "Updated Title" }\`
 - \`DELETE /api/events?id=...\`
 - \`GET /api/events/export?galaxyId=...&start=YYYY-MM-DD&end=YYYY-MM-DD&mode=expanded|rrule\` — Exports an RFC 5545 \`.ics\` calendar bundle for the specified date window (compatible with Google Calendar, Apple Calendar, and Outlook).
+- \`POST /api/events/import\` — Imports RFC 5545 \`.ics\` calendar events into the target Galaxy with automatic deduplication.
+  Body: \`{ "galaxyId": "...", "icsText": "BEGIN:VCALENDAR...", "memberId": "optional-member-id", "deduplicate": true }\`
 
 ### Ephemeral Comets (\`/api/comets\`)
 Agents can spin up and spin down lightweight, TTL-bounded ephemeral calendars ("Comets") for temporary sprints, meetings, or group trips without requiring human OAuth:

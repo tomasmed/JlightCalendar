@@ -54,7 +54,7 @@ Creates a Comet bundle (with optional seeded participants, events, list items, a
 - `DELETE /api/comets?id=...`: Immediately spins down an ephemeral Comet.
 - `DELETE /api/comets?action=purge_expired`: Purges all expired Comets.
 
-### 3.5 `GET /api/events/export` — RFC 5545 `.ics` Portability Layer
+### 3.5 `GET /api/events/export` — RFC 5545 `.ics` Export Layer
 - Query parameters:
   - `galaxyId`: Galaxy/Comet UUID, `CMT-...` / `GLX-...` code, or slug.
   - `start` (`YYYY-MM-DD`): Optional start of export window.
@@ -62,3 +62,21 @@ Creates a Comet bundle (with optional seeded participants, events, list items, a
   - `memberId`: Optional participant filter (`all` or specific `memberId`).
   - `mode`: `"expanded"` (expands recurring occurrences inside `[start, end]` while respecting `exdates`) or `"rrule"` (preserves `RRULE` and `EXDATE` properties).
 - Returns standard `text/calendar; charset=utf-8` `.ics` file for import into Google Calendar, Apple Calendar, or Outlook.
+
+### 3.6 `POST /api/events/import` — RFC 5545 `.ics` Import Layer
+- Request Body (JSON, multipart/form-data, or raw text/calendar):
+  - `galaxyId`: Target Galaxy UUID or joinCode.
+  - `icsText` / `file`: Raw RFC 5545 `.ics` file content.
+  - `memberId`: Optional Inhabitant to attribute imported events to (defaults to whole-family/shared).
+  - `deduplicate`: Boolean flag (default `true`) to skip existing events matching `externalUid` or composite signature (`title__startTime`).
+- Response:
+  ```json
+  {
+    "success": true,
+    "calendarName": "School & Sports Calendar",
+    "totalFound": 12,
+    "importedCount": 12,
+    "skippedCount": 0,
+    "events": [...]
+  }
+  ```

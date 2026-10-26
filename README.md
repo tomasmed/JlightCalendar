@@ -13,8 +13,9 @@ Designed to run beautifully 24/7 on a wall touchscreen (Raspberry Pi, old iPad, 
   - Launch instant, zero-login shared calendars (`CMT-XXXX-XXXX`) for team sprints, quick meetings, or group trips with configurable TTLs (7d, 30d, 90d, or default 5 months).
   - Streamlined multiplayer UI (Calendar + Shared Lists) that keeps family kiosk features (Kid Mode, Star Store, Night Sleep) cleanly separated.
   - 1-click upgrade bridges: **Convert Comet to Permanent Galaxy** (via Google OAuth) or **Copy Window Events to My Galaxy**.
-- **RFC 5545 `.ics` Time-Window Portability**:
-  - Export any date range (`Start Day X` → `End Day Y`) and participant slice as a standards-compliant `.ics` file or live feed for Google Calendar, Apple Calendar, and Microsoft Outlook.
+- **RFC 5545 `.ics` Two-Way Portability & Interoperability**:
+  - **Export**: Export any date range (`Start Day X` → `End Day Y`) and participant slice as a standards-compliant `.ics` file or live feed for Google Calendar, Apple Calendar, and Microsoft Outlook.
+  - **Import**: Drag-and-drop or upload `.ics` calendar files (or paste raw iCalendar content) with visual event previews, family member attribution, and automated deduplication.
 - **Two-Way Cloud Sync**: Seamless synchronization with Google Calendar, Apple iCloud, Microsoft Outlook, and standard iCal/Webcal feeds.
 - **3-Tier Access Control**:
   - 🛡️ **Admin Mode**: Full control over settings, calendar sync credentials, and member management.
@@ -125,6 +126,7 @@ Detailed documentation is organized in the `docs/` folder:
   - `0014-ci-and-mocked-system-test-suite.md`
   - `0015-agent-identity-provenance-and-pat-rest-api.md`
   - `0017-ephemeral-comets-and-ics-portability.md`
+  - `0018-ics-import-and-interoperability.md`
 - [docs/specs/](docs/specs/): Feature & Testing Specifications (`ephemeral-comets-and-ics-export.md`, `agent-integration-and-bot-wall.md`, `ci-and-testing.md`, `calendar-galaxies.md`, `recurring-events-and-mobile-touch-ux.md`)
 - [docs/workflow/pr-template.md](docs/workflow/pr-template.md): The "Show and Tell" PR standard.
 - [AGENTS.md](AGENTS.md): Operational instructions for autonomous AI agents working in git worktrees.
