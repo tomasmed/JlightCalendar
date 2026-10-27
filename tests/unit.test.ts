@@ -39,7 +39,24 @@ import {
   generateCometCode,
   generateCometSlug,
   normalizeJoinCode,
+  generateCometCode,
+  generateCometSlug,
+  normalizeJoinCode,
 } from "./../src/db/schema";
+import {
+  parseScreensaverConfig,
+  maskScreensaverConfig,
+  mergeScreensaverConfigUpdate,
+  validateGooglePhotosShareUrl,
+  toGooglePhotos1080pUrl,
+  extractGooglePhotosFromHtml,
+  validateExternalConnectorUrl,
+  parseImmichShareLink,
+  normalizeImmichAssets,
+  buildImmichUpstreamThumbnailUrl,
+  selectPhotosForRotation,
+  resolveConnectorPhotos,
+} from "./../src/lib/photos";
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -1022,6 +1039,192 @@ assert(
   markdownLensContent.includes("name: small_device_ui_ux") &&
     markdownLensContent.includes("Lead UI/UX Designer and Mobile Interaction Specialist"),
   "Markdown lens contains frontmatter and specialized UI/UX persona prompt"
+);
+
+// ====================================================
+// 🖼️ 10. Testing Photo Screensaver Connectors & Kiosk Cache Engine
+// ====================================================
+console.log(
+  "\n====================================================\n🖼️ 10. Testing Photo Screensaver Connectors & Kiosk Cache Engine\n===================================================="
+);
+
+const defaultPhotoCfg = parseScreensaverConfig(null);
+assert(
+  defaultPhotoCfg.provider === "sample" &&
+    defaultPhotoCfg.maxCachedPhotos === 15 &&
+    defaultPhotoCfg.portraitFillMode === "blur" &&
+    defaultPhotoCfg.transitionDurationMs === 2500,
+  "parseScreensaverConfig() defaults to 15 maxCachedPhotos, 'blur' portrait fill, and 2500ms gentle fade"
+);
+
+const clampedCfg = parseScreensaverConfig({
+  maxCachedPhotos: 999,
+  slideIntervalSeconds: 2,
+  transitionDurationMs: 9000,
+  brightnessPercent: 10,
+  immichApiKey: "secret-immich-key",
+});
+assert(
+  clampedCfg.maxCachedPhotos === 50 &&
+    clampedCfg.slideIntervalSeconds === 8 &&
+    clampedCfg.transitionDurationMs === 5000 &&
+    clampedCfg.brightnessPercent === 40,
+  "parseScreensaverConfig() clamps cache limits, interval, transition duration, and brightness to safe bounds"
+);
+
+const maskedCfg = maskScreensaverConfig(clampedCfg);
+assert(
+  maskedCfg.immichApiKey === "" && maskedCfg.hasImmichApiKey === true,
+  "maskScreensaverConfig() strips raw immichApiKey and sets hasImmichApiKey=true"
+);
+
+const mergedCfg = mergeScreensaverConfigUpdate(clampedCfg, {
+  albumName: "Summer 2026",
+  immichApiKey: "••••••••",
+});
+assert(
+  mergedCfg.immichApiKey === "secret-immich-key" &&
+    mergedCfg.albumName === "Summer 2026",
+  "mergeScreensaverConfigUpdate() preserves existing API key when masked placeholder is submitted"
+);
+
+// Google Photos URL validation & 1080p URL rewriting
+assert(
+  validateGooglePhotosShareUrl("https://photos.app.goo.gl/AbCdEf123456").valid === true,
+  "validateGooglePhotosShareUrl() accepts https://photos.app.goo.gl/... short links"
+);
+assert(
+  validateGooglePhotosShareUrl("https://photos.google.com/share/AF1Qip_test?key=xyz").valid === true,
+  "validateGooglePhotosShareUrl() accepts https://photos.google.com/share/... links"
+);
+assert(
+  validateGooglePhotosShareUrl("https://evil.example.com/share/123").valid === false,
+  "validateGooglePhotosShareUrl() rejects non-Google domains"
+);
+assert(
+  toGooglePhotos1080pUrl("https://lh3.googleusercontent.com/pw/AP1GczTestPhoto1234567890=w4000-h3000") ===
+    "https://lh3.googleusercontent.com/pw/AP1GczTestPhoto1234567890=w1920-h1080",
+  "toGooglePhotos1080pUrl() strips original dimensions and caps resolution at =w1920-h1080"
+);
+
+// Extract Google Photos from Shared Album HTML
+const mockGoogleAlbumHtml = `
+  <script>
+    AF_initDataCallback({key: 'ds:1', data: [
+      ["https://lh3.googleusercontent.com/pw/AP1GczLandscapePhotoAsset1234567890", 4032, 3024],
+      ["https://lh3.googleusercontent.com/pw/AP1GczPortraitPhotoAsset0987654321", 2160, 3840],
+      ["https://lh3.googleusercontent.com/a/ACg8ocTinyProfileAvatarIcon12345678", 64, 64]
+    ]});
+  </script>
+`;
+const extractedGoogle = extractGooglePhotosFromHtml(mockGoogleAlbumHtml, 15);
+assert(
+  extractedGoogle.length === 2,
+  `extractGooglePhotosFromHtml() extracts album photos and ignores tiny avatar icons (got ${extractedGoogle.length})`
+);
+assert(
+  extractedGoogle[0].url.endsWith("=w1920-h1080") &&
+    extractedGoogle[0].isPortrait === false,
+  "First extracted Google Photo is 1080p landscape"
+);
+assert(
+  extractedGoogle[1].url.endsWith("=w1920-h1080") &&
+    extractedGoogle[1].isPortrait === true,
+  "Second extracted Google Photo is detected as portrait (2160x3840)"
+);
+
+// Immich Share Link & SSRF validation
+assert(
+  validateExternalConnectorUrl("http://169.254.169.254/latest/meta-data").valid === false,
+  "validateExternalConnectorUrl() blocks AWS/cloud metadata SSRF address"
+);
+const parsedImmichShare = parseImmichShareLink(
+  "https://immich.myfamily.org/share/k9X2mP8qL4zR"
+);
+assert(
+  parsedImmichShare.valid === true &&
+    parsedImmichShare.baseUrl === "https://immich.myfamily.org" &&
+    parsedImmichShare.shareKey === "k9X2mP8qL4zR",
+  "parseImmichShareLink() extracts base origin and share key"
+);
+
+const normalizedImmich = normalizeImmichAssets(
+  {
+    assets: [
+      {
+        id: "asset-img-1",
+        type: "IMAGE",
+        exifInfo: {
+          exifImageWidth: 1080,
+          exifImageHeight: 1920,
+          description: "Beach Sunset",
+        },
+      },
+      {
+        id: "asset-vid-2",
+        type: "VIDEO",
+        originalMimeType: "video/mp4",
+      },
+    ],
+  },
+  "galaxy_sol_family",
+  15
+);
+assert(
+  normalizedImmich.length === 1 &&
+    normalizedImmich[0].id === "immich-asset-img-1" &&
+    normalizedImmich[0].isPortrait === true &&
+    normalizedImmich[0].url.includes("/api/photos/proxy?galaxyId=galaxy_sol_family&assetId=asset-img-1"),
+  "normalizeImmichAssets() filters out videos, detects portrait images, and builds proxy URLs"
+);
+
+const upstreamThumb = buildImmichUpstreamThumbnailUrl(
+  parseScreensaverConfig({
+    provider: "immich",
+    immichShareUrl: "https://immich.myfamily.org/share/k9X2mP8qL4zR",
+  }),
+  "asset-img-1"
+);
+assert(
+  Boolean(
+    upstreamThumb &&
+      upstreamThumb.url ===
+        "https://immich.myfamily.org/api/assets/asset-img-1/thumbnail?size=preview&key=k9X2mP8qL4zR"
+  ),
+  "buildImmichUpstreamThumbnailUrl() builds 1080p size=preview thumbnail URL with share key"
+);
+
+// Rotation cap test
+const manyPhotos = Array.from({ length: 30 }, (_, i) => ({
+  id: `p-${i}`,
+  url: `https://example.com/photo-${i}.jpg`,
+  provider: "sample" as const,
+}));
+const cappedSelection = selectPhotosForRotation(manyPhotos, 12, true, 42);
+assert(
+  cappedSelection.length === 12,
+  "selectPhotosForRotation() strictly caps playlist to maxCachedPhotos (12)"
+);
+
+// Verify ScreensaverView UI implementation
+const screensaverViewPath = path.resolve(
+  __dirname,
+  "../src/components/screensaver-view.tsx"
+);
+const screensaverViewSource = fs.readFileSync(screensaverViewPath, "utf-8");
+assert(
+  !screensaverViewSource.includes("animate-pulse"),
+  "ScreensaverView removes harsh 'animate-pulse' dimming effect in favor of gentle crossfades"
+);
+assert(
+  screensaverViewSource.includes("blur-2xl") &&
+    screensaverViewSource.includes("object-contain"),
+  "ScreensaverView renders blurred ambient backdrop fill (blur-2xl) behind uncropped portrait photos"
+);
+assert(
+  screensaverViewSource.includes("window.caches.open") &&
+    screensaverViewSource.includes("jlight-screensaver-images-v1"),
+  "ScreensaverView caches images locally in browser CacheStorage for zero ongoing server compute"
 );
 
 console.log("\n✨ All unit and static guard tests passed successfully!");

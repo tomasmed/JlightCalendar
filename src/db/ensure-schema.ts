@@ -77,6 +77,7 @@ export async function ensureDatabaseSchema(): Promise<void> {
             family_avatar text NOT NULL DEFAULT 'planet',
             is_ephemeral integer NOT NULL DEFAULT 0,
             expires_at text,
+            screensaver_config text,
             created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
           );
         `);
@@ -281,6 +282,11 @@ export async function ensureDatabaseSchema(): Promise<void> {
         console.log("🛠️ Adding missing column 'expires_at' to 'galaxies' table...");
         await client.execute("ALTER TABLE galaxies ADD COLUMN expires_at text;");
         console.log("✅ Added 'expires_at' column to 'galaxies'.");
+      }
+      if (!galaxyCols.has("screensaver_config")) {
+        console.log("🛠️ Adding missing column 'screensaver_config' to 'galaxies' table...");
+        await client.execute("ALTER TABLE galaxies ADD COLUMN screensaver_config text;");
+        console.log("✅ Added 'screensaver_config' column to 'galaxies'.");
       }
 
       // 6. Ensure member_ids column in events

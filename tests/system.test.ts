@@ -79,6 +79,8 @@ async function runSystemTests() {
   const cometsRoute = await import("../src/app/api/comets/route");
   const eventsExportRoute = await import("../src/app/api/events/export/route");
   const eventsImportRoute = await import("../src/app/api/events/import/route");
+  const photosRoute = await import("../src/app/api/photos/route");
+  const photosProxyRoute = await import("../src/app/api/photos/proxy/route");
 
   console.log("\n====================================================");
   console.log("👩‍🚀 2. Creating Users & Provisioning Galaxies");
@@ -1275,6 +1277,131 @@ async function runSystemTests() {
   assert(
     Number(orphanedEventsCheck.rows[0].cnt) === 0,
     "Spin-down cascade-deleted all child events of the expired Comet"
+  );
+
+  console.log("\n====================================================");
+  console.log("🖼️  9. Photo Screensaver Connectors & Config Persistence");
+  console.log("====================================================");
+
+  // 9a. Unauthenticated outsider cannot read or mutate Alice's private galaxy screensaver config
+  setMockTestSession(null);
+  const unauthPhotosRes = await photosRoute.GET(
+    new Request(`http://localhost:3000/api/photos?galaxyId=${galaxyId}`)
+  );
+  assert(
+    unauthPhotosRes.status === 401 || unauthPhotosRes.status === 403,
+    `GET /api/photos blocked unauthenticated request to private galaxy (${unauthPhotosRes.status})`
+  );
+
+  // 9b. Authenticate as Alice and fetch initial screensaver config + sample fallback
+  setMockTestSession({
+    user: { id: userAliceId, email: "alice@jlight.test", name: "Captain Alice" },
+  });
+  const initPhotosRes = await photosRoute.GET(
+    new Request(`http://localhost:3000/api/photos?galaxyId=${galaxyId}`)
+  );
+  assert(initPhotosRes.status === 200, "GET /api/photos returned 200 for galaxy owner");
+  const initPhotosData = await initPhotosRes.json();
+  assert(
+    initPhotosData.config.provider === "sample" &&
+      initPhotosData.config.maxCachedPhotos === 15 &&
+      initPhotosData.config.portraitFillMode === "blur" &&
+      Array.isArray(initPhotosData.photos) &&
+      initPhotosData.photos.length > 0,
+    "GET /api/photos returns default 15-photo cache cap, blur portrait fill, and curated sample photos"
+  );
+
+  // 9c. Reject invalid / non-Google URL when provider='google_photos'
+  const badGoogleUrlRes = await photosRoute.PUT(
+    new Request("http://localhost:3000/api/photos", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        galaxyId,
+        config: {
+          provider: "google_photos",
+          googlePhotosShareUrl: "https://not-google.example.com/share/123",
+        },
+      }),
+    })
+  );
+  assert(
+    badGoogleUrlRes.status === 400,
+    "PUT /api/photos rejects non-Google Photos URL with 400 Bad Request"
+  );
+
+  // 9d. Reject SSRF metadata address when provider='immich'
+  const ssrfImmichRes = await photosRoute.PUT(
+    new Request("http://localhost:3000/api/photos", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        galaxyId,
+        config: {
+          provider: "immich",
+          immichBaseUrl: "http://169.254.169.254",
+          immichApiKey: "test-key",
+        },
+      }),
+    })
+  );
+  assert(
+    ssrfImmichRes.status === 400,
+    "PUT /api/photos blocks SSRF metadata IP on Immich base URL with 400 Bad Request"
+  );
+
+  // 9e. Save Immich connector config and verify secret masking + compact Turso column persistence
+  const saveImmichRes = await photosRoute.PUT(
+    new Request("http://localhost:3000/api/photos", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        galaxyId,
+        config: {
+          provider: "immich",
+          albumName: "Sol Family Memories",
+          immichShareUrl: "https://immich.local.test/share/solFamilyShareKey123",
+          immichApiKey: "super-secret-immich-api-key",
+          maxCachedPhotos: 15,
+          slideIntervalSeconds: 30,
+          transitionDurationMs: 2500,
+          portraitFillMode: "blur",
+          brightnessPercent: 85,
+        },
+      }),
+    })
+  );
+  assert(saveImmichRes.status === 200, "PUT /api/photos saved Immich connector config");
+  const saveImmichData = await saveImmichRes.json();
+  assert(
+    saveImmichData.config.provider === "immich" &&
+      saveImmichData.config.albumName === "Sol Family Memories" &&
+      saveImmichData.config.immichApiKey === "" &&
+      saveImmichData.config.hasImmichApiKey === true &&
+      saveImmichData.config.maxCachedPhotos === 15,
+    "PUT /api/photos masks immichApiKey in response while setting hasImmichApiKey=true"
+  );
+
+  // Verify database row stores only compact JSON config on galaxies.screensaver_config
+  const dbCfgCheck = await client.execute({
+    sql: "SELECT screensaver_config FROM galaxies WHERE id = ?;",
+    args: [galaxyId],
+  });
+  const storedRawCfg = String(dbCfgCheck.rows[0]?.screensaver_config || "");
+  assert(
+    storedRawCfg.includes("Sol Family Memories") &&
+      storedRawCfg.includes("super-secret-immich-api-key") &&
+      storedRawCfg.length < 1000,
+    `galaxies.screensaver_config stores compact connector config JSON (${storedRawCfg.length} bytes, zero image blobs)`
+  );
+
+  // 9f. Proxy validation test
+  const missingAssetProxyRes = await photosProxyRoute.GET(
+    new Request(`http://localhost:3000/api/photos/proxy?galaxyId=${galaxyId}`)
+  );
+  assert(
+    missingAssetProxyRes.status === 400,
+    "GET /api/photos/proxy requires assetId query parameter (400)"
   );
 
   // Close client & clean up temporary SQLite DB files

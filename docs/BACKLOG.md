@@ -82,11 +82,11 @@ This backlog tracks prioritized epics, features, and engineering tasks for **Jli
 ## 🖼️ Epic 7: Ambient Photo Screensaver & Media
 **Goal**: Digital photo frame with ambient widgets.
 
-- [ ] **FEAT-701: Google Photos Integration**
+- [x] **FEAT-701: Google Photos Integration**
   - **Description**: Connect to Google Photos Library API to select specific family albums for ambient slideshow rotation.
-- [ ] **FEAT-702: Immich & Local Media Folder Adapter**
+- [x] **FEAT-702: Immich & Local Media Folder Adapter**
   - **Description**: Support connecting to self-hosted Immich instances or a mounted local directory of family photos.
-- [ ] **FEAT-703: Ambient Widget Customizer**
+- [x] **FEAT-703: Ambient Widget Customizer**
   - **Description**: Configure what overlays appear on the screensaver (live clock, weather forecast, countdowns, next upcoming event).
 
 ---
