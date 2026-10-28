@@ -18,6 +18,48 @@ import {
   resolveConnectorPhotos,
 } from "@/lib/photos";
 
+async function ensureGalaxyOrDemoRow(galaxyId: string) {
+  let [galaxy] = await db
+    .select({
+      id: galaxies.id,
+      screensaverConfig: galaxies.screensaverConfig,
+    })
+    .from(galaxies)
+    .where(eq(galaxies.id, galaxyId))
+    .limit(1);
+
+  if (!galaxy && galaxyId === "galaxy_sol_family") {
+    try {
+      await db
+        .insert(galaxies)
+        .values({
+          id: "galaxy_sol_family",
+          name: "The Sol Family Galaxy",
+          slug: "sol-family",
+          theme: "milky-way",
+          icon: "sparkles",
+          parentPin: "1234",
+          timezone: "America/New_York",
+          joinCode: "SOL-HOME1",
+        })
+        .onConflictDoNothing();
+
+      [galaxy] = await db
+        .select({
+          id: galaxies.id,
+          screensaverConfig: galaxies.screensaverConfig,
+        })
+        .from(galaxies)
+        .where(eq(galaxies.id, galaxyId))
+        .limit(1);
+    } catch {
+      // Ignore concurrent insert race
+    }
+  }
+
+  return galaxy;
+}
+
 export async function GET(request: Request) {
   try {
     await ensureDatabaseSchema();
@@ -46,15 +88,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const [galaxy] = await db
-      .select({
-        id: galaxies.id,
-        screensaverConfig: galaxies.screensaverConfig,
-      })
-      .from(galaxies)
-      .where(eq(galaxies.id, galaxyId))
-      .limit(1);
-
+    const galaxy = await ensureGalaxyOrDemoRow(galaxyId);
     if (!galaxy) {
       return NextResponse.json({ error: "Galaxy not found" }, { status: 404 });
     }
@@ -110,22 +144,18 @@ async function handleSaveScreensaverConfig(request: Request) {
       );
     }
 
-    const [galaxy] = await db
-      .select({
-        id: galaxies.id,
-        screensaverConfig: galaxies.screensaverConfig,
-      })
-      .from(galaxies)
-      .where(eq(galaxies.id, galaxyId))
-      .limit(1);
-
+    const galaxy = await ensureGalaxyOrDemoRow(galaxyId);
     if (!galaxy) {
       return NextResponse.json({ error: "Galaxy not found" }, { status: 404 });
     }
 
     const existingConfig = parseScreensaverConfig(galaxy.screensaverConfig);
-    const incomingConfig = body.config && typeof body.config === "object" ? body.config : body;
-    const updatedConfig = mergeScreensaverConfigUpdate(existingConfig, incomingConfig);
+    const incomingConfig =
+      body.config && typeof body.config === "object" ? body.config : body;
+    const updatedConfig = mergeScreensaverConfigUpdate(
+      existingConfig,
+      incomingConfig
+    );
 
     // Validate provider-specific URLs before persisting
     if (updatedConfig.provider === "google_photos") {
@@ -138,7 +168,8 @@ async function handleSaveScreensaverConfig(request: Request) {
           { status: 400 }
         );
       }
-      updatedConfig.googlePhotosShareUrl = check.normalizedUrl || updatedConfig.googlePhotosShareUrl;
+      updatedConfig.googlePhotosShareUrl =
+        check.normalizedUrl || updatedConfig.googlePhotosShareUrl;
     } else if (updatedConfig.provider === "immich") {
       const hasShare = Boolean(updatedConfig.immichShareUrl?.trim());
       const hasBase = Boolean(updatedConfig.immichBaseUrl?.trim());
@@ -146,7 +177,7 @@ async function handleSaveScreensaverConfig(request: Request) {
         return NextResponse.json(
           {
             error:
-              "Provide either an Immich Shared Album Link or an Immich Server URL.",
+              "Please enter either an Immich Shared Album Link or an Immich Web Address.",
           },
           { status: 400 }
         );
