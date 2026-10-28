@@ -16,12 +16,11 @@ import {
   Play,
   ChevronLeft,
   ChevronRight,
-  Trash2,
   X,
-  HardDrive,
 } from "lucide-react";
 import type { AccessMode } from "@/components/kiosk-header";
 import type { CalendarEventData } from "@/components/event-modal";
+import { useActiveTheme } from "@/lib/theme";
 import {
   ScreensaverConfig,
   ResolvedPhotoItem,
@@ -58,6 +57,9 @@ export function ScreensaverView({
   accessMode = "admin",
   events = [],
 }: ScreensaverViewProps) {
+  // All React hooks declared unconditionally at the top
+  const activeTheme = useActiveTheme();
+
   // 1. Playback & Clock State
   const [config, setConfig] = useState<ScreensaverConfig>(DEFAULT_SCREENSAVER_CONFIG);
   const [photos, setPhotos] = useState<ResolvedPhotoItem[]>(CURATED_SAMPLE_PHOTOS);
@@ -388,7 +390,7 @@ export function ScreensaverView({
       if (!res.ok) {
         setStatusBanner({
           type: "error",
-          message: data.error || "Could not save screensaver settings.",
+          message: data.error || "Could not save your photo settings. Please check your link and try again.",
         });
         return;
       }
@@ -423,25 +425,25 @@ export function ScreensaverView({
       if (data.warning) {
         setStatusBanner({
           type: "warning",
-          message: `Saved settings, using fallback photos: ${data.warning}`,
+          message: `We saved your settings, but couldn't load that album yet: ${data.warning}`,
         });
       } else {
         setStatusBanner({
           type: "success",
-          message: `Synced ${list.length} photos (1080p) and cached locally for kiosk rotation.`,
+          message: `All set! Loaded ${list.length} photos for your family photo frame.`,
         });
       }
     } catch (err: any) {
       setStatusBanner({
         type: "error",
-        message: err?.message || "Network error while saving screensaver settings.",
+        message: err?.message || "Could not connect right now. Please try again in a moment.",
       });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handlePurgeLocalCache = async () => {
+  const handleRefreshAlbumPhotos = async () => {
     const targetGalaxyId = activeGalaxyId || "galaxy_sol_family";
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(`${PLAYLIST_CACHE_PREFIX}${targetGalaxyId}`);
@@ -458,7 +460,7 @@ export function ScreensaverView({
     await loadScreensaverFeed(true);
     setStatusBanner({
       type: "success",
-      message: "Cleared local kiosk cache and re-synced album playlist.",
+      message: "Refreshed your album and checked for new photos!",
     });
   };
 
@@ -555,6 +557,7 @@ export function ScreensaverView({
   return (
     <div
       onClick={onDismiss}
+      data-active-theme={activeTheme}
       className="relative flex-1 w-full h-full overflow-hidden bg-black cursor-pointer select-none"
     >
       {/* Double-Buffered Gentle Crossfade Slides */}
@@ -566,15 +569,15 @@ export function ScreensaverView({
       {/* Soft, Gentle Vignette Overlay (No harsh dimming pulse) */}
       <div className="absolute inset-0 z-20 bg-gradient-to-t from-black/70 via-transparent to-black/35 pointer-events-none" />
 
-      {/* Top HUD Bar: Wake Button + Playback Controls + Admin Album Config */}
+      {/* Top HUD Bar: Wake Button + Playback Controls + Choose Album Button */}
       <div className="absolute top-4 left-4 right-4 md:top-6 md:left-6 md:right-6 z-30 flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={onDismiss}
-          className="min-h-[48px] px-4 py-2 rounded-full bg-black/45 hover:bg-black/65 backdrop-blur-md text-slate-200 text-xs sm:text-sm font-semibold border border-white/15 flex items-center gap-2 transition shadow-lg"
+          className="min-h-[48px] px-4 py-2 rounded-full bg-black/45 hover:bg-black/65 backdrop-blur-md text-slate-100 text-xs sm:text-sm font-semibold border border-white/15 flex items-center gap-2 transition shadow-lg cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Tap to return to calendar</span>
+          <span>Back to Calendar</span>
         </button>
 
         <div
@@ -588,7 +591,7 @@ export function ScreensaverView({
                 type="button"
                 onClick={() => transitionToIndex(photoIndex - 1)}
                 title="Previous photo"
-                className="min-h-[48px] min-w-[48px] flex items-center justify-center rounded-full text-slate-200 hover:text-white hover:bg-white/10 transition"
+                className="min-h-[48px] min-w-[48px] flex items-center justify-center rounded-full text-slate-200 hover:text-white hover:bg-white/10 transition cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -596,7 +599,7 @@ export function ScreensaverView({
                 type="button"
                 onClick={() => setIsPaused((p) => !p)}
                 title={isPaused ? "Resume slideshow" : "Pause slideshow"}
-                className="min-h-[48px] min-w-[48px] flex items-center justify-center rounded-full text-slate-200 hover:text-white hover:bg-white/10 transition"
+                className="min-h-[48px] min-w-[48px] flex items-center justify-center rounded-full text-slate-200 hover:text-white hover:bg-white/10 transition cursor-pointer"
               >
                 {isPaused ? (
                   <Play className="w-4 h-4" />
@@ -608,14 +611,14 @@ export function ScreensaverView({
                 type="button"
                 onClick={() => transitionToIndex(photoIndex + 1)}
                 title="Next photo"
-                className="min-h-[48px] min-w-[48px] flex items-center justify-center rounded-full text-slate-200 hover:text-white hover:bg-white/10 transition"
+                className="min-h-[48px] min-w-[48px] flex items-center justify-center rounded-full text-slate-200 hover:text-white hover:bg-white/10 transition cursor-pointer"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           )}
 
-          {/* Admin / Standard Mode: Album & Screensaver Configuration Button */}
+          {/* Admin / Standard Mode: Photo Album & Display Settings Button */}
           {accessMode !== "kid" && (
             <button
               type="button"
@@ -624,10 +627,10 @@ export function ScreensaverView({
                 setStatusBanner(null);
                 setIsSettingsOpen(true);
               }}
-              className="min-h-[48px] px-4 py-2 rounded-full bg-black/55 hover:bg-black/75 backdrop-blur-md text-white text-xs sm:text-sm font-bold border border-white/20 flex items-center gap-2 transition shadow-lg"
+              className="min-h-[48px] px-4 py-2 rounded-full bg-cosmos-card/90 hover:bg-cosmos-cardHover backdrop-blur-md text-cosmos-text text-xs sm:text-sm font-bold border border-cosmos-border flex items-center gap-2 transition shadow-lg cursor-pointer"
             >
-              <Settings2 className="w-4 h-4 text-purple-300" />
-              <span>Album & Settings</span>
+              <Settings2 className="w-4 h-4 text-starlight" />
+              <span>Photo Album & Display</span>
             </button>
           )}
         </div>
@@ -651,19 +654,19 @@ export function ScreensaverView({
               </span>
             </>
           )}
-          <div className="mt-2 flex items-center gap-2 text-xs text-slate-300/80 font-medium">
-            <ImageIcon className="w-3.5 h-3.5 text-purple-300" />
+          <div className="mt-2 flex items-center gap-2 text-xs text-slate-200/85 font-medium">
+            <ImageIcon className="w-3.5 h-3.5 text-starlight" />
             <span>
               {config.albumName ||
                 (activeSource === "google_photos"
-                  ? "Google Photos Shared Album"
+                  ? "Family Google Photos Album"
                   : activeSource === "immich"
-                  ? "Immich Family Album"
-                  : "Curated Ambient Horizons")}
+                  ? "Family Immich Album"
+                  : "Sample Nature Photos")}
             </span>
             <span>•</span>
             <span>
-              {photoIndex + 1} / {photos.length}
+              Photo {photoIndex + 1} of {photos.length}
             </span>
             {currentPhoto?.caption && (
               <>
@@ -691,12 +694,12 @@ export function ScreensaverView({
           {/* Live Next Upcoming Family Event */}
           {config.showNextEvent && (
             <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-black/50 backdrop-blur-md border border-white/10 text-white max-w-md">
-              <CalendarIcon className="w-5 h-5 text-blue-400 shrink-0" />
+              <CalendarIcon className="w-5 h-5 text-starlight shrink-0" />
               <div className="min-w-0">
-                <span className="text-xs font-semibold text-blue-300 uppercase tracking-wider block">
+                <span className="text-xs font-semibold text-starlight uppercase tracking-wider block">
                   {nextUpcomingEvent
-                    ? `Next Event • ${nextUpcomingEvent.timeLabel}`
-                    : "Upcoming Schedule"}
+                    ? `Coming Up • ${nextUpcomingEvent.timeLabel}`
+                    : "Family Schedule"}
                 </span>
                 <span className="text-sm font-bold truncate block">
                   {nextUpcomingEvent
@@ -705,8 +708,8 @@ export function ScreensaverView({
                           ? ` (${nextUpcomingEvent.location})`
                           : ""
                       }`
-                    : `No upcoming events on ${
-                        activeGalaxyName || "Family Calendar"
+                    : `No upcoming plans on ${
+                        activeGalaxyName || "your calendar"
                       }`}
                 </span>
               </div>
@@ -715,47 +718,53 @@ export function ScreensaverView({
         </div>
       </div>
 
-      {/* Screensaver & Photo Connector Settings Modal */}
+      {/* Themed Family Photo Frame Settings Modal */}
       {isSettingsOpen && (
         <div
           onClick={(e) => {
             e.stopPropagation();
             setIsSettingsOpen(false);
           }}
-          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto cursor-default"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto cursor-default animate-fade-in"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-2xl my-auto max-h-[92vh] overflow-y-auto rounded-3xl bg-slate-900 border border-slate-700/80 text-slate-100 shadow-2xl p-5 sm:p-7"
+            className="w-full max-w-2xl my-auto max-h-[92dvh] overflow-hidden rounded-3xl bg-cosmos-card border border-cosmos-border text-cosmos-text shadow-2xl flex flex-col"
           >
             {/* Modal Header */}
-            <div className="flex items-start justify-between gap-4 pb-4 border-b border-slate-800">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-purple-400" />
-                  <h2 className="text-lg sm:text-xl font-black text-white">
-                    Photo Screensaver & Album Connector
-                  </h2>
+            <div className="px-5 py-4 sm:px-7 sm:py-5 border-b border-cosmos-border bg-cosmos-surface/60 flex items-center justify-between gap-4 shrink-0">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-starlight/15 border border-starlight/30 flex items-center justify-center text-starlight shrink-0">
+                  <Sparkles className="w-5 h-5" />
                 </div>
-                <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                  Connect Google Photos or Immich. Images are scaled to ≤1080p and cached locally in this kiosk browser—zero photos are stored in our database.
-                </p>
+                <div>
+                  <h2 className="text-base sm:text-xl font-black text-cosmos-text">
+                    Family Photo Frame
+                  </h2>
+                  <p className="text-xs sm:text-sm text-cosmos-muted">
+                    Choose an album of favorite memories to display when your calendar is resting.
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsSettingsOpen(false)}
-                aria-label="Close screensaver settings"
-                className="min-h-[48px] min-w-[48px] flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition shrink-0"
+                aria-label="Close photo frame settings"
+                className="min-h-[48px] min-w-[48px] flex items-center justify-center rounded-2xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-cosmos-muted hover:text-cosmos-text transition shrink-0 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveSettings} className="space-y-5 mt-5">
-              {/* Source Provider Selector */}
+            {/* Modal Body */}
+            <form
+              onSubmit={handleSaveSettings}
+              className="p-5 sm:p-7 overflow-y-auto space-y-5 text-left"
+            >
+              {/* 1. Source Provider Selector */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                  1. Choose Photo Connector
+                <label className="block text-xs font-bold uppercase tracking-wider text-cosmos-muted mb-2">
+                  1. Where are your family photos?
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   {(
@@ -763,17 +772,17 @@ export function ScreensaverView({
                       {
                         id: "google_photos",
                         title: "Google Photos",
-                        subtitle: "Via Shared Album Link",
+                        subtitle: "Paste a shared album link",
                       },
                       {
                         id: "immich",
                         title: "Immich",
-                        subtitle: "Shared Link or API Key",
+                        subtitle: "Your home photo album",
                       },
                       {
                         id: "sample",
-                        title: "Curated Nature",
-                        subtitle: "Built-in 1080p Stills",
+                        title: "Sample Nature",
+                        subtitle: "Relaxing landscapes",
                       },
                     ] as const
                   ).map((option) => {
@@ -788,14 +797,16 @@ export function ScreensaverView({
                             provider: option.id,
                           }))
                         }
-                        className={`min-h-[56px] p-3 rounded-2xl border text-left transition flex flex-col justify-center ${
+                        className={`min-h-[56px] p-3.5 rounded-2xl border text-left transition flex flex-col justify-center cursor-pointer ${
                           selected
-                            ? "bg-purple-600/20 border-purple-400 text-white shadow-sm"
-                            : "bg-slate-800/70 border-slate-700/80 text-slate-300 hover:bg-slate-800"
+                            ? "bg-starlight/15 border-starlight text-cosmos-text shadow-sm"
+                            : "bg-cosmos-surface/70 border-cosmos-border text-cosmos-muted hover:bg-cosmos-cardHover hover:text-cosmos-text"
                         }`}
                       >
-                        <span className="text-sm font-bold">{option.title}</span>
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-sm font-bold text-cosmos-text">
+                          {option.title}
+                        </span>
+                        <span className="text-[11px] text-cosmos-muted">
                           {option.subtitle}
                         </span>
                       </button>
@@ -804,10 +815,10 @@ export function ScreensaverView({
                 </div>
               </div>
 
-              {/* Album Display Name */}
+              {/* Album Title Input */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                  Album Display Label (Optional)
+                <label className="block text-xs font-bold uppercase tracking-wider text-cosmos-muted mb-1.5">
+                  Album Title (Shown in the corner of your screen)
                 </label>
                 <input
                   type="text"
@@ -818,43 +829,45 @@ export function ScreensaverView({
                       albumName: e.target.value,
                     }))
                   }
-                  placeholder="e.g., Family Memories 2026"
-                  className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-400"
+                  placeholder="e.g., Summer Vacation or Our Family"
+                  className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-cosmos-surface border border-cosmos-border text-sm text-cosmos-text placeholder:text-cosmos-muted/60 focus:outline-none focus:border-starlight transition"
                 />
               </div>
 
-              {/* Google Photos Shared Album Configuration & User Training Guide */}
+              {/* Google Photos Shared Album Walkthrough */}
               {draftConfig.provider === "google_photos" && (
-                <div className="space-y-3 rounded-2xl bg-slate-950/80 border border-slate-800 p-4">
+                <div className="space-y-3 rounded-2xl bg-cosmos-deep/70 border border-cosmos-border p-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-purple-300">
+                    <span className="text-xs font-bold uppercase tracking-wider text-starlight">
                       Google Photos Shared Album Link
                     </span>
                     <button
                       type="button"
                       onClick={() => setShowSetupGuide((g) => !g)}
-                      className="text-xs text-purple-300 hover:text-purple-200 flex items-center gap-1 font-semibold"
+                      className="text-xs text-starlight hover:opacity-80 flex items-center gap-1 font-semibold cursor-pointer"
                     >
                       <HelpCircle className="w-3.5 h-3.5" />
-                      <span>{showSetupGuide ? "Hide Guide" : "How to get link"}</span>
+                      <span>
+                        {showSetupGuide ? "Hide Steps" : "Show Step-by-Step Help"}
+                      </span>
                     </button>
                   </div>
 
                   {showSetupGuide && (
-                    <div className="rounded-xl bg-purple-950/35 border border-purple-500/30 p-3 text-xs text-slate-200 space-y-1.5">
-                      <p className="font-bold text-purple-200">
-                        How to connect a Google Photos album in 30 seconds:
+                    <div className="rounded-xl bg-starlight/10 border border-starlight/25 p-3.5 text-xs text-cosmos-text space-y-1.5">
+                      <p className="font-bold text-starlight">
+                        How to connect a Google Photos album in 3 easy steps:
                       </p>
-                      <ol className="list-decimal list-inside space-y-1 text-slate-300">
+                      <ol className="list-decimal list-inside space-y-1 text-cosmos-text/90">
                         <li>
-                          Open <strong>Google Photos</strong> on your phone or{" "}
-                          <span className="underline">photos.google.com</span> and select an Album.
+                          Open the <strong>Google Photos</strong> app on your phone (or visit{" "}
+                          <span className="underline">photos.google.com</span>) and pick the album you want to show.
                         </li>
                         <li>
-                          Tap <strong>Share</strong> → <strong>Create link</strong> (or <strong>Copy link</strong>).
+                          Tap <strong>Share</strong>, then tap <strong>Create link</strong> (or <strong>Copy link</strong>).
                         </li>
                         <li>
-                          Paste the link (<code className="text-purple-300">https://photos.app.goo.gl/...</code>) below. Any time you add or remove photos in that album on your phone, your kiosk updates automatically!
+                          Paste that link below! Any time you add new pictures to that album on your phone, they will automatically appear on your calendar.
                         </li>
                       </ol>
                     </div>
@@ -870,48 +883,53 @@ export function ScreensaverView({
                         googlePhotosShareUrl: e.target.value,
                       }))
                     }
-                    placeholder="https://photos.app.goo.gl/..."
-                    className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-400"
+                    placeholder="Paste your link here (e.g., https://photos.app.goo.gl/...)"
+                    className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-cosmos-surface border border-cosmos-border text-sm text-cosmos-text placeholder:text-cosmos-muted/60 focus:outline-none focus:border-starlight transition"
                   />
                 </div>
               )}
 
-              {/* Immich Configuration & User Training Guide */}
+              {/* Immich Setup Walkthrough */}
               {draftConfig.provider === "immich" && (
-                <div className="space-y-3 rounded-2xl bg-slate-950/80 border border-slate-800 p-4">
+                <div className="space-y-3 rounded-2xl bg-cosmos-deep/70 border border-cosmos-border p-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-purple-300">
-                      Immich Connector Setup
+                    <span className="text-xs font-bold uppercase tracking-wider text-starlight">
+                      Connect Your Immich Album
                     </span>
                     <button
                       type="button"
                       onClick={() => setShowSetupGuide((g) => !g)}
-                      className="text-xs text-purple-300 hover:text-purple-200 flex items-center gap-1 font-semibold"
+                      className="text-xs text-starlight hover:opacity-80 flex items-center gap-1 font-semibold cursor-pointer"
                     >
                       <HelpCircle className="w-3.5 h-3.5" />
-                      <span>{showSetupGuide ? "Hide Guide" : "How to connect"}</span>
+                      <span>
+                        {showSetupGuide ? "Hide Steps" : "Show Step-by-Step Help"}
+                      </span>
                     </button>
                   </div>
 
                   {showSetupGuide && (
-                    <div className="rounded-xl bg-purple-950/35 border border-purple-500/30 p-3 text-xs text-slate-200 space-y-1.5">
-                      <p className="font-bold text-purple-200">
-                        Two easy ways to connect your Immich instance:
+                    <div className="rounded-xl bg-starlight/10 border border-starlight/25 p-3.5 text-xs text-cosmos-text space-y-1.5">
+                      <p className="font-bold text-starlight">
+                        How to share an album from Immich:
                       </p>
-                      <ul className="list-disc list-inside space-y-1 text-slate-300">
+                      <ol className="list-decimal list-inside space-y-1 text-cosmos-text/90">
                         <li>
-                          <strong>Option A (Recommended — Shared Album Link):</strong> Open an album in Immich → click <strong>Share</strong> → <strong>Create Link</strong> → paste <code className="text-purple-300">https://your-immich/share/...</code> below.
+                          Open your favorite album in <strong>Immich</strong> and click the <strong>Share</strong> button.
                         </li>
                         <li>
-                          <strong>Option B (Server URL + API Key):</strong> Enter your Immich Server URL and a read-only API Key (<code className="text-purple-300">album.read</code>, <code className="text-purple-300">asset.view</code>).
+                          Click <strong>Create Link</strong> and copy the link.
                         </li>
-                      </ul>
+                        <li>
+                          Paste the shared link in the first box below!
+                        </li>
+                      </ol>
                     </div>
                   )}
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Option A: Immich Shared Album Link
+                    <label className="block text-xs font-semibold text-cosmos-text mb-1">
+                      Immich Shared Album Link (Easiest)
                     </label>
                     <input
                       type="url"
@@ -923,14 +941,14 @@ export function ScreensaverView({
                         }))
                       }
                       placeholder="https://photos.myfamily.com/share/..."
-                      className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-400"
+                      className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-cosmos-surface border border-cosmos-border text-sm text-cosmos-text placeholder:text-cosmos-muted/60 focus:outline-none focus:border-starlight transition"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1">
-                        Option B: Immich Server URL
+                      <label className="block text-xs font-semibold text-cosmos-muted mb-1">
+                        Or Immich Web Address (Optional)
                       </label>
                       <input
                         type="url"
@@ -942,14 +960,14 @@ export function ScreensaverView({
                           }))
                         }
                         placeholder="https://photos.myfamily.com"
-                        className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-400"
+                        className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-cosmos-surface border border-cosmos-border text-sm text-cosmos-text placeholder:text-cosmos-muted/60 focus:outline-none focus:border-starlight transition"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1">
-                        Immich API Key{" "}
+                      <label className="block text-xs font-semibold text-cosmos-muted mb-1">
+                        Access Key{" "}
                         {config.hasImmichApiKey && !clearImmichKey && (
-                          <span className="text-emerald-400">(Saved)</span>
+                          <span className="text-starlight">(Saved)</span>
                         )}
                       </label>
                       <input
@@ -965,20 +983,20 @@ export function ScreensaverView({
                         placeholder={
                           config.hasImmichApiKey && !clearImmichKey
                             ? "•••••••• (Leave blank to keep)"
-                            : "Optional if using Shared Link"
+                            : "Not needed if using a Shared Link"
                         }
-                        className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-400"
+                        className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-cosmos-surface border border-cosmos-border text-sm text-cosmos-text placeholder:text-cosmos-muted/60 focus:outline-none focus:border-starlight transition"
                       />
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* 2. Kiosk Cache Limit & Slideshow Tuning */}
+              {/* 2. Slideshow & Framing Preferences */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                    Cached Photos per Rotation
+                  <label className="block text-xs font-bold uppercase tracking-wider text-cosmos-muted mb-1.5">
+                    Number of Photos in Rotation
                   </label>
                   <select
                     value={draftConfig.maxCachedPhotos}
@@ -988,18 +1006,18 @@ export function ScreensaverView({
                         maxCachedPhotos: Number(e.target.value),
                       }))
                     }
-                    className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-purple-400"
+                    className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-cosmos-surface border border-cosmos-border text-sm text-cosmos-text focus:outline-none focus:border-starlight transition"
                   >
-                    <option value={10}>10 photos (Ultra-Light Cache)</option>
-                    <option value={15}>15 photos (Recommended Kiosk Cache)</option>
-                    <option value={25}>25 photos (Extended Rotation)</option>
-                    <option value={50}>50 photos (Large Album Cache)</option>
+                    <option value={10}>Up to 10 photos</option>
+                    <option value={15}>Up to 15 photos (Recommended)</option>
+                    <option value={25}>Up to 25 photos</option>
+                    <option value={50}>Up to 50 photos</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                    Slide Interval
+                  <label className="block text-xs font-bold uppercase tracking-wider text-cosmos-muted mb-1.5">
+                    Time on Each Photo
                   </label>
                   <select
                     value={draftConfig.slideIntervalSeconds}
@@ -1009,18 +1027,18 @@ export function ScreensaverView({
                         slideIntervalSeconds: Number(e.target.value),
                       }))
                     }
-                    className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-purple-400"
+                    className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-cosmos-surface border border-cosmos-border text-sm text-cosmos-text focus:outline-none focus:border-starlight transition"
                   >
-                    <option value={10}>Every 10 seconds</option>
-                    <option value={15}>Every 15 seconds (Recommended)</option>
-                    <option value={30}>Every 30 seconds</option>
-                    <option value={60}>Every 60 seconds</option>
+                    <option value={10}>10 seconds</option>
+                    <option value={15}>15 seconds (Recommended)</option>
+                    <option value={30}>30 seconds</option>
+                    <option value={60}>1 minute</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                    Portrait Photo Framing
+                  <label className="block text-xs font-bold uppercase tracking-wider text-cosmos-muted mb-1.5">
+                    Vertical Phone Photos
                   </label>
                   <select
                     value={draftConfig.portraitFillMode}
@@ -1030,18 +1048,20 @@ export function ScreensaverView({
                         portraitFillMode: e.target.value as "blur" | "cover",
                       }))
                     }
-                    className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-purple-400"
+                    className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-cosmos-surface border border-cosmos-border text-sm text-cosmos-text focus:outline-none focus:border-starlight transition"
                   >
                     <option value="blur">
-                      Blurred Ambient Backdrop Fill (Recommended)
+                      Fit Entire Photo with Soft Blurred Sides (Recommended)
                     </option>
-                    <option value="cover">Full-Screen Center Crop</option>
+                    <option value="cover">
+                      Fill Entire Screen (May Crop Edges)
+                    </option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                    Crossfade Speed & Dimming
+                  <label className="block text-xs font-bold uppercase tracking-wider text-cosmos-muted mb-1.5">
+                    Photo Transition Style
                   </label>
                   <select
                     value={draftConfig.transitionDurationMs}
@@ -1051,21 +1071,21 @@ export function ScreensaverView({
                         transitionDurationMs: Number(e.target.value),
                       }))
                     }
-                    className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-purple-400"
+                    className="w-full min-h-[48px] px-3.5 py-2 rounded-xl bg-cosmos-surface border border-cosmos-border text-sm text-cosmos-text focus:outline-none focus:border-starlight transition"
                   >
-                    <option value={1500}>1.5s Smooth Crossfade</option>
-                    <option value={2500}>2.5s Gentle Slow Fade (Recommended)</option>
-                    <option value={4000}>4.0s Ultra-Slow Ambient Fade</option>
+                    <option value={1500}>Normal Fade</option>
+                    <option value={2500}>Slow, Gentle Fade (Recommended)</option>
+                    <option value={4000}>Extra-Slow Relaxing Fade</option>
                   </select>
                 </div>
               </div>
 
-              {/* Brightness & Shuffle Controls */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center rounded-2xl bg-slate-950/60 border border-slate-800 p-4">
+              {/* Brightness & On-Screen Info Controls */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center rounded-2xl bg-cosmos-deep/60 border border-cosmos-border p-4">
                 <div>
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-300 mb-1.5">
+                  <div className="flex items-center justify-between text-xs font-bold text-cosmos-text mb-1.5">
                     <span>Photo Brightness</span>
-                    <span className="text-purple-300">
+                    <span className="text-starlight">
                       {draftConfig.brightnessPercent}%
                     </span>
                   </div>
@@ -1081,14 +1101,14 @@ export function ScreensaverView({
                         brightnessPercent: Number(e.target.value),
                       }))
                     }
-                    className="w-full accent-purple-500 cursor-pointer"
+                    className="w-full accent-starlight cursor-pointer"
                   />
                 </div>
 
                 <div className="flex flex-wrap gap-2">
                   {(
                     [
-                      { key: "shuffle", label: "Shuffle Photos" },
+                      { key: "shuffle", label: "Shuffle Order" },
                       { key: "showClock", label: "Clock" },
                       { key: "showWeather", label: "Weather" },
                       { key: "showNextEvent", label: "Next Event" },
@@ -1105,15 +1125,15 @@ export function ScreensaverView({
                             [toggle.key]: !prev[toggle.key],
                           }))
                         }
-                        className={`min-h-[48px] px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
+                        className={`min-h-[48px] px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
                           active
-                            ? "bg-purple-600/25 border-purple-400 text-purple-100"
-                            : "bg-slate-900 border-slate-700 text-slate-400"
+                            ? "bg-starlight/15 border-starlight text-cosmos-text"
+                            : "bg-cosmos-surface border-cosmos-border text-cosmos-muted hover:text-cosmos-text"
                         }`}
                       >
                         <Check
                           className={`w-3.5 h-3.5 ${
-                            active ? "opacity-100 text-purple-300" : "opacity-0"
+                            active ? "opacity-100 text-starlight" : "opacity-0"
                           }`}
                         />
                         <span>{toggle.label}</span>
@@ -1123,30 +1143,30 @@ export function ScreensaverView({
                 </div>
               </div>
 
-              {/* Browser Cache Status Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-slate-950/90 border border-slate-800 px-4 py-3 text-xs text-slate-300">
+              {/* Friendly Refresh Album Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-cosmos-surface/70 border border-cosmos-border px-4 py-3 text-xs text-cosmos-muted">
                 <div className="flex items-center gap-2.5">
-                  <HardDrive className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <ImageIcon className="w-4 h-4 text-starlight shrink-0" />
                   <span>
-                    Kiosk Browser Cache:{" "}
-                    <strong className="text-white">
-                      {warmedCount} / {photos.length} photos warmed
+                    <strong className="text-cosmos-text">
+                      {warmedCount > 0 ? warmedCount : photos.length} of{" "}
+                      {photos.length} photos
                     </strong>{" "}
-                    (≤1080p • 0 ongoing server compute)
+                    ready for your slideshow. Added new pictures to your album recently?
                   </span>
                 </div>
                 <button
                   type="button"
-                  onClick={handlePurgeLocalCache}
+                  onClick={handleRefreshAlbumPhotos}
                   disabled={isSyncing}
-                  className="min-h-[48px] px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center gap-1.5 transition shrink-0"
+                  className="min-h-[48px] px-3.5 py-2 rounded-xl bg-cosmos-card hover:bg-cosmos-cardHover border border-cosmos-border text-cosmos-text font-bold flex items-center gap-1.5 transition shrink-0 cursor-pointer"
                 >
-                  {isSyncing ? (
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                  )}
-                  <span>Refresh Kiosk Cache</span>
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 text-starlight ${
+                      isSyncing ? "animate-spin" : ""
+                    }`}
+                  />
+                  <span>Refresh Album Photos</span>
                 </button>
               </div>
 
@@ -1155,40 +1175,41 @@ export function ScreensaverView({
                 <div
                   className={`rounded-2xl p-3.5 text-xs font-semibold flex items-start gap-2.5 border ${
                     statusBanner?.type === "error"
-                      ? "bg-rose-950/50 border-rose-500/40 text-rose-200"
-                      : statusBanner?.type === "warning" || (!statusBanner && syncWarning)
-                      ? "bg-amber-950/50 border-amber-500/40 text-amber-200"
-                      : "bg-emerald-950/50 border-emerald-500/40 text-emerald-200"
+                      ? "bg-rose-500/15 border-rose-500/40 text-rose-300"
+                      : statusBanner?.type === "warning" ||
+                        (!statusBanner && syncWarning)
+                      ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
+                      : "bg-starlight/15 border-starlight/40 text-cosmos-text"
                   }`}
                 >
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-starlight" />
                   <span>{statusBanner?.message || syncWarning}</span>
                 </div>
               )}
 
               {/* Footer Actions */}
-              <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-cosmos-border">
                 <button
                   type="button"
                   onClick={() => setIsSettingsOpen(false)}
-                  className="min-h-[48px] px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-bold transition"
+                  className="min-h-[48px] px-5 py-2.5 rounded-xl bg-cosmos-surface hover:bg-cosmos-cardHover border border-cosmos-border text-cosmos-text text-sm font-bold transition cursor-pointer"
                 >
-                  Close
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="min-h-[48px] px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-bold flex items-center gap-2 transition shadow-lg"
+                  className="min-h-[48px] px-6 py-2.5 rounded-xl theme-focus-pill disabled:opacity-50 text-sm font-bold flex items-center gap-2 transition shadow-lg cursor-pointer"
                 >
                   {isSaving ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Syncing Album...</span>
+                      <span>Loading Photos...</span>
                     </>
                   ) : (
                     <>
                       <Check className="w-4 h-4" />
-                      <span>Save & Sync Album</span>
+                      <span>Save & Show Photos</span>
                     </>
                   )}
                 </button>

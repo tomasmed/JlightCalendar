@@ -1226,6 +1226,14 @@ assert(
     screensaverViewSource.includes("jlight-screensaver-images-v1"),
   "ScreensaverView caches images locally in browser CacheStorage for zero ongoing server compute"
 );
+assert(
+  screensaverViewSource.includes("useActiveTheme") &&
+    screensaverViewSource.includes("bg-cosmos-card") &&
+    screensaverViewSource.includes("border-cosmos-border") &&
+    screensaverViewSource.includes("theme-focus-pill") &&
+    screensaverViewSource.includes("Family Photo Frame"),
+  "ScreensaverView applies active theme tokens and humanized end-user copy to the photo frame modal"
+);
 
 console.log("\n✨ All unit and static guard tests passed successfully!");
 
