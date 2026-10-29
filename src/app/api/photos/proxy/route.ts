@@ -7,6 +7,7 @@ import { resolveRequestActor, verifyActorGalaxyAccess } from "@/lib/agent-auth";
 import {
   parseScreensaverConfig,
   buildImmichUpstreamThumbnailUrl,
+  validateGooglePhotosCdnUrl,
 } from "@/lib/photos";
 
 const MAX_PROXY_IMAGE_BYTES = 8 * 1024 * 1024; // 8 MB safety ceiling for 1080p preview
@@ -24,10 +25,11 @@ export async function GET(request: Request) {
       searchParams.get("galaxyId") ||
       (actor.kind === "agent" ? actor.agent.galaxyId : "galaxy_sol_family");
     const assetId = searchParams.get("assetId") || "";
+    const gphotoUrl = searchParams.get("u") || "";
 
-    if (!assetId.trim()) {
+    if (!assetId.trim() && !gphotoUrl.trim()) {
       return NextResponse.json(
-        { error: "assetId query parameter is required" },
+        { error: "assetId or u query parameter is required" },
         { status: 400 }
       );
     }
@@ -45,36 +47,57 @@ export async function GET(request: Request) {
       );
     }
 
-    const [galaxy] = await db
-      .select({
-        id: galaxies.id,
-        screensaverConfig: galaxies.screensaverConfig,
-      })
-      .from(galaxies)
-      .where(eq(galaxies.id, galaxyId))
-      .limit(1);
+    let upstreamUrl = "";
+    let upstreamHeaders: Record<string, string> = {
+      Accept: "image/webp,image/jpeg,image/*,*/*;q=0.8",
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    };
 
-    if (!galaxy) {
-      return NextResponse.json({ error: "Galaxy not found" }, { status: 404 });
+    if (gphotoUrl.trim()) {
+      const check = validateGooglePhotosCdnUrl(gphotoUrl);
+      if (!check.valid || !check.url) {
+        return NextResponse.json(
+          { error: check.error || "Invalid Google Photos CDN URL" },
+          { status: 400 }
+        );
+      }
+      upstreamUrl = check.url;
+    } else {
+      const [galaxy] = await db
+        .select({
+          id: galaxies.id,
+          screensaverConfig: galaxies.screensaverConfig,
+        })
+        .from(galaxies)
+        .where(eq(galaxies.id, galaxyId))
+        .limit(1);
+
+      if (!galaxy) {
+        return NextResponse.json({ error: "Galaxy not found" }, { status: 404 });
+      }
+
+      const config = parseScreensaverConfig(galaxy.screensaverConfig);
+      const upstream = buildImmichUpstreamThumbnailUrl(config, assetId);
+      if (!upstream) {
+        return NextResponse.json(
+          { error: "Immich connector is not configured or assetId is invalid." },
+          { status: 400 }
+        );
+      }
+      upstreamUrl = upstream.url;
+      upstreamHeaders = { ...upstreamHeaders, ...upstream.headers };
     }
 
-    const config = parseScreensaverConfig(galaxy.screensaverConfig);
-    const upstream = buildImmichUpstreamThumbnailUrl(config, assetId);
-    if (!upstream) {
-      return NextResponse.json(
-        { error: "Immich connector is not configured or assetId is invalid." },
-        { status: 400 }
-      );
-    }
-
-    const upstreamRes = await fetch(upstream.url, {
+    const upstreamRes = await fetch(upstreamUrl, {
       method: "GET",
-      headers: upstream.headers,
+      headers: upstreamHeaders,
+      referrerPolicy: "no-referrer",
     });
 
     if (!upstreamRes.ok) {
       return NextResponse.json(
-        { error: `Upstream Immich returned HTTP ${upstreamRes.status}` },
+        { error: `Upstream photo provider returned HTTP ${upstreamRes.status}` },
         { status: 502 }
       );
     }
@@ -101,12 +124,13 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         "Content-Type": contentType,
+        "Cross-Origin-Resource-Policy": "same-origin",
         "Cache-Control":
           "public, max-age=604800, s-maxage=86400, stale-while-revalidate=604800, immutable",
       },
     });
   } catch (error) {
-    console.error("Failed to proxy Immich preview:", error);
+    console.error("Failed to proxy photo preview:", error);
     return NextResponse.json(
       { error: "Failed to proxy photo preview" },
       { status: 502 }

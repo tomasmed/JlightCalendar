@@ -38,7 +38,7 @@ interface ScreensaverViewProps {
   events?: CalendarEventData[];
 }
 
-const PLAYLIST_CACHE_PREFIX = "jlight-screensaver-playlist-v1:";
+const PLAYLIST_CACHE_PREFIX = "jlight-screensaver-playlist-v2:";
 const BROWSER_IMAGE_CACHE = "jlight-screensaver-images-v1";
 const PLAYLIST_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours between upstream metadata refreshes
 
@@ -48,6 +48,18 @@ interface CachedPlaylistPayload {
   photos: ResolvedPhotoItem[];
   source: PhotoProvider;
   warning?: string;
+}
+
+function toSameOriginOrDirectUrl(item: ResolvedPhotoItem, galaxyId: string): string {
+  if (
+    item.provider === "google_photos" &&
+    item.url.startsWith("https://lh3.googleusercontent.com/")
+  ) {
+    return `/api/photos/proxy?galaxyId=${encodeURIComponent(
+      galaxyId || "galaxy_sol_family"
+    )}&u=${encodeURIComponent(item.url)}`;
+  }
+  return item.url;
 }
 
 export function ScreensaverView({
@@ -137,13 +149,13 @@ export function ScreensaverView({
     };
   }, [events]);
 
-  // Warm images into Browser CacheStorage (for proxy URLs) & browser HTTP cache (for Google CDN / Unsplash)
+  // Warm images into Browser CacheStorage (for Google Photos & Immich proxy URLs) & browser HTTP cache
   const warmPhotoCache = useCallback(
     async (items: ResolvedPhotoItem[], maxCount: number) => {
       if (typeof window === "undefined") return;
+      const targetGalaxyId = activeGalaxyId || "galaxy_sol_family";
       const capped = items.slice(0, maxCount);
       let warmed = 0;
-      const newBlobMap: Record<string, string> = {};
 
       const hasCacheStorage = "caches" in window;
       let cache: Cache | null = null;
@@ -153,8 +165,9 @@ export function ScreensaverView({
           // Prune old cache entries beyond the current capped playlist
           const activeUrls = new Set(
             capped
-              .filter((p) => p.url.startsWith("/"))
-              .map((p) => new URL(p.url, window.location.origin).toString())
+              .map((p) => toSameOriginOrDirectUrl(p, targetGalaxyId))
+              .filter((u) => u.startsWith("/"))
+              .map((u) => new URL(u, window.location.origin).toString())
           );
           const keys = await cache.keys();
           for (const req of keys) {
@@ -169,8 +182,9 @@ export function ScreensaverView({
 
       for (const item of capped) {
         try {
-          if (item.url.startsWith("/") && cache) {
-            const fullUrl = new URL(item.url, window.location.origin).toString();
+          const fetchUrl = toSameOriginOrDirectUrl(item, targetGalaxyId);
+          if (fetchUrl.startsWith("/") && cache) {
+            const fullUrl = new URL(fetchUrl, window.location.origin).toString();
             let cachedRes = await cache.match(fullUrl);
             if (!cachedRes) {
               const netRes = await fetch(fullUrl);
@@ -178,21 +192,24 @@ export function ScreensaverView({
                 await cache.put(fullUrl, netRes.clone());
                 cachedRes = netRes;
               }
+              // Gentle 150ms spacing when downloading uncached album photos for the first time
+              await new Promise((r) => setTimeout(r, 150));
             }
             if (cachedRes) {
               const blob = await cachedRes.blob();
               const objUrl = URL.createObjectURL(blob);
               blobUrlRegistryRef.current.push(objUrl);
-              newBlobMap[item.id] = objUrl;
+              setCachedBlobUrls((prev) => ({ ...prev, [item.id]: objUrl }));
               warmed++;
+              setWarmedCount(warmed);
               continue;
             }
           }
 
-          // Cross-origin CDN URLs (Google Photos lh3.googleusercontent.com =w1920-h1080 or sample):
-          // Preload via Image() so browser disk cache stores the 1080p asset locally
+          // Built-in sample photos: preload via Image() with no-referrer
           await new Promise<void>((resolve) => {
             const img = new window.Image();
+            img.referrerPolicy = "no-referrer";
             img.onload = () => {
               if (img.naturalHeight > 0 && img.naturalWidth > 0) {
                 const isPort = img.naturalHeight > img.naturalWidth;
@@ -201,22 +218,18 @@ export function ScreensaverView({
                 );
               }
               warmed++;
+              setWarmedCount(warmed);
               resolve();
             };
             img.onerror = () => resolve();
-            img.src = item.url;
+            img.src = fetchUrl;
           });
         } catch {
           // Ignore single photo warmup error
         }
       }
-
-      if (Object.keys(newBlobMap).length > 0) {
-        setCachedBlobUrls((prev) => ({ ...prev, ...newBlobMap }));
-      }
-      setWarmedCount(warmed);
     },
-    []
+    [activeGalaxyId]
   );
 
   // Load playlist from local browser cache first, or fetch from /api/photos
@@ -390,7 +403,9 @@ export function ScreensaverView({
       if (!res.ok) {
         setStatusBanner({
           type: "error",
-          message: data.error || "Could not save your photo settings. Please check your link and try again.",
+          message:
+            data.error ||
+            "Could not save your photo settings. Please check your link and try again.",
         });
         return;
       }
@@ -436,7 +451,8 @@ export function ScreensaverView({
     } catch (err: any) {
       setStatusBanner({
         type: "error",
-        message: err?.message || "Could not connect right now. Please try again in a moment.",
+        message:
+          err?.message || "Could not connect right now. Please try again in a moment.",
       });
     } finally {
       setIsSaving(false);
@@ -477,7 +493,8 @@ export function ScreensaverView({
   };
 
   const resolveDisplayUrl = (item: ResolvedPhotoItem): string => {
-    return cachedBlobUrls[item.id] || item.url;
+    if (cachedBlobUrls[item.id]) return cachedBlobUrls[item.id];
+    return toSameOriginOrDirectUrl(item, activeGalaxyId || "galaxy_sol_family");
   };
 
   const renderPhotoSlide = (
@@ -510,6 +527,7 @@ export function ScreensaverView({
               src={src}
               alt=""
               aria-hidden="true"
+              referrerPolicy="no-referrer"
               className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-65 select-none pointer-events-none"
             />
             <div className="absolute inset-0 bg-black/25" />
@@ -518,6 +536,7 @@ export function ScreensaverView({
               <img
                 src={src}
                 alt={item.caption || "Family memory"}
+                referrerPolicy="no-referrer"
                 onLoad={(e) => {
                   const img = e.currentTarget;
                   if (img.naturalHeight > 0 && img.naturalWidth > 0) {
@@ -538,6 +557,7 @@ export function ScreensaverView({
           <img
             src={src}
             alt={item.caption || "Family memory"}
+            referrerPolicy="no-referrer"
             onLoad={(e) => {
               const img = e.currentTarget;
               if (img.naturalHeight > 0 && img.naturalWidth > 0) {

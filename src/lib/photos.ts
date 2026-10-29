@@ -298,6 +298,34 @@ export function validateGooglePhotosShareUrl(rawUrl: string): {
 }
 
 /**
+ * Validates that a URL is a legitimate Google Photos CDN image URL (`lh3.googleusercontent.com`).
+ */
+export function validateGooglePhotosCdnUrl(rawUrl: string): {
+  valid: boolean;
+  url?: string;
+  error?: string;
+} {
+  if (!rawUrl || typeof rawUrl !== "string" || !rawUrl.trim()) {
+    return { valid: false, error: "Google Photos CDN URL is required." };
+  }
+  try {
+    const parsed = new URL(rawUrl.trim());
+    if (
+      parsed.protocol !== "https:" ||
+      parsed.hostname.toLowerCase() !== "lh3.googleusercontent.com"
+    ) {
+      return {
+        valid: false,
+        error: "Only https://lh3.googleusercontent.com image URLs are permitted.",
+      };
+    }
+    return { valid: true, url: toGooglePhotos1080pUrl(parsed.toString(), 1920, 1080) };
+  } catch {
+    return { valid: false, error: "Invalid Google Photos CDN URL." };
+  }
+}
+
+/**
  * Rewrites a Google Photos `lh3.googleusercontent.com` base URL to request a <= 1080p image.
  */
 export function toGooglePhotos1080pUrl(
