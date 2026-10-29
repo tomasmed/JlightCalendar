@@ -96,6 +96,7 @@ export const galaxies = sqliteTable("galaxies", {
     .notNull()
     .default(false),
   expiresAt: text("expires_at"),
+  screensaverConfig: text("screensaver_config"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),

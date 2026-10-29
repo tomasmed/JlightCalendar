@@ -700,7 +700,13 @@ export default function HomePage() {
 
       {/* Screensaver Takes Over Whole Display */}
       {activeTab === "photos" ? (
-        <ScreensaverView onDismiss={() => setActiveTab("calendar")} />
+        <ScreensaverView
+          onDismiss={() => setActiveTab("calendar")}
+          activeGalaxyId={activeGalaxyId}
+          activeGalaxyName={currentGalaxy?.name}
+          accessMode={accessMode}
+          events={events}
+        />
       ) : (
         <>
           {/* Top Kiosk Header */}
