@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
@@ -38,12 +39,34 @@ export function setMockTestSession(session: MockTestSession | null | undefined) 
   mockTestSession = session;
 }
 
+/**
+ * Resolves the NextAuth signing secret safely:
+ * - Uses AUTH_SECRET or NEXTAUTH_SECRET when configured.
+ * - In development or JLIGHT_TEST_MODE, allows a deterministic local dev secret.
+ * - In production, never falls back to a static public string; generates a random
+ *   CSPRNG secret per process if unconfigured so external attackers cannot forge JWTs.
+ */
+export function resolveAuthSecret(
+  env: Record<string, string | undefined> = process.env
+): string {
+  const configured = env.AUTH_SECRET?.trim() || env.NEXTAUTH_SECRET?.trim();
+  if (configured) {
+    return configured;
+  }
+
+  if (env.NODE_ENV !== "production" || env.JLIGHT_TEST_MODE === "true") {
+    return "jlight-dev-only-secret-not-for-production";
+  }
+
+  console.warn(
+    "⚠️ [JlightCalendar Security] AUTH_SECRET is not set in production! Generating ephemeral CSPRNG secret."
+  );
+  return crypto.randomBytes(32).toString("hex");
+}
+
 const nextAuth = NextAuth({
   trustHost: true,
-  secret:
-    process.env.AUTH_SECRET ||
-    process.env.NEXTAUTH_SECRET ||
-    "jlight-calendar-secret-default-key-change-in-production",
+  secret: resolveAuthSecret(),
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,

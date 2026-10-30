@@ -1282,6 +1282,29 @@ assert(
   "README.md references AGPLv3 license and ADR 0019"
 );
 
+// ---------------------------------------------------------------------------
+// 16. Security & Privacy Hardening Verification (/api/members & AUTH_SECRET)
+// ---------------------------------------------------------------------------
+console.log("\n🔒 [16] Testing /api/members Privacy Scoping & Production AUTH_SECRET Guard...");
+
+const authSourcePath = path.resolve(__dirname, "../src/auth.ts");
+const authSource = fs.readFileSync(authSourcePath, "utf-8");
+assert(
+  !authSource.includes("jlight-calendar-secret-default-key-change-in-production") &&
+    authSource.includes("resolveAuthSecret") &&
+    authSource.includes("crypto.randomBytes(32).toString(\"hex\")"),
+  "src/auth.ts removes static production fallback secret and uses resolveAuthSecret() with CSPRNG fallback"
+);
+
+const membersApiPath = path.resolve(__dirname, "../src/app/api/members/route.ts");
+const membersApiSource = fs.readFileSync(membersApiPath, "utf-8");
+assert(
+  membersApiSource.includes("resolveRequestActor") &&
+    membersApiSource.includes("verifyActorGalaxyAccess") &&
+    membersApiSource.includes("eq(galaxyMembers.galaxyId, galaxyId)"),
+  "src/app/api/members/route.ts enforces verifyActorGalaxyAccess and scopes queries by galaxyId"
+);
+
 console.log("\n✨ All unit and static guard tests passed successfully!");
 
 
