@@ -81,6 +81,8 @@ async function runSystemTests() {
   const eventsImportRoute = await import("../src/app/api/events/import/route");
   const photosRoute = await import("../src/app/api/photos/route");
   const photosProxyRoute = await import("../src/app/api/photos/proxy/route");
+  const legacyMembersRoute = await import("../src/app/api/members/route");
+  const { resolveAuthSecret } = await import("../src/auth");
 
   console.log("\n====================================================");
   console.log("👩‍🚀 2. Creating Users & Provisioning Galaxies");
@@ -1402,6 +1404,67 @@ async function runSystemTests() {
   assert(
     missingAssetProxyRes.status === 400,
     "GET /api/photos/proxy requires assetId query parameter (400)"
+  );
+
+  console.log("\n====================================================");
+  console.log("🔒 10. Security & Privacy Hardening (/api/members & AUTH_SECRET)");
+  console.log("====================================================");
+
+  // 10a. Unscoped GET /api/members without galaxyId returns 400 Bad Request
+  const unscopedMembersRes = await legacyMembersRoute.GET(
+    new Request("http://localhost:3000/api/members")
+  );
+  assert(
+    unscopedMembersRes.status === 400,
+    "GET /api/members without galaxyId returns 400 Bad Request (prevents global member enumeration)"
+  );
+
+  // 10b. Unauthenticated request to private galaxy's /api/members returns 403 Forbidden
+  setMockTestSession(null);
+  const unauthMembersRes = await legacyMembersRoute.GET(
+    new Request(`http://localhost:3000/api/members?galaxyId=${galaxyId}`)
+  );
+  assert(
+    unauthMembersRes.status === 403,
+    "GET /api/members rejects unauthenticated request for private galaxy with 403 Forbidden"
+  );
+
+  // 10c. Authenticated owner request to /api/members?galaxyId=... returns only that galaxy's members
+  setMockTestSession({
+    user: {
+      id: userAliceId!,
+      email: "alice@jlight.test",
+      name: "Captain Alice",
+    },
+  });
+  const authMembersRes = await legacyMembersRoute.GET(
+    new Request(`http://localhost:3000/api/members?galaxyId=${galaxyId}`)
+  );
+  assert(
+    authMembersRes.status === 200,
+    "GET /api/members returns 200 for authorized galaxy owner"
+  );
+  const authMembersData = await authMembersRes.json();
+  assert(
+    Array.isArray(authMembersData.members) &&
+      authMembersData.members.length > 0 &&
+      authMembersData.members.every((m: any) => m.galaxyId === galaxyId),
+    "GET /api/members returns strictly members belonging to the target galaxyId"
+  );
+
+  // 10d. Verify resolveAuthSecret() behavior across environments
+  assert(
+    resolveAuthSecret({ AUTH_SECRET: "custom-prod-secret", NODE_ENV: "production" }) ===
+      "custom-prod-secret",
+    "resolveAuthSecret() returns configured AUTH_SECRET in production"
+  );
+  const prodRandom1 = resolveAuthSecret({ NODE_ENV: "production" });
+  const prodRandom2 = resolveAuthSecret({ NODE_ENV: "production" });
+  assert(
+    prodRandom1.length === 64 &&
+      prodRandom2.length === 64 &&
+      prodRandom1 !== prodRandom2,
+    "resolveAuthSecret() generates unique 32-byte CSPRNG hex secret when AUTH_SECRET is missing in production"
   );
 
   // Close client & clean up temporary SQLite DB files
