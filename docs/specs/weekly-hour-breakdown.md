@@ -2,12 +2,12 @@
 
 ## 1. Landing View & Week Navigation
 - **Default View**:
-  - The calendar initializes with `viewType = "week"` instead of `"month"`.
+  - On tablet, kiosk, and desktop viewports (`>= 640px`), the calendar initializes with `viewType = "week"` (on narrow `< 640px` mobile screens, it initializes to the split `"month"` + live agenda view).
   - The top view toggle allows users to switch between `Month`, `Week`, `Day`, and `Schedule` at any time.
 - **Monday-to-Sunday Structure**:
   - The 7-day columns represent Monday through Sunday (`(day + 6) % 7`).
   - Column headers display the 3-letter abbreviation (`MON`, `TUE`, `WED`, `THU`, `FRI`, `SAT`, `SUN`) and numeric day pill.
-  - The active day ("Today") is highlighted with a vivid purple badge and starlight glow.
+  - The active day ("Today") is highlighted with a single-anchor focus badge.
 - **Period Navigation**:
   - `<` and `>` shift the active week backward or forward by 7 days.
   - "Today" immediately jumps to the current system week.
@@ -29,17 +29,14 @@
   - Events span vertically based on duration (`height = (durationMinutes / 60) * 56px`).
   - Example: A 4-hour event (e.g. 1:00 PM – 5:00 PM) spans 224px across 4 full hour slots.
 - **Color Attribution**:
-  - Events render with background opacity, border, and left accent stripe matching their assigned family member or custom color.
+  - Events render with an OSL Left-Lip stripe and directional glaze matching their assigned member(s), `Everyone` color, or custom color override.
 - **Concurrent Overlapping Events**:
   - When two or more events overlap in time within the same day column, greedy graph coloring clusters them and allocates side-by-side sub-columns (`width: calc(100% / totalCols)`).
 - **All-Day Events**:
   - Full-day events appear in a sticky banner row pinned between the day headers and the 24-hour grid.
 
-## 4. Touch Interactions & Access Modes
+## 4. Direct Touch Interactions
 - **Click-to-Add**:
-  - In `admin` and `standard` modes, tapping any empty hour cell opens `EventModal` with the clicked day and hour pre-filled.
+  - Tapping any empty hour cell opens `EventModal` with the clicked day and hour pre-filled.
 - **Click-to-Edit**:
-  - Tapping any event card opens `EventModal` to inspect or modify the event.
-- **Kid Mode**:
-  - Suppresses direct event creation and modification.
-  - Tapping opens the Day Overview read-only modal.
+  - Tapping any event card opens `EventModal` to inspect, modify, or delete the event (single occurrence or full recurring series).

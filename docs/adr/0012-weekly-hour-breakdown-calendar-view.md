@@ -5,13 +5,13 @@ Accepted
 
 ## Context
 User feedback indicated that the default monthly calendar view was too high-level for daily family coordination on wall kiosks and mobile devices. Families need immediate visibility into who is doing what and when during each day of the active week. Specifically, users requested:
-1. The calendar landing page should default to the **Weekly View** rather than the Monthly View.
+1. The calendar landing page should default to the **Weekly View** on tablet/desktop displays rather than the Monthly View.
 2. The weekly view should feature an **hour-by-hour breakdown of each day in column form** (Monday through Sunday).
 3. Events should visually span their full duration across active hours in their assigned orbital member color (e.g. a 4-hour event on Monday spans across 4 vertical hour rows).
 
 ## Decision
 1. **Default Landing View**:
-   - Set the initial `viewType` state in `CalendarView` to `"week"`.
+   - Set the initial desktop/tablet `viewType` state in `CalendarView` to `"week"` (with narrow `< 640px` mobile viewports defaulting to the split `"month"` + live agenda view).
    - Retain full view switching capability (`Month`, `Week`, `Day`, `Schedule`) in the top navigation bar.
 
 2. **Monday-to-Sunday 7-Column Layout**:
@@ -31,8 +31,7 @@ User feedback indicated that the default monthly calendar view was too high-leve
 
 5. **Direct Touch-to-Schedule**:
    - Tapping an empty hour slot in any day column directly opens the `EventModal` pre-populated with that day's date and the tapped hour, bypassing manual time input.
-   - In `kid` access mode, creation is suppressed and tapping opens the day schedule overview.
 
 ## Consequences
 - **Positive**: Immediate, glanceable visibility into family member schedules, clear duration blocks, direct scheduling from any hour slot, and high touch ergonomics on wall displays.
-- **Trade-offs**: 7 columns on very narrow screens require horizontal scrolling (`min-w-[650px] md:min-w-0`), which is handled via smooth scrolling while maintaining spacious column widths.
+- **Trade-offs**: 7 columns on very narrow screens require horizontal scrolling (`min-w-[770px] md:min-w-0`), which is handled via smooth synchronized scrolling while maintaining spacious column widths.

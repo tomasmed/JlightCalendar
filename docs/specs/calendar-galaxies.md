@@ -6,8 +6,8 @@
 Within each Galaxy, users can:
 1. Seamlessly switch their active Galaxy view from the header dropdown.
 2. View and schedule events across dedicated **Calendar Instances** (e.g. Primary Orbit, Kids Activities).
-3. Assign events to **Inhabitants** (Galaxy Members), which includes authenticated Google users as well as unlinked profiles (young children and pets like **Java the dog**).
-4. Perform on-click event creation and editing directly on the calendar grid when in **Admin Mode** or **Standard Mode** (with **Kid Mode** strictly enforcing read-only view).
+3. Assign events to **Inhabitants** (Galaxy Members), which includes authenticated Google users, unlinked profiles (young children and pets like **Java the dog**), or **Everyone** (group-wide events).
+4. Perform direct on-click event creation and editing on the calendar grid without artificial UI mode/PIN gates.
 
 ---
 
@@ -27,25 +27,20 @@ Not every family member has a Google email or phone. In particular:
 
 ### 3.1 Galaxy Switcher
 - Located in the Kiosk Header.
-- Displays the currently selected Galaxy (e.g. "The Sol Family Galaxy (Home)").
-- Clicking opens a cosmic dropdown displaying all Galaxies the user is an inhabitant of.
-- Displays inhabitant count, celestial badge, and a "+ Orbit New Galaxy" action.
+- Displays the currently selected Galaxy (e.g. "The Sol Family Galaxy (Home)") or Ephemeral Comet (`☄️ Comet`).
+- Clicking opens a dropdown displaying all Galaxies the user belongs to, along with the Galaxy Join Code (`GLX-XXXXX`), inhabitant count, and "+ Orbit New Galaxy" action.
 - Selecting another Galaxy dynamically updates the calendar grid, inhabitant filters, and events without a full page reload.
 
-### 3.2 Add & Modify Inhabitants Modal
-- Located in the header and member filter bar (available in Admin Mode).
-- Allows adding new members/pets:
+### 3.2 People & Group Colors Modal (`InhabitantsModal`)
+- Accessible from the Galaxy dropdown (`People & Group Colors`) and the `+ People` pill in the calendar filter bar.
+- Allows customizing the group-wide **"Everyone"** color/avatar as well as adding, editing, or removing individual members and pets:
   - Name: text input (e.g., "Java", "Grandpa Carl")
-  - Role: `admin`, `member`, `kid`, `pet`, `viewer`
+  - Role: `admin`, `member`, `kid`, `pet`
   - Avatar Icon: `user`, `baby`, `dog`, `cat`, `sparkles`
-  - Color Theme: Selection of 8 vibrant celestial hues
-- Saving an inhabitant instantly updates the member badges and event assignment dropdowns.
+  - Color Theme: Vibrant semantic hues adapted automatically to the active Theme Studio palette
+- Saving an inhabitant instantly updates the member badges and event assignment options.
 
 ### 3.3 Click-to-Add / Edit Events Modal
-- In **Admin Mode** or **Standard Mode**:
-  - Clicking any date cell on the monthly calendar grid or clicking "+ Add Event" opens the Event Editor Modal.
-  - Clicking an existing event card opens the event for modification or deletion.
-  - Fields: Title, Date (YYYY-MM-DD), Start Time, Duration / End Time, Location, Inhabitant Assignment (e.g. Java the dog, Mom, Dad, All Family), and Color Override.
-- In **Kid Mode**:
-  - Clicking an event displays a read-only detail card.
-  - Add, edit, and delete buttons are hidden to prevent accidental schedule changes.
+- Clicking any date cell on the monthly calendar grid, an hour slot in Week/Day view, or "+ Add Event" opens the Event Editor Modal.
+- Clicking an existing event card opens the event for modification or deletion (single occurrence or full recurring series).
+- Fields: Title, Date (`YYYY-MM-DD`), Start Time, Duration / End Time, Recurrence (`none`, `daily`, `weekday`, `weekly`, `biweekly`, `monthly`), Location, Multi-Member / Everyone Assignment, and Color Override.

@@ -1,7 +1,7 @@
 # Specification: Ephemeral Comets & RFC 5545 `.ics` Portability Layer
 
 ## 1. Overview
-**Ephemeral Comets** are temporary, spin-up / spin-down multiplayer calendars in JlightCalendar designed for short-term team coordination, meetings, project sprints, and group trips. Unlike permanent **Household Galaxies** (which require Google OAuth and expose wall-kiosk controls like Kid Mode, Star Chores, and Night Sleep), **Comets** can be launched instantly without sign-in or provisioned autonomously by AI agents, and automatically spin down after their Time-To-Live (TTL, default 5 months / 150 days).
+**Ephemeral Comets** are temporary, spin-up / spin-down multiplayer calendars in JlightCalendar designed for short-term team coordination, meetings, project sprints, and group trips. Unlike permanent **Household Galaxies** (which require Google OAuth and expose full household tabs like Chores, Meals, Photos, and Night Sleep), **Comets** can be launched instantly without sign-in or provisioned autonomously by AI agents, and automatically spin down after their Time-To-Live (TTL, default 5 months / 150 days).
 
 ---
 
@@ -67,7 +67,7 @@ Creates a Comet bundle (with optional seeded participants, events, list items, a
 - Request Body (JSON, multipart/form-data, or raw text/calendar):
   - `galaxyId`: Target Galaxy UUID or joinCode.
   - `icsText` / `file`: Raw RFC 5545 `.ics` file content.
-  - `memberId`: Optional Inhabitant to attribute imported events to (defaults to whole-family/shared).
+  - `memberId`: Optional Inhabitant to attribute imported events to (defaults to Everyone/shared).
   - `deduplicate`: Boolean flag (default `true`) to skip existing events matching `externalUid` or composite signature (`title__startTime`).
 - Response:
   ```json

@@ -1,7 +1,7 @@
 # ADR 0009: Galaxy Privacy Scoping, Join Codes & Landing Page Architecture
 
 ## Status
-Accepted
+Accepted (Updated by [ADR 0019](./0019-hosted-service-first-agpl-and-pin-gate-removal.md))
 
 ## Context
 With the introduction of multi-galaxy support (ADR 0007), all users could previously view and switch between all galaxies stored in the database due to an overly permissive fallback in `/api/galaxies` and unscoped queries in chores, meals, and lists. Additionally:
@@ -17,10 +17,10 @@ With the introduction of multi-galaxy support (ADR 0007), all users could previo
 ### 1. Strict Privacy Scoping & Multi-Tenancy
 - **API Authorization**:
   - `GET /api/galaxies`: For authenticated users, strictly returns only galaxies where `galaxy.ownerId === userId` OR `galaxyMembers.userId === userId`. If an authenticated user has no galaxy yet, auto-provisions their personal galaxy on the fly.
-  - For unauthenticated users, returns an empty list unless explicitly in demo sandbox mode (`?demo=true`), which returns only the isolated sample demo galaxy.
-  - Sub-resource endpoints (`/api/events`, `/api/chores`, `/api/meals`, `/api/lists`, `/api/galaxies/[id]/members`) verify authorization via `verifyGalaxyAccess(galaxyId, userId)`. If the user is neither owner nor member (and it is not the public demo space), access is rejected with `403 Forbidden`.
+  - For unauthenticated users, returns an empty list unless explicitly in demo sandbox mode (`?demo=true`), which returns only the isolated sample demo galaxy, or when accessing an active Ephemeral Comet (`?comet=CMT-...`).
+  - Sub-resource endpoints (`/api/events`, `/api/chores`, `/api/meals`, `/api/lists`, `/api/galaxies/[id]/members`) verify authorization via `verifyGalaxyAccess(galaxyId, userId)`. If the user is neither owner nor member (and it is not the public demo space or an active Comet), access is rejected with `403 Forbidden`.
 - **Component Data Scoping**:
-  - `ChoresView`, `MealsView`, and `ListsView` now accept `activeGalaxyId` and filter all queries and mutations strictly by the active galaxy.
+  - `ChoresView`, `MealsView`, and `ListsView` accept `activeGalaxyId` and filter all queries and mutations strictly by the active galaxy.
 
 ### 2. Galaxy Join Code System
 - Each Galaxy is assigned a unique, human-readable alphanumeric code (e.g., `GLX-7X9K2` or `SOL-HOME1`).
@@ -32,17 +32,17 @@ With the introduction of multi-galaxy support (ADR 0007), all users could previo
 ### 3. Starry Cosmos Landing Page
 - Unauthenticated visitors are greeted with a high-fidelity landing page detailing JlightCalendar's core capabilities:
   - Smart Family Wall Calendar & Kiosk Ergonomics
-  - Multi-Galaxy Isolation & Seamless Group Orbits
-  - 3-Tier Access Modes (Parent Admin, Standard, Kid Mode)
+  - Multi-Galaxy Isolation & Instant Ephemeral Comets (`CMT-XXXX-XXXX`)
+  - Color-Coded People & Pet Profiles
   - Gamified Star Chore Quests
-  - Real-Time Shared Meal Plans & Grocery Lists
-  - 24/7 OLED Night Sleep Protection
-- Prominent **"Sign in with Google"** CTA and **"Explore Demo Kiosk"** sandbox preview.
+  - Real-Time Shared Meal Plans & Lists
+  - RFC 5545 `.ics` Import & Export Interoperability
+- Prominent **"Sign in with Google"** CTA, **"Start a Temporary Shared Calendar"** builder, and **"See Sample Calendar"** sandbox preview.
 
 ### 4. UI Ergonomics & Responsive Header
 - **Desktop**: Prioritized 3-zone flex layout with responsive truncation so the user profile avatar and login status never overflow or get pushed off-screen.
 - **Mobile (`< 768px`)**:
-  - Streamlined single-row header displaying compact time, galaxy switcher badge, user avatar/sign-in button, and mode trigger.
+  - Streamlined two-row header displaying compact weather, galaxy switcher badge, user avatar/sign-in button, and quick utilities (Theme Studio, `.ics` Import/Export, Changelog, Night Sleep).
   - Minimum 48px touch targets for kiosk touchscreen compliance.
   - Uses `h-[100dvh] w-full max-w-[100vw]` to prevent dynamic address bar jumps and eliminate border clipping.
   - Mobile bottom navigation bar updated with safe-area insets.

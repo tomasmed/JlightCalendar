@@ -4,16 +4,13 @@ import React, { useState } from "react";
 import {
   Sparkles,
   Calendar,
-  CheckSquare,
   Utensils,
   Moon,
-  Shield,
-  Baby,
+  Image as ImageIcon,
   Globe2,
   ArrowRight,
   Eye,
   Star,
-  Users,
   Info,
 } from "lucide-react";
 import { signIn } from "next-auth/react";
@@ -287,13 +284,13 @@ export function LandingPage({
           {/* Feature 2 */}
           <div className="p-6 rounded-3xl bg-cosmos-card/70 border border-cosmos-border backdrop-blur-md hover:border-purple-500/40 transition">
             <div className="w-12 h-12 rounded-2xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center mb-4">
-              <Shield className="w-6 h-6" />
+              <ImageIcon className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-bold text-white mb-2">
-              Kid-Safe &amp; Guest-Friendly
+              Ambient Photo Frame &amp; Wall Kiosk
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Lock settings with a quick parent PIN so kids can check off their chores on an iPad or kitchen screen without accidentally deleting appointments.
+              Turn any wall tablet into a live digital photo frame connected to Google Photos shared albums or Immich, complete with Night Sleep OLED protection.
             </p>
           </div>
 
@@ -342,10 +339,10 @@ export function LandingPage({
               <Moon className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-bold text-white mb-2">
-              Export Dates Anywhere (.ics)
+              Import &amp; Export Anywhere (.ics)
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Export any date window to Google Calendar, Apple Calendar, or Outlook in one click—or subscribe with a live calendar link.
+              Import existing `.ics` schedules or export any date window to Google Calendar, Apple Calendar, or Outlook in one click.
             </p>
           </div>
         </div>
@@ -353,7 +350,7 @@ export function LandingPage({
 
       {/* Footer */}
       <footer className="w-full border-t border-cosmos-border/60 py-6 px-4 text-center text-xs text-slate-500 relative z-10">
-        <p>JlightCalendar — Shared Calendars for Families, Friends &amp; Teams</p>
+        <p>JlightCalendar — Open-Source Shared Calendars for Families, Friends &amp; Teams (AGPLv3)</p>
       </footer>
     </div>
   );

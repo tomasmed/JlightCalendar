@@ -1,13 +1,13 @@
-# ADR 0010: Galaxy Creation Lifecycle & Admin-Only Member Removal
+# ADR 0010: Galaxy Creation Lifecycle & Member Removal Architecture
 
 ## Status
-Accepted
+Accepted (Updated by [ADR 0019](./0019-hosted-service-first-agpl-and-pin-gate-removal.md): UI Admin/PIN gate removed so authenticated Galaxy members have direct access to manage people and colors)
 
 ## Context
 With multi-household galaxy support (ADR 0007) and join codes (ADR 0009) established, authenticated users needed the ability to:
 1. Create new shared galaxy spaces directly from the user interface (e.g. for extended families, sports teams, school co-ops, vacation homes) without requiring developer intervention or database seeding.
 2. Remove members (users, children, or pets) from a galaxy when they leave or when profiles need restructuring.
-3. Prevent destructive accidents on public wall kiosks by children or casual viewers, ensuring that member deletion is strictly guarded and verified.
+3. Prevent accidental single-tap deletions on touchscreens by requiring an explicit confirmation dialog and protecting the Galaxy Owner record.
 
 ## Decision
 
@@ -19,16 +19,13 @@ With multi-household galaxy support (ADR 0007) and join codes (ADR 0009) establi
   - Creates a default `calendars` record named "Primary Orbit" marked `isPrimary: true`.
 - **UI Ergonomics**:
   - The "+ Orbit New Galaxy" and "+ Create New Galaxy" actions are prominently available in both the Galaxy switcher dropdown and the User profile menu for logged-in users.
-  - Creation modal provides theme presets (`milky-way`, `andromeda`, `nebula`, `supernova`) and custom crest icons (Sparkles, Planet, Rocket, Heart, Compass).
   - Newly created galaxies immediately become the active galaxy orbit in the application state.
 
-### 2. Admin-Only Member Removal Architecture
-- **Authorization & Access Mode Guard**:
-  - In accordance with family kiosk safety, member deletion controls are **strictly visible and operational only when in Admin Mode** (`accessMode === 'admin'`).
-  - In Standard and Kid modes, delete buttons are hidden from the UI to protect against accidental tap removals by children or guests on touchscreen displays.
-  - Kid mode additionally suppresses the "Add Inhabitant" form to prevent unreviewed profile creation.
+### 2. Member Removal Architecture
+- **Authorization**:
+  - Authenticated Galaxy members can open the **People & Group Colors** modal (`InhabitantsModal`) from the Galaxy dropdown or calendar filter bar to add, edit, or remove inhabitants.
 - **Backend API (`DELETE /api/galaxies/[id]/members`)**:
-  - Verifies caller galaxy authorization via `verifyGalaxyAccess(galaxyId, userId)`.
+  - Verifies caller galaxy authorization via `verifyActorGalaxyAccess(actor, galaxyId, { requireWrite: true })`.
   - **Owner Protection**: The galaxy owner cannot be removed via member deletion (`targetMember.role === "owner"` or `galaxy.ownerId === targetMember.userId`). Rejection returns HTTP 400 Bad Request.
   - Deletion removes the row from `galaxyMembers`.
 - **Database Cascading Integrity**:
@@ -47,4 +44,4 @@ With multi-household galaxy support (ADR 0007) and join codes (ADR 0009) establi
   - Loading spinner and error handling for in-flight requests.
 
 ## Consequences
-- **Positive**: Full self-service galaxy and member lifecycle for users; zero risk of inadvertent member deletion on touch kiosks due to mandatory Admin mode and confirmation modals; clean database referential integrity maintained automatically.
+- **Positive**: Full self-service galaxy and member lifecycle for users; zero risk of inadvertent single-tap member deletion on touch kiosks due to confirmation modals and owner protection; clean database referential integrity maintained automatically.

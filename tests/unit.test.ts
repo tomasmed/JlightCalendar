@@ -1235,6 +1235,53 @@ assert(
   "ScreensaverView applies active theme tokens and humanized end-user copy to the photo frame modal"
 );
 
+// ---------------------------------------------------------------------------
+// 15. Open-Source AGPLv3 License & ADR 0019 Documentation Hygiene Verification
+// ---------------------------------------------------------------------------
+console.log("\n📜 [15] Testing AGPLv3 License, ADR 0019 & Documentation Hygiene...");
+
+const licensePath = path.resolve(__dirname, "../LICENSE");
+assert(fs.existsSync(licensePath), "Repository root contains a LICENSE file");
+const licenseText = fs.readFileSync(licensePath, "utf-8");
+assert(
+  licenseText.includes("GNU AFFERO GENERAL PUBLIC LICENSE") &&
+    licenseText.includes("Version 3, 19 November 2007") &&
+    licenseText.includes("13. Remote Network Interaction"),
+  "LICENSE contains the official GNU Affero General Public License v3.0 (AGPLv3) text"
+);
+
+const adr0019Path = path.resolve(
+  __dirname,
+  "../docs/adr/0019-hosted-service-first-agpl-and-pin-gate-removal.md"
+);
+assert(
+  fs.existsSync(adr0019Path),
+  "ADR 0019 (Hosted Cloud Service First, AGPLv3, and UI PIN Gate Removal) exists in docs/adr/"
+);
+const adr0019Text = fs.readFileSync(adr0019Path, "utf-8");
+assert(
+  adr0019Text.includes("GNU Affero General Public License v3.0 (AGPL-3.0)") &&
+    adr0019Text.includes("Hosted Cloud Service First") &&
+    adr0019Text.includes("Supersedes ADR 0002"),
+  "ADR 0019 documents Hosted Cloud Service First architecture, AGPLv3 licensing, and superseding ADR 0002 UI PIN gate"
+);
+
+const layoutPath = path.resolve(__dirname, "../src/app/layout.tsx");
+const layoutSource = fs.readFileSync(layoutPath, "utf-8");
+assert(
+  layoutSource.includes("open-source, cloud-synced smart calendar") &&
+    !layoutSource.includes("in-house, local-first"),
+  "src/app/layout.tsx metadata reflects open-source, cloud-synced architecture"
+);
+
+const readmePath = path.resolve(__dirname, "../README.md");
+const readmeText = fs.readFileSync(readmePath, "utf-8");
+assert(
+  readmeText.includes("GNU Affero General Public License v3.0 (AGPL-3.0)") &&
+    readmeText.includes("0019-hosted-service-first-agpl-and-pin-gate-removal.md"),
+  "README.md references AGPLv3 license and ADR 0019"
+);
+
 console.log("\n✨ All unit and static guard tests passed successfully!");
 
 
