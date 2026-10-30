@@ -4,9 +4,9 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 
 export const metadata: Metadata = {
-  title: "JlightCalendar — Smart Family Dashboard",
+  title: "JlightCalendar — Smart Family & Group Dashboard",
   description:
-    "An in-house, local-first smart family calendar, chore tracker, and wall kiosk dashboard.",
+    "An open-source, cloud-synced smart calendar, chore tracker, and wall kiosk dashboard for families, groups, and AI agents.",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",

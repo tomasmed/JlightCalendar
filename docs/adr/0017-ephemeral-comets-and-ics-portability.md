@@ -7,10 +7,10 @@
 
 ## 1. Context
 
-JlightCalendar was originally designed around permanent household **Galaxies** protected by Google OAuth and 3-tier kiosk access control (`admin`, `standard`, `kid`). However, many real-world scheduling scenarios—such as coordinating a 2-week engineering sprint, setting up short meetings with teammates, or planning a weekend cabin trip with friends—are inherently **ephemeral** and benefit from:
+JlightCalendar was originally designed around permanent household **Galaxies** protected by Google OAuth. However, many real-world scheduling scenarios—such as coordinating a 2-week engineering sprint, setting up short meetings with teammates, or planning a weekend cabin trip with friends—are inherently **ephemeral** and benefit from:
 1. **Zero-Auth Multiplayer Spin-Up**: Creating a lightweight shared calendar bundle (`events`, `listItems`, `galaxyMembers`) via a single capability code (`CMT-XXXX-XXXX`) or agent API call without forcing every participant through Google OAuth.
 2. **Automatic Spin-Down (TTL)**: Expiring and cascade-deleting the temporary calendar bundle after its lifespan (default 5 months / 150 days, or 7/30/90 days) so database storage remains negligible.
-3. **Dual-Surface UX Isolation**: Avoiding alienating core family wall-kiosk users by separating **Ephemeral Comets** (focused Calendar + Shared Lists view, no Kid Mode / Chores Star Store / Night Sleep hardware clutter) from permanent **Household Galaxies**.
+3. **Dual-Surface UX Isolation**: Avoiding alienating core family wall-kiosk users by separating **Ephemeral Comets** (focused Calendar + Shared Lists view, omitting household-specific Chores, Meals, Photos, and Night Sleep tabs) from permanent **Household Galaxies**.
 4. **Open Portability (`.ics` Time-Window Exports)**: Allowing any participant to export events from `[Start Day X, End Day Y]` as a standard RFC 5545 `.ics` file for Google Calendar, Apple Calendar, or Microsoft Outlook, or promote/copy the Comet into a permanent Jlight Galaxy.
 
 ---

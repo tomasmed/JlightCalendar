@@ -1,6 +1,6 @@
 # AGENTS.md — Autonomous Agent Operating Manual
 
-Welcome to **JlightCalendar**. This repository is engineered to be primarily developed and maintained by AI agents collaborating with human-in-the-loop (HITL) maintainers.
+Welcome to **JlightCalendar**. This repository is engineered to be primarily developed and maintained by AI agents collaborating with human-in-the-loop (HITL) maintainers, and is open-sourced under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
 
 All autonomous agents working on this codebase **must strictly adhere** to the guidelines in this document.
 
@@ -14,7 +14,7 @@ All autonomous agents working on this codebase **must strictly adhere** to the g
 4. **Always Work in a Git Worktree**: All feature, bugfix, or refactor work must take place in an isolated git worktree on a dedicated branch (`feat/*`, `fix/*`, `chore/*`).
 5. **Document Every Architecture Decision**: Any new architectural pattern, external dependency, or protocol shift must have a corresponding Architecture Decision Record in `docs/adr/`.
 6. **Human-Operable Staging Tests**: Every Pull Request must include a clear, step-by-step test plan that a human can execute in staging with zero guesswork.
-7. **Check PR Status Before Pushing**: Never push follow-up commits to an already-merged branch/PR. If a PR has been merged on GitHub, pull latest `main`, create a new branch/worktree (`fix/*`, `feat/*`), and open a fresh PR.
+7. **Check PR Status Before Pushing**: Never push follow-up commits to an already-merged branch/PR. If a PR has been merged on GitHub, pull latest `main`, create a new branch/worktree (`fix/*`, `feat/*`, `chore/*`), and open a fresh PR.
 8. **Mandatory Automated Testing for Every Feature & Bugfix**: Whenever you add a new core feature, API route, database column, or UI workflow—or fix a bug—you **must** add corresponding automated test coverage in `tests/unit.test.ts` and/or `tests/system.test.ts` and ensure the full CI suite (`npm run test` and `npm run build`) passes before requesting user sign-off.
 
 ---
@@ -52,9 +52,9 @@ npm run build
 
 ### **Step 3: Commit with clear Conventional Commits**
 Follow the Conventional Commits specification:
-- `feat: add 3-tier access mode toggle (admin, standard, kid)`
+- `feat: add photo screensaver connectors for Google Photos and Immich`
 - `fix: resolve rrule expansion for weekly events with exdates`
-- `docs: add ADR 0005 for real-time SSE sync`
+- `docs: add ADR 0019 for hosted service architecture and AGPLv3 license`
 - `test: add unit tests for chore completion state machine`
 
 ### **Step 4: Local Manual Check & User Sign-Off (MANDATORY)**
@@ -107,16 +107,15 @@ Follow these steps in your staging environment to verify this change:
 
 - **Framework**: Next.js 15 (App Router, React 19, TypeScript).
 - **React Rules of Hooks**: All React hooks (`useState`, `useEffect`, `useRef`, `useMemo`, `useCallback`, `useSession`, etc.) must be declared unconditionally at the very top of component functions—**never** after an early `if (!isOpen) return null;` return. Our AST guard in `tests/unit.test.ts` enforces this across every file in `src/`.
-- **Styling**: Tailwind CSS with Radix UI / Lucide icons.
-- **Touch Ergonomics**: All clickable elements must have a minimum hit target of `48px x 48px` to support wall touchscreen kiosks.
-- **Database**: Drizzle ORM with SQLite (local embedded) and Turso (cloud libSQL).
-  - Schema files live in `src/db/schema.ts`.
-  - Runtime idempotent schema migrations live in `src/db/ensure-schema.ts`.
-  - SQL migrations live in `drizzle/`.
-- **Sync**: Server-Sent Events (SSE) for low-power, lightweight updates to displays.
-- **Access Modes**:
-  - Always respect the active access mode: `admin`, `standard`, or `kid`.
-  - When in `kid` mode, suppress edit controls, settings, and deletion actions.
+- **Styling**: Tailwind CSS with Radix UI / Lucide icons and the Material Archetype Theme Engine (`creamy` Matte PBT & `osl` Fluorescent Light-Spill palettes in `src/lib/theme.ts`).
+- **Touch Ergonomics**: All clickable elements must have a minimum hit target of `48px x 48px` (`44px` minimum on compact mobile rows) to support wall touchscreen kiosks and mobile phones.
+- **Database & Hosting Model (ADR 0019)**:
+  - **Hosted Cloud Service First**: Production and staging run on Vercel with **Google OAuth** (`src/auth.ts`) and **Turso (cloud libSQL)**. Wall tablets and phones connect to the hosted service in real time, using browser `localStorage` and `CacheStorage` for client-side caching.
+  - **Local SQLite (`file:./local.db`)**: Retained strictly for zero-config local development (`pnpm run dev`), deterministic CI testing (`JLIGHT_TEST_MODE=true`), and DIY open-source forks.
+  - Schema files live in `src/db/schema.ts`; runtime idempotent schema migrations live in `src/db/ensure-schema.ts`; SQL migrations live in `drizzle/`.
+- **Authentication & Actor Authorization**:
+  - **Human UI Sessions**: Authenticated via Google OAuth for permanent Household Galaxies (or capability codes `CMT-XXXX-XXXX` for Ephemeral Comets). The legacy UI Parent PIN / Access Mode switcher button was removed from `KioskHeader` (ADR 0019) in favor of direct editing, and group-wide items use **"Everyone"** rather than "All Family".
+  - **Autonomous Agent PATs (`jlight_ag_...`)**: Resolved via `resolveRequestActor` and enforced via `verifyActorGalaxyAccess` (`src/lib/agent-auth.ts`) with 4-tier machine scopes (`admin`, `standard`, `kid`, `readonly`).
 
 ---
 
@@ -125,14 +124,15 @@ Follow these steps in your staging environment to verify this change:
 GitHub Actions CI (`.github/workflows/ci.yml`) runs automatically on every push and pull request:
 1. **Unit & Static AST Guard (`npm run test:unit` -> `tests/unit.test.ts`)**:
    - Scans all `.ts`/`.tsx` files in `src/` using the TypeScript AST compiler API to prevent React Rules-of-Hooks violations (e.g., hooks called after early returns).
-   - Verifies recurrence RRULE conversion, local wall-clock time/duration math, recurring event expansion, `exdates` filtering, multi-member color splitting, and overlapping day layout.
+   - Verifies recurrence RRULE conversion, local wall-clock time/duration math, recurring event expansion, `exdates` filtering, multi-member color splitting, overlapping day layout, RFC 5545 `.ics` import/export, and photo connector helpers.
 2. **Mocked System & Database Integration Suite (`npm run test:system` -> `tests/system.test.ts`)**:
    - Stands up a fresh, isolated SQLite database (`JLIGHT_TEST_MODE=true`), runs Drizzle migrations and `ensureDatabaseSchema()`, and uses `setMockTestSession()` to exercise real App Router API route handlers end-to-end:
      - Creating users, provisioning galaxies, and updating family identity/inhabitants.
      - Joining a galaxy as a second user via join code and verifying privacy/access control (`403` before join, `200` after join).
-     - Creating all event types (single timed, all-day, multi-member, daily, weekday, weekly, biweekly, monthly) and deleting both single occurrences (`exdate`) and full series.
+     - Creating all event types (single timed, all-day, multi-member, daily, weekday, weekly, biweekly, monthly), importing/exporting `.ics` files, and deleting both single occurrences (`exdate`) and full series.
      - Creating, completing (star rewards), editing, and deleting chores.
      - Creating, toggling, clearing completed, and deleting shared list items.
+     - Minting Agent PATs, device code handshakes, Ephemeral Comets, and photo screensaver connector configs.
 3. **Whenever adding a new feature**:
    - Add unit tests for pure logic/helpers in `tests/unit.test.ts`.
    - Add API & DB integration assertions for any new or modified route behavior in `tests/system.test.ts`.
