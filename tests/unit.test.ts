@@ -10,6 +10,12 @@ import {
   computeDurationMinutes,
   expandRecurringEvents,
   formatLocalDate,
+  getEventEndDate,
+  getEventSpanDays,
+  isMultiDayAllDayEvent,
+  eventCoversDate,
+  getMultiDayProgressLabel,
+  layoutSpanningWeekEvents,
   BaseCalendarEventItem,
 } from "./../src/lib/recurrence";
 import {
@@ -1314,9 +1320,200 @@ assert(
 );
 
 // ---------------------------------------------------------------------------
-// 17. Fullscreen Mode Helpers & KioskHeader Integration
+// 17. Multi-Day All-Day Events, Spanning Lane Packing & +N More Overflow
 // ---------------------------------------------------------------------------
-console.log("\n🖥️ [17] Testing Fullscreen Mode Helpers & KioskHeader Integration...");
+console.log("\n🏖️ [17] Testing Multi-Day All-Day Events, Spanning Lanes & Overflow...");
+
+const multiDayTimes = computeEventTimes("2026-07-10", "00:00", 60, true, "2026-07-14");
+assert(
+  multiDayTimes.startTimeISO === "2026-07-10T00:00:00" &&
+    multiDayTimes.endTimeISO === "2026-07-14T23:59:59",
+  "computeEventTimes produces inclusive local start/end timestamps for multi-day all-day events"
+);
+
+const clampedTimes = computeEventTimes("2026-07-10", "00:00", 60, true, "2026-07-08");
+assert(
+  clampedTimes.endTimeISO === "2026-07-10T23:59:59",
+  "computeEventTimes clamps endDate < startDate back to startDate"
+);
+
+const vacationEvt: BaseCalendarEventItem = {
+  id: "evt_vac_1",
+  title: "Hawaii Vacation",
+  date: "2026-07-10",
+  time: "All Day",
+  startTime: "2026-07-10T00:00:00",
+  endTime: "2026-07-14T23:59:59",
+  isAllDay: true,
+};
+
+assert(
+  getEventEndDate(vacationEvt) === "2026-07-14",
+  "getEventEndDate extracts inclusive end date for multi-day all-day event"
+);
+assert(
+  getEventSpanDays("2026-07-10", "2026-07-14") === 5,
+  "getEventSpanDays computes 5 inclusive days for Jul 10–14"
+);
+assert(
+  isMultiDayAllDayEvent(vacationEvt) === true,
+  "isMultiDayAllDayEvent identifies multi-day all-day event"
+);
+assert(
+  eventCoversDate(vacationEvt, "2026-07-09") === false &&
+    eventCoversDate(vacationEvt, "2026-07-10") === true &&
+    eventCoversDate(vacationEvt, "2026-07-12") === true &&
+    eventCoversDate(vacationEvt, "2026-07-14") === true &&
+    eventCoversDate(vacationEvt, "2026-07-15") === false,
+  "eventCoversDate matches every inclusive day of a multi-day span"
+);
+assert(
+  getMultiDayProgressLabel(vacationEvt, "2026-07-12") === "Day 3 of 5" &&
+    getMultiDayProgressLabel(vacationEvt, "2026-07-15") === null,
+  "getMultiDayProgressLabel formats 'Day X of Y' for covered dates"
+);
+
+// Spanning lane packing & week-boundary clipping
+const julWeek = [
+  "2026-07-06", // Mon (0)
+  "2026-07-07", // Tue (1)
+  "2026-07-08", // Wed (2)
+  "2026-07-09", // Thu (3)
+  "2026-07-10", // Fri (4)
+  "2026-07-11", // Sat (5)
+  "2026-07-12", // Sun (6)
+];
+const spanningTestEvents: BaseCalendarEventItem[] = [
+  {
+    id: "span_prev",
+    title: "Grandparents Visit",
+    date: "2026-07-04",
+    time: "All Day",
+    startTime: "2026-07-04T00:00:00",
+    endTime: "2026-07-08T23:59:59",
+    isAllDay: true,
+  },
+  vacationEvt,
+  {
+    id: "span_camp",
+    title: "Summer Camp",
+    date: "2026-07-07",
+    time: "All Day",
+    startTime: "2026-07-07T00:00:00",
+    endTime: "2026-07-11T23:59:59",
+    isAllDay: true,
+  },
+  {
+    id: "span_overflow",
+    title: "School Holiday",
+    date: "2026-07-10",
+    time: "All Day",
+    startTime: "2026-07-10T00:00:00",
+    endTime: "2026-07-10T23:59:59",
+    isAllDay: true,
+  },
+];
+
+const cappedLayout = layoutSpanningWeekEvents(spanningTestEvents, julWeek, 2);
+assert(
+  cappedLayout.visibleLaneCount === 2 && cappedLayout.totalLaneCount === 3,
+  "layoutSpanningWeekEvents caps visibleLaneCount at 2 while tracking totalLaneCount=3"
+);
+const prevSeg = cappedLayout.visibleSegments.find((s) => s.event.id === "span_prev");
+const vacSeg = cappedLayout.visibleSegments.find((s) => s.event.id === "evt_vac_1");
+assert(
+  Boolean(prevSeg && prevSeg.startCol === 0 && prevSeg.span === 3 && prevSeg.continuesFromPrev && !prevSeg.continuesToNext),
+  "layoutSpanningWeekEvents clips events starting before the week with continuesFromPrev=true"
+);
+assert(
+  Boolean(vacSeg && vacSeg.startCol === 4 && vacSeg.span === 3 && !vacSeg.continuesFromPrev && vacSeg.continuesToNext && vacSeg.lane === 0),
+  "layoutSpanningWeekEvents clips events ending after the week and greedily reuses Lane 0"
+);
+assert(
+  cappedLayout.overflowByCol[4] === 1 && cappedLayout.overflowByCol[0] === 0,
+  "layoutSpanningWeekEvents reports +1 overflow on Friday (col 4) when 3rd lane is hidden"
+);
+
+// Recurring multi-day all-day expansion preserves span
+const recurringMultiDay: BaseCalendarEventItem = {
+  id: "rec_multi",
+  title: "Monthly Retreat",
+  date: "2026-07-01",
+  time: "All Day",
+  startTime: "2026-07-01T00:00:00",
+  endTime: "2026-07-03T23:59:59",
+  isAllDay: true,
+  rrule: "FREQ=MONTHLY",
+};
+const expandedMulti = expandRecurringEvents(
+  [recurringMultiDay],
+  new Date(2026, 6, 1),
+  new Date(2026, 8, 30)
+);
+assert(
+  expandedMulti.length === 3 &&
+    expandedMulti[1].startTime === "2026-08-01T00:00:00" &&
+    expandedMulti[1].endTime === "2026-08-03T23:59:59",
+  "expandRecurringEvents preserves multi-day span on every recurring occurrence"
+);
+
+// RFC 5545 .ics export + overlap filtering + round-trip import for multi-day vacation
+const multiIcs = generateIcsCalendar(
+  [
+    {
+      id: "vac_ics_1",
+      title: "Hawaii Vacation",
+      startTime: "2026-07-10T00:00:00",
+      endTime: "2026-07-14T23:59:59",
+      isAllDay: true,
+    },
+  ],
+  {
+    calendarName: "Family Test",
+    startDate: "2026-07-12",
+    endDate: "2026-07-20",
+  }
+);
+assert(
+  multiIcs.includes("DTSTART;VALUE=DATE:20260710") &&
+    multiIcs.includes("DTEND;VALUE=DATE:20260715"),
+  "ICS export includes overlapping multi-day all-day event with RFC 5545 exclusive DTEND (Jul 15)"
+);
+const reimportedMulti = parseIcsCalendar(multiIcs).events;
+assert(
+  reimportedMulti.length === 1 &&
+    reimportedMulti[0].isAllDay === true &&
+    reimportedMulti[0].startTime === "2026-07-10T00:00:00" &&
+    reimportedMulti[0].endTime === "2026-07-14T23:59:59",
+  "ICS import round-trips exclusive DTEND back to inclusive 5-day local all-day event"
+);
+
+// Static UI integration checks for EventModal & CalendarView
+const eventModalSrc = fs.readFileSync(
+  path.resolve(__dirname, "../src/components/event-modal.tsx"),
+  "utf-8"
+);
+assert(
+  eventModalSrc.includes("event-end-date-input") &&
+    eventModalSrc.includes("Days Reserved"),
+  "EventModal renders End Date picker and multi-day reserved badge for all-day events"
+);
+const calendarViewSrc = fs.readFileSync(
+  path.resolve(__dirname, "../src/components/calendar-view.tsx"),
+  "utf-8"
+);
+assert(
+  calendarViewSrc.includes("layoutSpanningWeekEvents") &&
+    calendarViewSrc.includes("month-spanning-band") &&
+    calendarViewSrc.includes("week-all-day-spanning-grid") &&
+    calendarViewSrc.includes("day-all-day-banner"),
+  "CalendarView renders continuous top spanning ribbons in Month, Week, and Day views"
+);
+
+// ---------------------------------------------------------------------------
+// 18. Fullscreen Mode Helpers & KioskHeader Integration
+// ---------------------------------------------------------------------------
+console.log("\n🖥️ [18] Testing Fullscreen Mode Helpers & KioskHeader Integration...");
 
 assert(
   isFullscreenSupported(null) === false,

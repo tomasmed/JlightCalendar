@@ -264,14 +264,26 @@ export function filterEventsForTimeWindow(
     const expanded = expandRecurringEvents(prepared, rangeStart, rangeEnd);
 
     return expanded
-      .filter((item) => item.date >= rangeStartStr && item.date <= rangeEndStr)
+      .filter((item) => {
+        const itemStart = item.date;
+        const itemEnd =
+          item.isAllDay && item.endTime
+            ? extractEventDateStr(item.endTime)
+            : item.date;
+        return itemStart <= rangeEndStr && itemEnd >= rangeStartStr;
+      })
       .map((item) => {
         const durationMins = computeDurationMinutes(item.startTime, item.endTime, 60);
+        const itemEndDate =
+          item.isAllDay && item.endTime
+            ? extractEventDateStr(item.endTime)
+            : undefined;
         const computed = computeEventTimes(
           item.date,
           item.time || "09:00",
           durationMins,
-          Boolean(item.isAllDay)
+          Boolean(item.isAllDay),
+          itemEndDate
         );
         return {
           ...item,
@@ -285,18 +297,22 @@ export function filterEventsForTimeWindow(
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
   }
 
-  // mode === "rrule": keep recurring series that overlap the window and non-recurring events inside the window
+  // mode === "rrule": keep recurring series that overlap the window and non-recurring events overlapping the window
   return memberFiltered
     .filter((evt) => {
-      const evtDate = extractEventDateStr(evt.startTime);
+      const evtStart = extractEventDateStr(evt.startTime);
+      const evtEnd =
+        evt.isAllDay && evt.endTime
+          ? extractEventDateStr(evt.endTime)
+          : evtStart;
       const freq = rruleToFrequency(evt.rrule);
       if (freq === "none") {
         const excluded = new Set(parseExdates(evt.exdates));
-        if (excluded.has(evtDate)) return false;
-        return evtDate >= rangeStartStr && evtDate <= rangeEndStr;
+        if (excluded.has(evtStart)) return false;
+        return evtStart <= rangeEndStr && evtEnd >= rangeStartStr;
       }
       // Recurring series starts on or before rangeEndStr
-      return evtDate <= rangeEndStr;
+      return evtStart <= rangeEndStr;
     })
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 }

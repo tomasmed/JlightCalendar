@@ -23,6 +23,8 @@ import {
   computeEventTimes,
   computeDurationMinutes,
   formatLocalDate,
+  getEventEndDate,
+  getEventSpanDays,
 } from "@/lib/recurrence";
 
 export interface CalendarEventData {
@@ -87,6 +89,7 @@ export function EventModal({
 }: EventModalProps) {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [time, setTime] = useState("09:00");
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [isAllDay, setIsAllDay] = useState(false);
@@ -107,12 +110,25 @@ export function EventModal({
       setRecurrenceFreq(rruleToFrequency(eventToEdit.rrule));
       const start = new Date(eventToEdit.startTime);
       if (!isNaN(start.getTime())) {
-        setDate(eventToEdit.startTime.split("T")[0]);
+        const startDateStr = eventToEdit.startTime.split("T")[0];
+        setDate(startDateStr);
+        setEndDate(
+          allDay
+            ? getEventEndDate({
+                date: startDateStr,
+                startTime: eventToEdit.startTime,
+                endTime: eventToEdit.endTime,
+                isAllDay: true,
+              })
+            : startDateStr
+        );
         setTime(
           eventToEdit.startTime.split("T")[1]?.slice(0, 5) || "09:00"
         );
       } else {
-        setDate(selectedDate || formatLocalDate(new Date()));
+        const fallbackDate = selectedDate || formatLocalDate(new Date());
+        setDate(fallbackDate);
+        setEndDate(fallbackDate);
         setTime("09:00");
       }
 
@@ -152,8 +168,10 @@ export function EventModal({
 
       setColor(eventToEdit.colorOverride || (initialMemberIds.length === 1 ? inhabitants.find(i => i.id === initialMemberIds[0])?.color || familyColor : familyColor));
     } else {
+      const initialDate = selectedDate || formatLocalDate(new Date());
       setTitle("");
-      setDate(selectedDate || formatLocalDate(new Date()));
+      setDate(initialDate);
+      setEndDate(initialDate);
       setTime(initialTime || "09:00");
       setDurationMinutes(60);
       setIsAllDay(false);
@@ -204,7 +222,8 @@ export function EventModal({
         date,
         time,
         durationMinutes,
-        isAllDay
+        isAllDay,
+        isAllDay ? (endDate && endDate >= date ? endDate : date) : undefined
       );
 
       await onSaveEvent({
@@ -331,14 +350,22 @@ export function EventModal({
                 type="checkbox"
                 disabled={isReadOnly}
                 checked={isAllDay}
-                onChange={(e) => setIsAllDay(e.target.checked)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setIsAllDay(checked);
+                  if (checked && (!endDate || endDate < date)) {
+                    setEndDate(date);
+                  }
+                }}
                 className="w-5 h-5 rounded-md accent-purple-600 cursor-pointer"
               />
               <span className="text-xs font-bold text-white">All-Day Event</span>
             </label>
             {isAllDay && (
               <span className="text-[11px] font-extrabold text-purple-300 bg-purple-500/20 px-2.5 py-0.5 rounded-full border border-purple-500/30">
-                Spans Full Day
+                {getEventSpanDays(date, endDate || date) > 1
+                  ? `${getEventSpanDays(date, endDate || date)} Days Reserved`
+                  : "Spans Full Day"}
               </span>
             )}
           </div>
@@ -347,13 +374,19 @@ export function EventModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
-                Date
+                {isAllDay ? "Start Date" : "Date"}
               </label>
               <input
                 type="date"
                 disabled={isReadOnly}
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => {
+                  const nextDate = e.target.value;
+                  setDate(nextDate);
+                  if (!endDate || endDate < nextDate) {
+                    setEndDate(nextDate);
+                  }
+                }}
                 className="w-full px-4 py-3 rounded-xl bg-cosmos-surface border border-cosmos-border text-white text-sm font-medium focus:outline-none focus:border-purple-500 disabled:opacity-60 min-h-[48px]"
                 required
               />
@@ -404,10 +437,23 @@ export function EventModal({
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col justify-end">
-                <div className="px-4 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-bold flex items-center min-h-[48px]">
-                  <span>🕒 All day event (00:00 to 23:59)</span>
-                </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
+                  End Date (Inclusive)
+                </label>
+                <input
+                  type="date"
+                  data-testid="event-end-date-input"
+                  disabled={isReadOnly}
+                  min={date}
+                  value={endDate || date}
+                  onChange={(e) => {
+                    const nextEnd = e.target.value;
+                    setEndDate(nextEnd && nextEnd >= date ? nextEnd : date);
+                  }}
+                  className="w-full px-4 py-3 rounded-xl bg-cosmos-surface border border-cosmos-border text-white text-sm font-medium focus:outline-none focus:border-purple-500 disabled:opacity-60 min-h-[48px]"
+                  required
+                />
               </div>
             )}
           </div>
