@@ -57,6 +57,14 @@ import {
   selectPhotosForRotation,
   resolveConnectorPhotos,
 } from "./../src/lib/photos";
+import {
+  isFullscreenSupported,
+  isFullscreenActive,
+  enterFullscreen,
+  exitFullscreen,
+  toggleFullscreen,
+  FullscreenDocumentLike,
+} from "./../src/lib/fullscreen";
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -1305,6 +1313,148 @@ assert(
   "src/app/api/members/route.ts enforces verifyActorGalaxyAccess and scopes queries by galaxyId"
 );
 
-console.log("\n✨ All unit and static guard tests passed successfully!");
+// ---------------------------------------------------------------------------
+// 17. Fullscreen Mode Helpers & KioskHeader Integration
+// ---------------------------------------------------------------------------
+console.log("\n🖥️ [17] Testing Fullscreen Mode Helpers & KioskHeader Integration...");
+
+assert(
+  isFullscreenSupported(null) === false,
+  "isFullscreenSupported(null) safely returns false during SSR"
+);
+assert(
+  isFullscreenActive(null) === false,
+  "isFullscreenActive(null) safely returns false during SSR"
+);
+
+const unsupportedDoc: FullscreenDocumentLike = {
+  fullscreenEnabled: false,
+  documentElement: {},
+};
+assert(
+  isFullscreenSupported(unsupportedDoc) === false,
+  "isFullscreenSupported returns false when requestFullscreen is unavailable"
+);
+
+const disabledStandardDoc: FullscreenDocumentLike = {
+  fullscreenEnabled: false,
+  documentElement: {
+    requestFullscreen: async () => {},
+  },
+};
+assert(
+  isFullscreenSupported(disabledStandardDoc) === false,
+  "isFullscreenSupported returns false when fullscreenEnabled is explicitly false"
+);
+
+const webkitDoc: FullscreenDocumentLike = {
+  webkitFullscreenEnabled: true,
+  webkitFullscreenElement: null,
+  documentElement: {
+    webkitRequestFullscreen: async () => {
+      webkitDoc.webkitFullscreenElement = {} as Element;
+    },
+  },
+  webkitExitFullscreen: async () => {
+    webkitDoc.webkitFullscreenElement = null;
+  },
+};
+assert(
+  isFullscreenSupported(webkitDoc) === true,
+  "isFullscreenSupported detects WebKit prefixed fullscreen API"
+);
+
+const fullscreenHeaderPath = path.resolve(
+  __dirname,
+  "../src/components/kiosk-header.tsx"
+);
+const fullscreenHeaderSource = fs.readFileSync(fullscreenHeaderPath, "utf-8");
+assert(
+  fullscreenHeaderSource.includes("useFullscreen") &&
+    fullscreenHeaderSource.includes("fullscreen-toggle-button") &&
+    fullscreenHeaderSource.includes("Maximize") &&
+    fullscreenHeaderSource.includes("Minimize") &&
+    fullscreenHeaderSource.includes("aria-pressed={isFullscreen}"),
+  "KioskHeader wires useFullscreen with accessible Maximize/Minimize toggle button"
+);
+
+(async () => {
+  let enterCount = 0;
+  let exitCount = 0;
+  const standardDoc: FullscreenDocumentLike = {
+    fullscreenEnabled: true,
+    fullscreenElement: null,
+    documentElement: {
+      requestFullscreen: async () => {
+        enterCount++;
+        standardDoc.fullscreenElement = {} as Element;
+      },
+    },
+    exitFullscreen: async () => {
+      exitCount++;
+      standardDoc.fullscreenElement = null;
+    },
+  };
+
+  assert(
+    isFullscreenSupported(standardDoc) === true,
+    "isFullscreenSupported returns true for standard Fullscreen API"
+  );
+  assert(
+    isFullscreenActive(standardDoc) === false,
+    "isFullscreenActive is false before entering fullscreen"
+  );
+
+  const entered = await toggleFullscreen(standardDoc);
+  assert(
+    entered === true && enterCount === 1 && isFullscreenActive(standardDoc) === true,
+    "toggleFullscreen enters fullscreen when inactive"
+  );
+
+  const exited = await toggleFullscreen(standardDoc);
+  assert(
+    exited === true && exitCount === 1 && isFullscreenActive(standardDoc) === false,
+    "toggleFullscreen exits fullscreen when active"
+  );
+
+  const webkitEntered = await toggleFullscreen(webkitDoc);
+  assert(
+    webkitEntered === true && isFullscreenActive(webkitDoc) === true,
+    "toggleFullscreen enters fullscreen via WebKit fallback"
+  );
+
+  const webkitExited = await exitFullscreen(webkitDoc);
+  assert(
+    webkitExited === true && isFullscreenActive(webkitDoc) === false,
+    "exitFullscreen exits fullscreen via WebKit fallback"
+  );
+
+  // Rejection handling (e.g. blocked by browser permissions policy)
+  const originalConsoleError = console.error;
+  let loggedError = "";
+  console.error = (...args: unknown[]) => {
+    loggedError = args.join(" ");
+  };
+  const rejectingDoc: FullscreenDocumentLike = {
+    fullscreenEnabled: true,
+    fullscreenElement: null,
+    documentElement: {
+      requestFullscreen: async () => {
+        throw new Error("Permissions check failed");
+      },
+    },
+  };
+  const failedEnter = await enterFullscreen(rejectingDoc);
+  console.error = originalConsoleError;
+  assert(
+    failedEnter === false && loggedError.includes("Permissions check failed"),
+    "enterFullscreen catches requestFullscreen errors gracefully without throwing"
+  );
+
+  console.log("\n✨ All unit and static guard tests passed successfully!");
+})().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 
 

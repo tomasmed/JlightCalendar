@@ -33,6 +33,8 @@ import {
   Bot,
   Download,
   Upload,
+  Maximize,
+  Minimize,
   X,
 } from "lucide-react";
 import { signIn, signOut } from "next-auth/react";
@@ -44,6 +46,7 @@ import {
   getThemeOption,
   useActiveTheme,
 } from "@/lib/theme";
+import { useFullscreen } from "@/lib/fullscreen";
 
 export type AccessMode = "admin" | "standard" | "kid";
 export type ActiveTab = "calendar" | "chores" | "meals" | "lists" | "photos";
@@ -121,6 +124,11 @@ export function KioskHeader({
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const currentTheme = useActiveTheme();
   const activeThemeOption = getThemeOption(currentTheme);
+  const {
+    isSupported: isFullscreenSupported,
+    isFullscreen,
+    toggleFullscreen,
+  } = useFullscreen();
 
   useEffect(() => {
     if (!showThemeMenu) return;
@@ -835,12 +843,35 @@ export function KioskHeader({
             <Info className="w-4 h-4" />
           </button>
 
+          {/* Fullscreen Mode Toggle Button (Kiosk / Wall Display utility) */}
+          {isFullscreenSupported && (
+            <button
+              type="button"
+              data-testid="fullscreen-toggle-button"
+              onClick={toggleFullscreen}
+              title={isFullscreen ? "Exit Full Screen" : "Full Screen Mode"}
+              aria-label={isFullscreen ? "Exit full screen" : "Enter full screen"}
+              aria-pressed={isFullscreen}
+              className={`md:order-4 p-2 rounded-lg transition min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center shrink-0 ${
+                isFullscreen
+                  ? "text-starlight bg-cosmos-surface/70 hover:bg-cosmos-surface"
+                  : "text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface/60"
+              }`}
+            >
+              {isFullscreen ? (
+                <Minimize className="w-4 h-4" />
+              ) : (
+                <Maximize className="w-4 h-4" />
+              )}
+            </button>
+          )}
+
           {/* Night Sleep Button (Hidden for Ephemeral Comets) */}
           {!activeGalaxy.isEphemeral && (
             <button
               onClick={onToggleSleep}
               title="Night Sleep Mode (OLED Protection)"
-              className="md:order-4 p-2 rounded-lg text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface/60 transition min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
+              className="md:order-5 p-2 rounded-lg text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface/60 transition min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
             >
               <Moon className="w-4 h-4" />
             </button>
