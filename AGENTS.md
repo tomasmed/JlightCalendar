@@ -133,9 +133,15 @@ GitHub Actions CI (`.github/workflows/ci.yml`) runs automatically on every push 
      - Creating, completing (star rewards), editing, and deleting chores.
      - Creating, toggling, clearing completed, and deleting shared list items.
      - Minting Agent PATs, device code handshakes, Ephemeral Comets, and photo screensaver connector configs.
-3. **Whenever adding a new feature**:
+3. **Playwright Real-Browser E2E & Show-and-Tell Artifacts (`npm run test:e2e` -> `tests/e2e/`)**:
+   - Boots the Next.js app against an isolated SQLite DB (`JLIGHT_TEST_MODE=true`, `DATABASE_URL=file:./.tmp-e2e.db`) and runs Chromium across `kiosk-desktop` (`1920x1080`) and `mobile-touch` (`390x844`).
+   - Uses the strictly `JLIGHT_TEST_MODE=true`-gated `POST /api/test/session` bridge (returns `404` otherwise) to test authenticated Household Galaxies alongside unauthenticated Ephemeral Comets.
+   - Saves Show & Tell verification PNGs to `test-results/show-and-tell/` and uploads both `playwright-report/` and screenshots as GitHub Actions artifacts on every PR.
+   - For local pre-PR verification, agents can pair `@playwright/mcp` with `JLIGHT_TEST_MODE=true` to interactively inspect UI state and capture Show & Tell screenshots before codifying regressions into `tests/e2e/`.
+4. **Whenever adding a new feature**:
    - Add unit tests for pure logic/helpers in `tests/unit.test.ts`.
    - Add API & DB integration assertions for any new or modified route behavior in `tests/system.test.ts`.
+   - Add or update a real-browser E2E flow (and Show & Tell screenshot if visual) in `tests/e2e/`.
 
 ---
 

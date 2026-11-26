@@ -1529,6 +1529,52 @@ async function runSystemTests() {
     "GET /api/events/export includes mid-span overlapping multi-day vacation with exclusive RFC 5545 DTEND (20260717)"
   );
 
+  console.log("\n====================================================");
+  console.log("🎭 12. Verifying Playwright Test Session Bridge Security");
+  console.log("====================================================");
+
+  const testSessionRoute = await import("../src/app/api/test/session/route");
+
+  // 12a. Must succeed and mint a NextAuth session cookie when JLIGHT_TEST_MODE=true
+  const testSessionOkRes = await testSessionRoute.POST(
+    new Request("http://localhost:3000/api/test/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: "playwright@jlight.test",
+        name: "Playwright Tester",
+      }),
+    })
+  );
+  const testSessionData = await testSessionOkRes.json();
+  const setCookieHeader = testSessionOkRes.headers.get("set-cookie") || "";
+  assert(
+    testSessionOkRes.status === 200 &&
+      testSessionData.ok === true &&
+      Boolean(testSessionData.galaxyId) &&
+      setCookieHeader.includes("authjs.session-token="),
+    "POST /api/test/session provisions user + Galaxy and sets authjs.session-token cookie in JLIGHT_TEST_MODE=true"
+  );
+
+  // 12b. Must strictly return 404 when JLIGHT_TEST_MODE is disabled
+  const prevTestMode = process.env.JLIGHT_TEST_MODE;
+  try {
+    process.env.JLIGHT_TEST_MODE = "false";
+    const disabledRes = await testSessionRoute.POST(
+      new Request("http://localhost:3000/api/test/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "attacker@example.com" }),
+      })
+    );
+    assert(
+      disabledRes.status === 404,
+      "POST /api/test/session strictly returns 404 when JLIGHT_TEST_MODE !== 'true'"
+    );
+  } finally {
+    process.env.JLIGHT_TEST_MODE = prevTestMode;
+  }
+
   // Close client & clean up temporary SQLite DB files
   client.close();
   cleanupDbFiles();

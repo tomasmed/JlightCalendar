@@ -10,6 +10,8 @@
     "jlight": "tsx src/cli/jlight.ts",
     "test:unit": "tsx tests/unit.test.ts",
     "test:system": "tsx tests/system.test.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "test": "npm run test:unit && npm run test:system",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
@@ -36,6 +38,7 @@
     "tailwind-merge": "^3.0.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@types/node": "^22.13.9",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
