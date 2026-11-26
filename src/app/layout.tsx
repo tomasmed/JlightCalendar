@@ -8,8 +8,23 @@ export const metadata: Metadata = {
   description:
     "An open-source, cloud-synced smart calendar, chore tracker, and wall kiosk dashboard for families, groups, and AI agents.",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "JlightCalendar",
+  },
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      {
+        url: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
   },
 };
 

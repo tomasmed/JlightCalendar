@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   KioskHeader,
   ActiveTab,
@@ -21,8 +21,10 @@ import { JoinGalaxyModal } from "@/components/join-galaxy-modal";
 import { AgentWallModal } from "@/components/agent-wall-modal";
 import { ExportCalendarModal } from "@/components/export-calendar-modal";
 import { ImportCalendarModal } from "@/components/import-calendar-modal";
+import { KioskDisplayModal } from "@/components/kiosk-display-modal";
 import { LandingPage } from "@/components/landing-page";
 import { CalendarEventData } from "@/components/event-modal";
+import { useKioskDisplayController } from "@/lib/kiosk-display";
 import { useSession, signIn } from "next-auth/react";
 import { Sparkles, ArrowRight, Download, Copy, Check, Globe2 } from "lucide-react";
 
@@ -53,8 +55,28 @@ export default function HomePage() {
   const [activeCometParam, setActiveCometParam] = useState<string>("");
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isKioskDisplayModalOpen, setIsKioskDisplayModalOpen] = useState(false);
   const [copiedCometLink, setCopiedCometLink] = useState(false);
   const [isConvertingComet, setIsConvertingComet] = useState(false);
+
+  const isLandingView =
+    status !== "loading" && !session?.user && !isDemoMode && !activeCometParam;
+
+  const handleEnterPhotoMode = useCallback(() => {
+    setActiveTab("photos");
+  }, []);
+
+  const {
+    settings: kioskDisplaySettings,
+    updateSettings: updateKioskDisplaySettings,
+    wakeLockSupported,
+    wakeLockActive,
+  } = useKioskDisplayController({
+    isSleeping,
+    activeTab,
+    onEnterPhotoMode: handleEnterPhotoMode,
+    disabled: isLandingView,
+  });
 
   // Inspect URL parameters on mount (?join=..., ?comet=..., ?demo=true, or ?claimBot=BOT-XXXX)
   useEffect(() => {
@@ -493,6 +515,17 @@ export default function HomePage() {
         onWake={() => setIsSleeping(false)}
       />
 
+      {/* Kiosk Display, Wake Lock & Idle Photo Mode Settings Modal */}
+      <KioskDisplayModal
+        isOpen={isKioskDisplayModalOpen}
+        onClose={() => setIsKioskDisplayModalOpen(false)}
+        settings={kioskDisplaySettings}
+        onSave={updateKioskDisplaySettings}
+        wakeLockSupported={wakeLockSupported}
+        wakeLockActive={wakeLockActive}
+        isSleeping={isSleeping}
+      />
+
       {/* Access Mode Switcher (PIN Protected) */}
       <ModeSwitcherModal
         isOpen={isModeModalOpen}
@@ -736,6 +769,8 @@ export default function HomePage() {
             }}
             onOpenExportModal={() => setIsExportModalOpen(true)}
             onOpenImportModal={() => setIsImportModalOpen(true)}
+            onOpenKioskDisplayModal={() => setIsKioskDisplayModalOpen(true)}
+            isWakeLockActive={wakeLockActive}
             user={user}
           />
 

@@ -64,6 +64,18 @@ import {
   resolveConnectorPhotos,
 } from "./../src/lib/photos";
 import {
+  DEFAULT_KIOSK_DISPLAY_SETTINGS,
+  IDLE_PHOTO_MINUTE_OPTIONS,
+  KIOSK_DISPLAY_STORAGE_KEY,
+  shouldHoldWakeLock,
+  normalizeKioskDisplaySettings,
+  loadKioskDisplaySettings,
+  saveKioskDisplaySettings,
+  isWakeLockSupported,
+  StorageLike,
+  WakeLockNavigatorLike,
+} from "./../src/lib/kiosk-display";
+import {
   isFullscreenSupported,
   isFullscreenActive,
   enterFullscreen,
@@ -1568,11 +1580,24 @@ const fullscreenHeaderPath = path.resolve(
 const fullscreenHeaderSource = fs.readFileSync(fullscreenHeaderPath, "utf-8");
 assert(
   fullscreenHeaderSource.includes("useFullscreen") &&
-    fullscreenHeaderSource.includes("fullscreen-toggle-button") &&
+    fullscreenHeaderSource.includes("kiosk-display-settings-button") &&
     fullscreenHeaderSource.includes("Maximize") &&
-    fullscreenHeaderSource.includes("Minimize") &&
-    fullscreenHeaderSource.includes("aria-pressed={isFullscreen}"),
-  "KioskHeader wires useFullscreen with accessible Maximize/Minimize toggle button"
+    fullscreenHeaderSource.includes("Minimize"),
+  "KioskHeader consolidates Fullscreen & Display controls into a single Maximize/Minimize button"
+);
+
+const kioskDisplayModalPath = path.resolve(
+  __dirname,
+  "../src/components/kiosk-display-modal.tsx"
+);
+const kioskDisplayModalSource = fs.readFileSync(kioskDisplayModalPath, "utf-8");
+assert(
+  kioskDisplayModalSource.includes("useFullscreen") &&
+    kioskDisplayModalSource.includes("fullscreen-toggle-button") &&
+    kioskDisplayModalSource.includes("Maximize") &&
+    kioskDisplayModalSource.includes("Minimize") &&
+    kioskDisplayModalSource.includes("aria-pressed={isFullscreen}"),
+  "KioskDisplayModal wires useFullscreen with accessible Maximize/Minimize toggle button"
 );
 
 (async () => {
@@ -1646,6 +1671,111 @@ assert(
   assert(
     failedEnter === false && loggedError.includes("Permissions check failed"),
     "enterFullscreen catches requestFullscreen errors gracefully without throwing"
+  );
+
+  // =========================================================================
+  // KIOSK DISPLAY, PWA MANIFEST, WAKE LOCK & SLEEP SCHEDULE TESTS
+  // =========================================================================
+  console.log("\n=== Running PWA Manifest & Kiosk Display Tests ===");
+
+  // 1. PWA Manifest & Icons
+  const manifestPath = path.resolve(__dirname, "../public/manifest.json");
+  assert(fs.existsSync(manifestPath), "public/manifest.json exists for PWA installability");
+  const manifestJson = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+  assert(
+    manifestJson.display === "fullscreen" &&
+      Array.isArray(manifestJson.display_override) &&
+      manifestJson.display_override.includes("fullscreen") &&
+      manifestJson.start_url === "/",
+    "manifest.json configures fullscreen PWA display and root start_url"
+  );
+  assert(
+    Array.isArray(manifestJson.icons) &&
+      manifestJson.icons.some((i: { sizes: string }) => i.sizes === "192x192") &&
+      manifestJson.icons.some((i: { sizes: string }) => i.sizes === "512x512"),
+    "manifest.json declares required 192x192 and 512x512 PNG icons"
+  );
+  for (const icon of manifestJson.icons as Array<{ src: string }>) {
+    const iconFile = path.resolve(__dirname, "../public", icon.src.replace(/^\//, ""));
+    assert(fs.existsSync(iconFile), `PWA icon file exists: ${icon.src}`);
+  }
+  assert(
+    fs.existsSync(path.resolve(__dirname, "../public/icons/apple-touch-icon.png")),
+    "apple-touch-icon.png exists for iPad/iOS standalone Home Screen"
+  );
+
+  // 2. Idle Photo Mode timeout options (1m, 2m, 5m, 10m, 15m, 30m — no 60m)
+  assert(
+    JSON.stringify(IDLE_PHOTO_MINUTE_OPTIONS) === JSON.stringify([1, 2, 5, 10, 15, 30]),
+    "IDLE_PHOTO_MINUTE_OPTIONS offers 1m, 2m, 5m, 10m, 15m, and 30m"
+  );
+
+  // 3. Wake lock policy & support detection
+  assert(
+    shouldHoldWakeLock({ keepAwakeEnabled: true }, false) === true &&
+      shouldHoldWakeLock({ keepAwakeEnabled: true }, true) === false &&
+      shouldHoldWakeLock({ keepAwakeEnabled: false }, false) === false &&
+      shouldHoldWakeLock({ keepAwakeEnabled: false }, true) === false,
+    "shouldHoldWakeLock holds wake lock only when enabled and not sleeping"
+  );
+
+  const supportedNav: WakeLockNavigatorLike = {
+    wakeLock: {
+      request: async () => ({ release: async () => {} }),
+    },
+  };
+  assert(
+    isWakeLockSupported(supportedNav) === true &&
+      isWakeLockSupported({}) === false &&
+      isWakeLockSupported(null) === false,
+    "isWakeLockSupported accurately detects Screen Wake Lock API support"
+  );
+
+  // 4. Settings normalization & storage persistence
+  const storeMap = new Map<string, string>();
+  const mockStorage: StorageLike = {
+    getItem: (k) => storeMap.get(k) ?? null,
+    setItem: (k, v) => {
+      storeMap.set(k, v);
+    },
+  };
+
+  const defaultLoaded = loadKioskDisplaySettings(mockStorage);
+  assert(
+    defaultLoaded.keepAwakeEnabled === DEFAULT_KIOSK_DISPLAY_SETTINGS.keepAwakeEnabled &&
+      defaultLoaded.idlePhotoEnabled === false &&
+      defaultLoaded.idlePhotoMinutes === 15,
+    "loadKioskDisplaySettings returns defaults when storage is empty"
+  );
+
+  saveKioskDisplaySettings(
+    {
+      keepAwakeEnabled: true,
+      idlePhotoEnabled: true,
+      idlePhotoMinutes: 2,
+    },
+    mockStorage
+  );
+  const reloaded = loadKioskDisplaySettings(mockStorage);
+  assert(
+    reloaded.keepAwakeEnabled === true &&
+      reloaded.idlePhotoEnabled === true &&
+      reloaded.idlePhotoMinutes === 2,
+    "saveKioskDisplaySettings and loadKioskDisplaySettings round-trip cleanly"
+  );
+
+  storeMap.set(KIOSK_DISPLAY_STORAGE_KEY, "{not-valid-json");
+  const fallbackLoaded = loadKioskDisplaySettings(mockStorage);
+  assert(
+    fallbackLoaded.keepAwakeEnabled === true && fallbackLoaded.idlePhotoMinutes === 15,
+    "loadKioskDisplaySettings recovers safely from corrupt JSON"
+  );
+
+  const clampedHigh = normalizeKioskDisplaySettings({ idlePhotoMinutes: 999 });
+  const clampedLow = normalizeKioskDisplaySettings({ idlePhotoMinutes: 0 });
+  assert(
+    clampedHigh.idlePhotoMinutes === 30 && clampedLow.idlePhotoMinutes === 1,
+    "normalizeKioskDisplaySettings clamps idlePhotoMinutes to [1, 30]"
   );
 
   console.log("\n✨ All unit and static guard tests passed successfully!");
