@@ -35,7 +35,6 @@ import {
   Upload,
   Maximize,
   Minimize,
-  Monitor,
   X,
 } from "lucide-react";
 import { signIn, signOut } from "next-auth/react";
@@ -848,40 +847,21 @@ export function KioskHeader({
             <Info className="w-4 h-4" />
           </button>
 
-          {/* Kiosk Display & Wake Schedule Settings Button */}
-          {onOpenKioskDisplayModal && (
+          {/* Consolidated Kiosk Display & Fullscreen Control Button */}
+          {(onOpenKioskDisplayModal || isFullscreenSupported) && (
             <button
               type="button"
               data-testid="kiosk-display-settings-button"
-              onClick={onOpenKioskDisplayModal}
+              onClick={onOpenKioskDisplayModal ?? toggleFullscreen}
               title={
-                isWakeLockActive
-                  ? "Kiosk Display & Wake Settings (Keep Awake Active)"
-                  : "Kiosk Display & Wake Settings"
+                isFullscreen
+                  ? "Display & Full Screen Settings (Full Screen Active)"
+                  : isWakeLockActive
+                    ? "Display & Full Screen Settings (Keep Awake Active)"
+                    : "Display & Full Screen Settings"
               }
-              aria-label="Open Kiosk Display and Wake Settings"
-              className="relative md:order-4 p-2 rounded-lg text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface/60 transition min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center shrink-0"
-            >
-              <Monitor className="w-4 h-4" />
-              {isWakeLockActive && (
-                <span
-                  aria-hidden="true"
-                  className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-cosmos-void"
-                />
-              )}
-            </button>
-          )}
-
-          {/* Fullscreen Mode Toggle Button (Kiosk / Wall Display utility) */}
-          {isFullscreenSupported && (
-            <button
-              type="button"
-              data-testid="fullscreen-toggle-button"
-              onClick={toggleFullscreen}
-              title={isFullscreen ? "Exit Full Screen" : "Full Screen Mode"}
-              aria-label={isFullscreen ? "Exit full screen" : "Enter full screen"}
-              aria-pressed={isFullscreen}
-              className={`md:order-4 p-2 rounded-lg transition min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center shrink-0 ${
+              aria-label="Open Display and Full Screen Settings"
+              className={`relative md:order-4 p-2 rounded-lg transition min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center shrink-0 ${
                 isFullscreen
                   ? "text-starlight bg-cosmos-surface/70 hover:bg-cosmos-surface"
                   : "text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface/60"
@@ -891,6 +871,12 @@ export function KioskHeader({
                 <Minimize className="w-4 h-4" />
               ) : (
                 <Maximize className="w-4 h-4" />
+              )}
+              {isWakeLockActive && (
+                <span
+                  aria-hidden="true"
+                  className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-cosmos-void"
+                />
               )}
             </button>
           )}

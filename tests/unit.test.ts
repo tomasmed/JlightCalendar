@@ -1582,11 +1582,24 @@ const fullscreenHeaderPath = path.resolve(
 const fullscreenHeaderSource = fs.readFileSync(fullscreenHeaderPath, "utf-8");
 assert(
   fullscreenHeaderSource.includes("useFullscreen") &&
-    fullscreenHeaderSource.includes("fullscreen-toggle-button") &&
+    fullscreenHeaderSource.includes("kiosk-display-settings-button") &&
     fullscreenHeaderSource.includes("Maximize") &&
-    fullscreenHeaderSource.includes("Minimize") &&
-    fullscreenHeaderSource.includes("aria-pressed={isFullscreen}"),
-  "KioskHeader wires useFullscreen with accessible Maximize/Minimize toggle button"
+    fullscreenHeaderSource.includes("Minimize"),
+  "KioskHeader consolidates Fullscreen & Display controls into a single Maximize/Minimize button"
+);
+
+const kioskDisplayModalPath = path.resolve(
+  __dirname,
+  "../src/components/kiosk-display-modal.tsx"
+);
+const kioskDisplayModalSource = fs.readFileSync(kioskDisplayModalPath, "utf-8");
+assert(
+  kioskDisplayModalSource.includes("useFullscreen") &&
+    kioskDisplayModalSource.includes("fullscreen-toggle-button") &&
+    kioskDisplayModalSource.includes("Maximize") &&
+    kioskDisplayModalSource.includes("Minimize") &&
+    kioskDisplayModalSource.includes("aria-pressed={isFullscreen}"),
+  "KioskDisplayModal wires useFullscreen with accessible Maximize/Minimize toggle button"
 );
 
 (async () => {

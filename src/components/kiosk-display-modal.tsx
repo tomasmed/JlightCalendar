@@ -9,12 +9,15 @@ import {
   Image as ImageIcon,
   BatteryCharging,
   Check,
+  Maximize,
+  Minimize,
 } from "lucide-react";
 import {
   KioskDisplaySettings,
   IDLE_PHOTO_MINUTE_OPTIONS,
   formatTimeLabel,
 } from "@/lib/kiosk-display";
+import { useFullscreen } from "@/lib/fullscreen";
 
 interface KioskDisplayModalProps {
   isOpen: boolean;
@@ -36,6 +39,11 @@ export function KioskDisplayModal({
   isSleeping,
 }: KioskDisplayModalProps) {
   const [draft, setDraft] = useState<KioskDisplaySettings>(settings);
+  const {
+    isSupported: isFullscreenSupported,
+    isFullscreen,
+    toggleFullscreen,
+  } = useFullscreen();
 
   useEffect(() => {
     if (isOpen) {
@@ -103,6 +111,58 @@ export function KioskDisplayModal({
 
         {/* Body */}
         <div className="p-5 space-y-4 max-h-[72vh] overflow-y-auto">
+          {/* 0. Full Screen Mode (Consolidated Kiosk Display Action) */}
+          <div className="p-4 rounded-xl bg-cosmos-surface/60 border border-cosmos-border flex items-center justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              {isFullscreen ? (
+                <Minimize className="w-4 h-4 text-starlight mt-0.5 shrink-0" />
+              ) : (
+                <Maximize className="w-4 h-4 text-starlight mt-0.5 shrink-0" />
+              )}
+              <div>
+                <div className="text-sm font-bold text-cosmos-text flex items-center gap-2 flex-wrap">
+                  <span>Full Screen Mode</span>
+                  {isFullscreen && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-starlight border border-purple-400/40">
+                      Active
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-cosmos-muted mt-0.5">
+                  {isFullscreenSupported
+                    ? "Hide browser tabs and address bar for a clean wall display."
+                    : "Use your browser's Add to Home Screen / Install App for fullscreen on this device."}
+                </p>
+              </div>
+            </div>
+            {isFullscreenSupported && (
+              <button
+                type="button"
+                data-testid="fullscreen-toggle-button"
+                onClick={toggleFullscreen}
+                aria-label={isFullscreen ? "Exit full screen" : "Enter full screen"}
+                aria-pressed={isFullscreen}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition min-h-[44px] shrink-0 ${
+                  isFullscreen
+                    ? "bg-cosmos-card border border-cosmos-borderLight text-cosmos-text hover:bg-cosmos-surface"
+                    : "bg-purple-600 hover:bg-purple-500 text-white shadow-sm"
+                }`}
+              >
+                {isFullscreen ? (
+                  <>
+                    <Minimize className="w-3.5 h-3.5" />
+                    <span>Exit</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize className="w-3.5 h-3.5" />
+                    <span>Enter</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
           {/* 1. Keep Screen Awake (Screen Wake Lock API) */}
           <div className="p-4 rounded-xl bg-cosmos-surface/60 border border-cosmos-border space-y-2.5">
             <div className="flex items-center justify-between gap-3">
