@@ -118,17 +118,23 @@ export function formatLocalDate(dt: Date): string {
 /**
  * Calculates start and end ISO strings purely in local wall-clock time
  * to prevent any timezone offset duration errors.
+ * For multi-day all-day events, pass an optional inclusive `endDate` (YYYY-MM-DD).
  */
 export function computeEventTimes(
   date: string, // YYYY-MM-DD
   time: string, // HH:mm
   durationMinutes: number,
-  isAllDay: boolean
+  isAllDay: boolean,
+  endDate?: string | null // Optional inclusive YYYY-MM-DD for multi-day all-day events
 ): { startTimeISO: string; endTimeISO: string } {
   if (isAllDay) {
+    const effectiveEndDate =
+      endDate && /^\d{4}-\d{2}-\d{2}$/.test(endDate) && endDate >= date
+        ? endDate
+        : date;
     return {
       startTimeISO: `${date}T00:00:00`,
-      endTimeISO: `${date}T23:59:59`,
+      endTimeISO: `${effectiveEndDate}T23:59:59`,
     };
   }
 
@@ -141,6 +147,272 @@ export function computeEventTimes(
   return {
     startTimeISO: formatLocalISO(startDt),
     endTimeISO: formatLocalISO(endDt),
+  };
+}
+
+/**
+ * Extracts the inclusive local start date (YYYY-MM-DD) from an event.
+ */
+export function getEventStartDate(event: {
+  date?: string;
+  startTime?: string;
+}): string {
+  if (event.date && /^\d{4}-\d{2}-\d{2}$/.test(event.date)) {
+    return event.date;
+  }
+  if (event.startTime) {
+    return event.startTime.split("T")[0];
+  }
+  return "";
+}
+
+/**
+ * Extracts the inclusive local end date (YYYY-MM-DD) from an event.
+ * In v1, multi-day spans apply to all-day events (`isAllDay: true`).
+ */
+export function getEventEndDate(event: {
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  isAllDay?: boolean;
+}): string {
+  const startDate = getEventStartDate(event);
+  if (!startDate) return "";
+  if (!event.isAllDay || !event.endTime) {
+    return startDate;
+  }
+  const endDate = event.endTime.split("T")[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(endDate) && endDate >= startDate) {
+    return endDate;
+  }
+  return startDate;
+}
+
+/**
+ * Computes the inclusive number of calendar days between two YYYY-MM-DD dates.
+ * Returns at least 1.
+ */
+export function getEventSpanDays(startDate: string, endDate: string): number {
+  if (!startDate || !endDate || endDate <= startDate) return 1;
+  const [sy, sm, sd] = startDate.split("-").map(Number);
+  const [ey, em, ed] = endDate.split("-").map(Number);
+  if (isNaN(sy) || isNaN(sm) || isNaN(sd) || isNaN(ey) || isNaN(em) || isNaN(ed)) {
+    return 1;
+  }
+  const s = new Date(sy, sm - 1, sd);
+  const e = new Date(ey, em - 1, ed);
+  const diff = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.max(1, diff + 1);
+}
+
+/**
+ * Adds a number of calendar days to a YYYY-MM-DD local date string.
+ */
+export function addDaysToLocalDate(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return dateStr;
+  const dt = new Date(y, m - 1, d + days);
+  return formatLocalDate(dt);
+}
+
+/**
+ * Returns true if the event is an all-day event spanning 2 or more days.
+ */
+export function isMultiDayAllDayEvent(event: {
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  isAllDay?: boolean;
+}): boolean {
+  if (!event.isAllDay) return false;
+  const startDate = getEventStartDate(event);
+  const endDate = getEventEndDate(event);
+  return Boolean(startDate && endDate && endDate > startDate);
+}
+
+/**
+ * Returns true if the event covers the given local YYYY-MM-DD date.
+ */
+export function eventCoversDate(
+  event: {
+    date?: string;
+    startTime?: string;
+    endTime?: string;
+    isAllDay?: boolean;
+  },
+  dateStr: string
+): boolean {
+  const startDate = getEventStartDate(event);
+  if (!startDate || !dateStr) return false;
+  const endDate = getEventEndDate(event);
+  return dateStr >= startDate && dateStr <= endDate;
+}
+
+/**
+ * For multi-day all-day events covering `dateStr`, returns a human-friendly progress label
+ * like "Day 2 of 5". Returns null for single-day or timed events.
+ */
+export function getMultiDayProgressLabel(
+  event: {
+    date?: string;
+    startTime?: string;
+    endTime?: string;
+    isAllDay?: boolean;
+  },
+  dateStr: string
+): string | null {
+  if (!isMultiDayAllDayEvent(event) || !eventCoversDate(event, dateStr)) {
+    return null;
+  }
+  const startDate = getEventStartDate(event);
+  const endDate = getEventEndDate(event);
+  const totalDays = getEventSpanDays(startDate, endDate);
+  const currentDay = getEventSpanDays(startDate, dateStr);
+  return `Day ${currentDay} of ${totalDays}`;
+}
+
+export interface SpanningWeekSegment<T> {
+  event: T;
+  startCol: number; // 0..6
+  span: number; // 1..7
+  lane: number; // 0-indexed vertical lane
+  continuesFromPrev: boolean;
+  continuesToNext: boolean;
+  isMultiDay: boolean;
+  totalDays: number;
+}
+
+export interface SpanningWeekLayout<T> {
+  visibleSegments: SpanningWeekSegment<T>[];
+  allSegments: SpanningWeekSegment<T>[];
+  overflowByCol: number[]; // Length 7: count of hidden segments covering each day column
+  visibleLaneCount: number;
+  totalLaneCount: number;
+}
+
+/**
+ * Computes continuous horizontal spanning bars for all-day / multi-day events
+ * across a 7-day week row (`weekDateStrs`), using greedy lane packing.
+ * When `maxVisibleLanes` is provided (e.g. 2 in Month View), excess lanes are
+ * counted in `overflowByCol` for "+N more" badges.
+ */
+export function layoutSpanningWeekEvents<
+  T extends {
+    id: string;
+    date?: string;
+    startTime?: string;
+    endTime?: string;
+    isAllDay?: boolean;
+    title?: string;
+  }
+>(
+  events: T[],
+  weekDateStrs: string[],
+  maxVisibleLanes?: number
+): SpanningWeekLayout<T> {
+  const colCount = weekDateStrs.length;
+  const overflowByCol = Array.from({ length: colCount }, () => 0);
+
+  if (colCount === 0 || events.length === 0) {
+    return {
+      visibleSegments: [],
+      allSegments: [],
+      overflowByCol,
+      visibleLaneCount: 0,
+      totalLaneCount: 0,
+    };
+  }
+
+  const weekStart = weekDateStrs[0];
+  const weekEnd = weekDateStrs[colCount - 1];
+
+  // Collect events that overlap this week
+  const rawSegments: Omit<SpanningWeekSegment<T>, "lane">[] = [];
+
+  for (const evt of events) {
+    const startDate = getEventStartDate(evt);
+    const endDate = getEventEndDate(evt);
+    if (!startDate || !endDate) continue;
+    if (endDate < weekStart || startDate > weekEnd) continue;
+
+    const clippedStart = startDate < weekStart ? weekStart : startDate;
+    const clippedEnd = endDate > weekEnd ? weekEnd : endDate;
+
+    const startCol = weekDateStrs.indexOf(clippedStart);
+    const endCol = weekDateStrs.indexOf(clippedEnd);
+    if (startCol === -1 || endCol === -1 || endCol < startCol) continue;
+
+    const totalDays = getEventSpanDays(startDate, endDate);
+    rawSegments.push({
+      event: evt,
+      startCol,
+      span: endCol - startCol + 1,
+      continuesFromPrev: startDate < weekStart,
+      continuesToNext: endDate > weekEnd,
+      isMultiDay: totalDays > 1,
+      totalDays,
+    });
+  }
+
+  // Sort: earlier startCol first, then longer spans first (classic calendar packing), then title
+  rawSegments.sort((a, b) => {
+    if (a.startCol !== b.startCol) return a.startCol - b.startCol;
+    if (b.span !== a.span) return b.span - a.span;
+    if (a.isMultiDay !== b.isMultiDay) return a.isMultiDay ? -1 : 1;
+    return (a.event.title || "").localeCompare(b.event.title || "");
+  });
+
+  // Greedy lane assignment: track occupied endCol per lane
+  const laneEndCols: number[] = [];
+  const allSegments: SpanningWeekSegment<T>[] = [];
+
+  for (const seg of rawSegments) {
+    const segEndCol = seg.startCol + seg.span - 1;
+    let assignedLane = -1;
+
+    for (let lane = 0; lane < laneEndCols.length; lane++) {
+      if (laneEndCols[lane] < seg.startCol) {
+        assignedLane = lane;
+        laneEndCols[lane] = segEndCol;
+        break;
+      }
+    }
+
+    if (assignedLane === -1) {
+      assignedLane = laneEndCols.length;
+      laneEndCols.push(segEndCol);
+    }
+
+    allSegments.push({
+      ...seg,
+      lane: assignedLane,
+    });
+  }
+
+  const totalLaneCount = laneEndCols.length;
+  const visibleSegments: SpanningWeekSegment<T>[] = [];
+
+  for (const seg of allSegments) {
+    if (maxVisibleLanes !== undefined && seg.lane >= maxVisibleLanes) {
+      for (let c = seg.startCol; c < seg.startCol + seg.span; c++) {
+        overflowByCol[c] += 1;
+      }
+    } else {
+      visibleSegments.push(seg);
+    }
+  }
+
+  const visibleLaneCount =
+    maxVisibleLanes !== undefined
+      ? Math.min(totalLaneCount, maxVisibleLanes)
+      : totalLaneCount;
+
+  return {
+    visibleSegments,
+    allSegments,
+    overflowByCol,
+    visibleLaneCount,
+    totalLaneCount,
   };
 }
 
@@ -227,6 +499,9 @@ export function expandRecurringEvents<T extends BaseCalendarEventItem>(
     }
 
     const durationMins = computeDurationMinutes(event.startTime, event.endTime, 60);
+    const spanDays = event.isAllDay
+      ? getEventSpanDays(event.date, getEventEndDate(event))
+      : 1;
     const timeOnly = event.startTime?.includes("T")
       ? event.startTime.split("T")[1]?.slice(0, 5) || "09:00"
       : event.time && event.time.includes(":")
@@ -285,11 +560,16 @@ export function expandRecurringEvents<T extends BaseCalendarEventItem>(
               baseEventId: event.id,
             });
           } else {
+            const occurrenceEndDate =
+              event.isAllDay && spanDays > 1
+                ? addDaysToLocalDate(occurrenceDateStr, spanDays - 1)
+                : undefined;
             const computed = computeEventTimes(
               occurrenceDateStr,
               timeOnly,
               durationMins,
-              Boolean(event.isAllDay)
+              Boolean(event.isAllDay),
+              occurrenceEndDate
             );
 
             result.push({

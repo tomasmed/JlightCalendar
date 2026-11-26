@@ -34,6 +34,12 @@ import {
   computeEventTimes,
   rruleToFrequency,
   formatLocalDate,
+  getEventEndDate,
+  getEventSpanDays,
+  isMultiDayAllDayEvent,
+  eventCoversDate,
+  getMultiDayProgressLabel,
+  layoutSpanningWeekEvents,
 } from "@/lib/recurrence";
 import { adaptMemberColor, useActiveTheme, AppTheme } from "@/lib/theme";
 
@@ -897,13 +903,19 @@ export function CalendarView({
     }
   }, [viewType, currentDate]);
 
+  // Helper for identifying all-day events (single-day or multi-day)
+  const isAllDayEvent = (e: CalendarEvent) =>
+    Boolean(e.isAllDay || e.time?.toLowerCase() === "all day");
+
   // Events for selected modal date (tablet/desktop) and mobile split-month agenda date
   const selectedDateEvents = selectedDayModal
-    ? calendarEvents.filter((e) => e.date === selectedDayModal).sort(compareEventsByTime)
+    ? calendarEvents
+        .filter((e) => eventCoversDate(e, selectedDayModal))
+        .sort(compareEventsByTime)
     : [];
 
   const mobileAgendaEvents = filteredEvents
-    .filter((e) => e.date === selectedAgendaDate)
+    .filter((e) => eventCoversDate(e, selectedAgendaDate))
     .sort(compareEventsByTime);
 
   const formatModalHeaderDate = (dateStr: string) => {
@@ -1222,143 +1234,280 @@ export function CalendarView({
               ))}
             </div>
 
-            {/* 7-Column Days Grid */}
-            <div
-              className={`flex-1 grid grid-cols-7 ${
-                calendarCells.length > 35 ? "grid-rows-6" : "grid-rows-5"
-              } gap-px bg-cosmos-border/70 overflow-hidden`}
-            >
-              {calendarCells.map((cell) => {
-                const dayEvents = filteredEvents
-                  .filter((e) => e.date === cell.dateStr)
-                  .sort(compareEventsByTime);
-                const isSelectedAgendaDay = cell.dateStr === selectedAgendaDate;
+            {/* 7-Column Days Grid (Grouped by Week Rows for Continuous Spanning Multi-Day Banners) */}
+            <div className="flex-1 flex flex-col divide-y divide-cosmos-border/70 bg-cosmos-border/70 overflow-hidden">
+              {Array.from(
+                { length: Math.ceil(calendarCells.length / 7) },
+                (_, weekIdx) => {
+                  const weekRow = calendarCells.slice(weekIdx * 7, weekIdx * 7 + 7);
+                  const weekDateStrs = weekRow.map((c) => c.dateStr);
+                  const weekAllDayEvents = filteredEvents.filter(isAllDayEvent);
+                  const spanningLayout = layoutSpanningWeekEvents(
+                    weekAllDayEvents,
+                    weekDateStrs,
+                    2 // Cap visible top spanning lanes at 2; overflow rolls into "+N more"
+                  );
 
-                return (
-                  <div
-                    key={cell.dateStr}
-                    onClick={() => {
-                      setSelectedAgendaDate(cell.dateStr);
-                      if (typeof window !== "undefined" && window.innerWidth >= 640) {
-                        setSelectedDayModal(cell.dateStr);
-                      }
-                    }}
-                    className={`cursor-pointer p-1 sm:p-1.5 flex flex-col justify-start overflow-hidden transition-all select-none relative group ${
-                      isSelectedAgendaDay
-                        ? "theme-selected-cell"
-                        : cell.isCurrentMonth
-                        ? "bg-cosmos-deep hover:bg-cosmos-card/80"
-                        : "bg-cosmos-void/60 text-cosmos-muted/50 hover:bg-cosmos-deep/50"
-                    }`}
-                  >
-                    {/* Top Bar: Date Number (Critique 4.3: Single-Anchor Keycap/OSL Badge, no double-hat rings) */}
-                    <div className="flex items-center justify-between mb-0.5 sm:mb-1">
-                      <span
-                        className={`text-[11px] sm:text-xs font-black px-1.5 py-0.5 rounded-md ${
-                          cell.isToday
-                            ? "theme-today-badge font-extrabold"
-                            : isSelectedAgendaDay
-                            ? "text-starlight font-extrabold"
-                            : cell.isCurrentMonth
-                            ? "text-cosmos-text group-hover:text-starlight"
-                            : "text-cosmos-muted/50"
-                        }`}
-                      >
-                        {cell.dayNum}
-                      </span>
-
-                      {cell.isToday && (
-                        <span className="text-[9px] font-bold text-starlight uppercase tracking-tight hidden md:inline">
-                          Today
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Tablet & Desktop: OSL Left-Lip Event Pills */}
-                    <div className="hidden sm:flex flex-1 flex-col gap-1 overflow-hidden">
-                      {dayEvents.slice(0, 3).map((evt) => {
-                        const colors = getEventColors(evt, inhabitants, familyColor, activeTheme);
-                        const bgStyle = getEventBackgroundStyle(colors, "26");
+                  return (
+                    <div
+                      key={weekDateStrs[0] || weekIdx}
+                      className="flex-1 min-h-0 relative grid grid-cols-7 gap-px bg-cosmos-border/70 overflow-hidden"
+                    >
+                      {/* Background Day Cells */}
+                      {weekRow.map((cell, colIdx) => {
+                        const allCoveringEvents = filteredEvents
+                          .filter((e) => eventCoversDate(e, cell.dateStr))
+                          .sort(compareEventsByTime);
+                        const timedDayEvents = allCoveringEvents.filter(
+                          (e) => !isAllDayEvent(e)
+                        );
+                        const isSelectedAgendaDay = cell.dateStr === selectedAgendaDate;
+                        const maxTimedVisible = Math.max(
+                          1,
+                          3 - spanningLayout.visibleLaneCount
+                        );
+                        const hiddenTimedCount = Math.max(
+                          0,
+                          timedDayEvents.length - maxTimedVisible
+                        );
+                        const hiddenTotal =
+                          (spanningLayout.overflowByCol[colIdx] || 0) + hiddenTimedCount;
 
                         return (
                           <div
-                            key={evt.id}
-                            onClick={(e) => handleOpenEditEvent(evt, e)}
-                            className="truncate text-[10px] md:text-[11px] font-bold px-1.5 py-0.5 rounded-md border text-cosmos-text transition hover:brightness-110 flex items-center gap-1"
-                            style={{
-                              background: bgStyle.background,
-                              borderColor: bgStyle.borderColor,
-                              borderLeftWidth: "3px",
-                              borderLeftColor: bgStyle.primaryColor,
+                            key={cell.dateStr}
+                            onClick={() => {
+                              setSelectedAgendaDate(cell.dateStr);
+                              if (typeof window !== "undefined" && window.innerWidth >= 640) {
+                                setSelectedDayModal(cell.dateStr);
+                              }
                             }}
+                            className={`cursor-pointer p-1 sm:p-1.5 flex flex-col justify-start overflow-hidden transition-all select-none relative group ${
+                              isSelectedAgendaDay
+                                ? "theme-selected-cell"
+                                : cell.isCurrentMonth
+                                ? "bg-cosmos-deep hover:bg-cosmos-card/80"
+                                : "bg-cosmos-void/60 text-cosmos-muted/50 hover:bg-cosmos-deep/50"
+                            }`}
                           >
-                            {/* Crisp Multi-member micro-pellets */}
-                            {colors.length > 1 ? (
-                              <div className="flex items-center gap-0.5 shrink-0">
-                                {colors.map((c, i) => (
-                                  <span
-                                    key={i}
-                                    className="w-1.5 h-1.5 rounded-[2px]"
-                                    style={{ backgroundColor: c }}
-                                  />
-                                ))}
-                              </div>
-                            ) : (
+                            {/* Top Bar: Date Number */}
+                            <div className="flex items-center justify-between mb-0.5 sm:mb-1 h-5 shrink-0">
                               <span
-                                className="w-1.5 h-1.5 rounded-[2px] shrink-0"
-                                style={{ backgroundColor: colors[0] }}
-                              />
-                            )}
+                                className={`text-[11px] sm:text-xs font-black px-1.5 py-0.5 rounded-md ${
+                                  cell.isToday
+                                    ? "theme-today-badge font-extrabold"
+                                    : isSelectedAgendaDay
+                                    ? "text-starlight font-extrabold"
+                                    : cell.isCurrentMonth
+                                    ? "text-cosmos-text group-hover:text-starlight"
+                                    : "text-cosmos-muted/50"
+                                }`}
+                              >
+                                {cell.dayNum}
+                              </span>
 
-                            <span className="opacity-75 font-mono text-[9px]">
-                              {evt.isAllDay ? "ALL DAY" : evt.time.replace(":00", "").toLowerCase()}
-                            </span>
-                            {evt.rrule && evt.rrule !== "none" && (
-                              <Repeat className="w-2.5 h-2.5 inline-block opacity-80 shrink-0" />
-                            )}
-                            <span className="truncate">{evt.title}</span>
+                              {cell.isToday && (
+                                <span className="text-[9px] font-bold text-starlight uppercase tracking-tight hidden md:inline">
+                                  Today
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Tablet & Desktop: Timed Event Pills positioned below Spanning All-Day Band */}
+                            <div
+                              className="hidden sm:flex flex-1 flex-col gap-1 overflow-hidden"
+                              style={{
+                                paddingTop:
+                                  spanningLayout.visibleLaneCount > 0
+                                    ? `${spanningLayout.visibleLaneCount * 22 + 2}px`
+                                    : undefined,
+                              }}
+                            >
+                              {timedDayEvents.slice(0, maxTimedVisible).map((evt) => {
+                                const colors = getEventColors(
+                                  evt,
+                                  inhabitants,
+                                  familyColor,
+                                  activeTheme
+                                );
+                                const bgStyle = getEventBackgroundStyle(colors, "26");
+
+                                return (
+                                  <div
+                                    key={evt.id}
+                                    onClick={(e) => handleOpenEditEvent(evt, e)}
+                                    className="truncate text-[10px] md:text-[11px] font-bold px-1.5 py-0.5 rounded-md border text-cosmos-text transition hover:brightness-110 flex items-center gap-1"
+                                    style={{
+                                      background: bgStyle.background,
+                                      borderColor: bgStyle.borderColor,
+                                      borderLeftWidth: "3px",
+                                      borderLeftColor: bgStyle.primaryColor,
+                                    }}
+                                  >
+                                    {colors.length > 1 ? (
+                                      <div className="flex items-center gap-0.5 shrink-0">
+                                        {colors.map((c, i) => (
+                                          <span
+                                            key={i}
+                                            className="w-1.5 h-1.5 rounded-[2px]"
+                                            style={{ backgroundColor: c }}
+                                          />
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <span
+                                        className="w-1.5 h-1.5 rounded-[2px] shrink-0"
+                                        style={{ backgroundColor: colors[0] }}
+                                      />
+                                    )}
+
+                                    <span className="opacity-75 font-mono text-[9px]">
+                                      {evt.time.replace(":00", "").toLowerCase()}
+                                    </span>
+                                    {evt.rrule && evt.rrule !== "none" && (
+                                      <Repeat className="w-2.5 h-2.5 inline-block opacity-80 shrink-0" />
+                                    )}
+                                    <span className="truncate">{evt.title}</span>
+                                  </div>
+                                );
+                              })}
+
+                              {hiddenTotal > 0 && (
+                                <span
+                                  data-testid={`month-overflow-${cell.dateStr}`}
+                                  className="text-[10px] font-extrabold text-starlight px-1"
+                                >
+                                  +{hiddenTotal} more
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Mobile (<640px): Crisp Micro-Indicators */}
+                            <div className="sm:hidden flex flex-wrap gap-0.5 mt-auto items-center justify-center">
+                              {allCoveringEvents.slice(0, 3).map((evt) => {
+                                const colors = getEventColors(
+                                  evt,
+                                  inhabitants,
+                                  familyColor,
+                                  activeTheme
+                                );
+                                return colors.length > 1 ? (
+                                  <div
+                                    key={evt.id}
+                                    className="flex items-center gap-[1px] shrink-0"
+                                  >
+                                    {colors.map((c, i) => (
+                                      <div
+                                        key={i}
+                                        className="w-1.5 h-1 rounded-[1.5px]"
+                                        style={{ backgroundColor: c }}
+                                      />
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div
+                                    key={evt.id}
+                                    className="w-2.5 h-1 rounded-[1.5px] shrink-0"
+                                    style={{ backgroundColor: colors[0] }}
+                                  />
+                                );
+                              })}
+                              {allCoveringEvents.length > 3 && (
+                                <span className="text-[8px] font-extrabold text-starlight leading-none">
+                                  +{allCoveringEvents.length - 3}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
 
-                      {dayEvents.length > 3 && (
-                        <span className="text-[10px] font-extrabold text-starlight px-1">
-                          +{dayEvents.length - 3} more
-                        </span>
-                      )}
-                    </div>
+                      {/* Tablet & Desktop Overlay: Continuous Spanning All-Day / Multi-Day Ribbons */}
+                      {spanningLayout.visibleSegments.length > 0 && (
+                        <div
+                          data-testid="month-spanning-band"
+                          className="hidden sm:grid absolute top-[28px] left-0 right-0 z-10 grid-cols-7 gap-y-[2px] pointer-events-none"
+                        >
+                          {spanningLayout.visibleSegments.map((seg) => {
+                            const evt = seg.event;
+                            const colors = getEventColors(
+                              evt,
+                              inhabitants,
+                              familyColor,
+                              activeTheme
+                            );
+                            const bgStyle = getEventBackgroundStyle(colors, "30");
 
-                    {/* Mobile (<640px): Crisp Micro-Indicators (Critique 4.4: Unblurred horizontal pill bars) */}
-                    <div className="sm:hidden flex flex-wrap gap-0.5 mt-auto items-center justify-center">
-                      {dayEvents.slice(0, 3).map((evt) => {
-                        const colors = getEventColors(evt, inhabitants, familyColor, activeTheme);
-                        return colors.length > 1 ? (
-                          <div key={evt.id} className="flex items-center gap-[1px] shrink-0">
-                            {colors.map((c, i) => (
+                            return (
                               <div
-                                key={i}
-                                className="w-1.5 h-1 rounded-[1.5px]"
-                                style={{ backgroundColor: c }}
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          <div
-                            key={evt.id}
-                            className="w-2.5 h-1 rounded-[1.5px] shrink-0"
-                            style={{ backgroundColor: colors[0] }}
-                          />
-                        );
-                      })}
-                      {dayEvents.length > 3 && (
-                        <span className="text-[8px] font-extrabold text-starlight leading-none">
-                          +{dayEvents.length - 3}
-                        </span>
+                                key={`${evt.id}-w${weekIdx}`}
+                                onClick={(e) => handleOpenEditEvent(evt, e)}
+                                title={
+                                  seg.isMultiDay
+                                    ? `${evt.title} (${seg.totalDays} days: ${evt.date} → ${getEventEndDate(evt)})`
+                                    : `${evt.title} (All Day)`
+                                }
+                                className={`pointer-events-auto h-[20px] px-1.5 text-[10px] md:text-[11px] font-bold truncate cursor-pointer transition hover:brightness-110 shadow-sm border flex items-center gap-1 text-cosmos-text ${
+                                  seg.continuesFromPrev
+                                    ? "rounded-l-none border-l-0 ml-0"
+                                    : "rounded-l-md ml-1"
+                                } ${
+                                  seg.continuesToNext
+                                    ? "rounded-r-none border-r-0 mr-0"
+                                    : "rounded-r-md mr-1"
+                                }`}
+                                style={{
+                                  gridColumn: `${seg.startCol + 1} / span ${seg.span}`,
+                                  gridRow: seg.lane + 1,
+                                  background: bgStyle.background,
+                                  borderColor: bgStyle.borderColor,
+                                  borderLeftWidth: seg.continuesFromPrev ? "0px" : "3px",
+                                  borderLeftColor: bgStyle.primaryColor,
+                                }}
+                              >
+                                {seg.continuesFromPrev && (
+                                  <span className="text-[10px] opacity-75 shrink-0">‹</span>
+                                )}
+                                {!seg.continuesFromPrev &&
+                                  (colors.length > 1 ? (
+                                    <div className="flex items-center gap-0.5 shrink-0">
+                                      {colors.map((c, i) => (
+                                        <span
+                                          key={i}
+                                          className="w-1.5 h-1.5 rounded-[2px]"
+                                          style={{ backgroundColor: c }}
+                                        />
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span
+                                      className="w-1.5 h-1.5 rounded-[2px] shrink-0"
+                                      style={{ backgroundColor: colors[0] }}
+                                    />
+                                  ))}
+                                {evt.rrule && evt.rrule !== "none" && (
+                                  <Repeat className="w-2.5 h-2.5 shrink-0 opacity-80" />
+                                )}
+                                <span className="truncate">{evt.title}</span>
+                                {seg.isMultiDay && !seg.continuesFromPrev && (
+                                  <span className="ml-auto text-[9px] font-mono opacity-80 shrink-0">
+                                    {seg.totalDays}d
+                                  </span>
+                                )}
+                                {seg.continuesToNext && (
+                                  <span className="ml-auto text-[10px] opacity-75 shrink-0">
+                                    ›
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       )}
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                }
+              )}
             </div>
           </div>
 
@@ -1451,7 +1600,11 @@ export function CalendarView({
                         <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-cosmos-muted mt-0.5">
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3 text-cosmos-muted shrink-0" />
-                            {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
+                            {evt.isAllDay
+                              ? getMultiDayProgressLabel(evt, selectedAgendaDate)
+                                ? `All Day · ${getMultiDayProgressLabel(evt, selectedAgendaDate)}`
+                                : "All Day"
+                              : `${evt.time} (${evt.duration})`}
                           </span>
                           {evt.location && (
                             <span className="flex items-center gap-1 truncate max-w-[150px]">
@@ -1538,86 +1691,171 @@ export function CalendarView({
                 <LayoutGrid className="w-3.5 h-3.5" /> Back to Month View
               </button>
             </div>
-          {filteredEvents.filter((e) => e.date === toDateStr(currentDate)).length === 0 ? (
-            <div className="text-center py-12 text-cosmos-muted">
-              <CalendarIcon className="w-10 h-10 mx-auto mb-2 opacity-40 text-starlight" />
-              <p className="text-sm font-semibold">No events scheduled for this date.</p>
-            </div>
-          ) : (
-            filteredEvents
-              .filter((e) => e.date === toDateStr(currentDate))
-              .sort(compareEventsByTime)
-              .map((evt) => {
-                const colors = getEventColors(evt, inhabitants, familyColor, activeTheme);
-                const bgStyle = getEventBackgroundStyle(colors, "24");
-                const assignedNames = (evt.memberIds && evt.memberIds.length > 0)
-                  ? evt.memberIds.map((id) => memberList.find((m) => m.id === id)?.name || id).join(", ")
-                  : evt.memberId
-                  ? memberList.find((m) => m.id === evt.memberId)?.name || "Everyone"
-                  : "🌟 Everyone";
+          {(() => {
+            const currentDayStr = toDateStr(currentDate);
+            const dayAllEvents = filteredEvents
+              .filter((e) => eventCoversDate(e, currentDayStr))
+              .sort(compareEventsByTime);
+            const dayAllDayEvents = dayAllEvents.filter(isAllDayEvent);
+            const dayTimedEvents = dayAllEvents.filter((e) => !isAllDayEvent(e));
 
-                return (
+            if (dayAllEvents.length === 0) {
+              return (
+                <div className="text-center py-12 text-cosmos-muted">
+                  <CalendarIcon className="w-10 h-10 mx-auto mb-2 opacity-40 text-starlight" />
+                  <p className="text-sm font-semibold">No events scheduled for this date.</p>
+                </div>
+              );
+            }
+
+            return (
+              <>
+                {/* Pinned Reserved / All-Day Top Banner */}
+                {dayAllDayEvents.length > 0 && (
                   <div
-                    key={evt.id}
-                    onClick={(e) => handleOpenEditEvent(evt, e)}
-                    className="p-4 rounded-2xl border theme-card-nmm flex items-center justify-between shadow-lg cursor-pointer hover:brightness-105 transition"
-                    style={{
-                      background: bgStyle.background,
-                      borderColor: bgStyle.borderColor,
-                      borderLeftWidth: "4px",
-                      borderLeftColor: bgStyle.primaryColor,
-                    }}
+                    data-testid="day-all-day-banner"
+                    className="p-3 rounded-2xl bg-cosmos-surface/70 border border-cosmos-border space-y-2 shrink-0"
                   >
-                    <div>
-                      <span className="text-base md:text-lg font-bold text-cosmos-text flex items-center gap-1.5">
-                        {evt.rrule && evt.rrule !== "none" && (
-                          <Repeat className="w-4 h-4 text-starlight shrink-0" />
-                        )}
-                        <span>{evt.title}</span>
-                      </span>
-                      <div className="flex items-center gap-4 mt-1 text-xs text-cosmos-muted">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-cosmos-muted" />
-                          {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
-                        </span>
-                        {evt.location && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5 text-cosmos-muted" />
-                            {evt.location}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-starlight block">
+                      All-Day &amp; Reserved
+                    </span>
+                    <div className="space-y-1.5">
+                      {dayAllDayEvents.map((evt) => {
+                        const colors = getEventColors(
+                          evt,
+                          inhabitants,
+                          familyColor,
+                          activeTheme
+                        );
+                        const bgStyle = getEventBackgroundStyle(colors, "28");
+                        const progressLabel = getMultiDayProgressLabel(
+                          evt,
+                          currentDayStr
+                        );
+                        const assignedNames =
+                          evt.memberIds && evt.memberIds.length > 0
+                            ? evt.memberIds
+                                .map((id) => memberList.find((m) => m.id === id)?.name || id)
+                                .join(", ")
+                            : evt.memberId
+                            ? memberList.find((m) => m.id === evt.memberId)?.name || "Everyone"
+                            : "🌟 Everyone";
 
-                    <div className="flex items-center gap-1.5">
-                      {evt.agent && (
-                        <AgentProvenanceBadge agent={evt.agent} compact />
-                      )}
-                      {colors.length > 1 && (
-                        <div className="flex items-center gap-1">
-                          {colors.map((c, i) => (
+                        return (
+                          <div
+                            key={evt.id}
+                            onClick={(e) => handleOpenEditEvent(evt, e)}
+                            className="px-3.5 py-2.5 rounded-xl border flex items-center justify-between gap-2 cursor-pointer hover:brightness-105 transition shadow-sm"
+                            style={{
+                              background: bgStyle.background,
+                              borderColor: bgStyle.borderColor,
+                              borderLeftWidth: "4px",
+                              borderLeftColor: bgStyle.primaryColor,
+                            }}
+                          >
+                            <div className="min-w-0 flex items-center gap-2">
+                              {evt.rrule && evt.rrule !== "none" && (
+                                <Repeat className="w-3.5 h-3.5 text-starlight shrink-0" />
+                              )}
+                              <span className="text-sm font-bold text-cosmos-text truncate">
+                                {evt.title}
+                              </span>
+                              {progressLabel && (
+                                <span className="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-md bg-cosmos-card/80 text-starlight border border-cosmos-border shrink-0">
+                                  {progressLabel}
+                                </span>
+                              )}
+                            </div>
                             <span
-                              key={i}
-                              className="w-3 h-3 rounded-[3px] shadow-sm"
-                              style={{ backgroundColor: c }}
-                            />
-                          ))}
-                        </div>
-                      )}
-                      <span
-                        className="text-xs px-3 py-1 rounded-md font-bold"
-                        style={{
-                          backgroundColor: `${bgStyle.primaryColor}28`,
-                          color: bgStyle.primaryColor,
-                        }}
-                      >
-                        {assignedNames}
-                      </span>
+                              className="text-[11px] px-2.5 py-0.5 rounded-md font-bold shrink-0"
+                              style={{
+                                backgroundColor: `${bgStyle.primaryColor}28`,
+                                color: bgStyle.primaryColor,
+                              }}
+                            >
+                              {assignedNames}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                );
-              })
-          )}
+                )}
+
+                {/* Timed Events List */}
+                {dayTimedEvents.map((evt) => {
+                  const colors = getEventColors(evt, inhabitants, familyColor, activeTheme);
+                  const bgStyle = getEventBackgroundStyle(colors, "24");
+                  const assignedNames = (evt.memberIds && evt.memberIds.length > 0)
+                    ? evt.memberIds.map((id) => memberList.find((m) => m.id === id)?.name || id).join(", ")
+                    : evt.memberId
+                    ? memberList.find((m) => m.id === evt.memberId)?.name || "Everyone"
+                    : "🌟 Everyone";
+
+                  return (
+                    <div
+                      key={evt.id}
+                      onClick={(e) => handleOpenEditEvent(evt, e)}
+                      className="p-4 rounded-2xl border theme-card-nmm flex items-center justify-between shadow-lg cursor-pointer hover:brightness-105 transition"
+                      style={{
+                        background: bgStyle.background,
+                        borderColor: bgStyle.borderColor,
+                        borderLeftWidth: "4px",
+                        borderLeftColor: bgStyle.primaryColor,
+                      }}
+                    >
+                      <div>
+                        <span className="text-base md:text-lg font-bold text-cosmos-text flex items-center gap-1.5">
+                          {evt.rrule && evt.rrule !== "none" && (
+                            <Repeat className="w-4 h-4 text-starlight shrink-0" />
+                          )}
+                          <span>{evt.title}</span>
+                        </span>
+                        <div className="flex items-center gap-4 mt-1 text-xs text-cosmos-muted">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-cosmos-muted" />
+                            {`${evt.time} (${evt.duration})`}
+                          </span>
+                          {evt.location && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3.5 h-3.5 text-cosmos-muted" />
+                              {evt.location}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        {evt.agent && (
+                          <AgentProvenanceBadge agent={evt.agent} compact />
+                        )}
+                        {colors.length > 1 && (
+                          <div className="flex items-center gap-1">
+                            {colors.map((c, i) => (
+                              <span
+                                key={i}
+                                className="w-3 h-3 rounded-[3px] shadow-sm"
+                                style={{ backgroundColor: c }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        <span
+                          className="text-xs px-3 py-1 rounded-md font-bold"
+                          style={{
+                            backgroundColor: `${bgStyle.primaryColor}28`,
+                            color: bgStyle.primaryColor,
+                          }}
+                        >
+                          {assignedNames}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            );
+          })()}
           </div>
         </div>
       )}
@@ -1700,44 +1938,78 @@ export function CalendarView({
                 </div>
               </div>
 
-              {/* Optional All-Day Events Section */}
-              {weekDays.some((day) =>
-                filteredEvents.some(
-                  (e) => e.date === day.dateStr && (e.isAllDay || e.time?.toLowerCase() === "all day")
-                )
-              ) && (
-                <div className="flex border-b border-cosmos-border bg-cosmos-surface/60 shrink-0">
-                  <div className="sticky left-0 z-20 bg-cosmos-surface w-14 sm:w-16 md:w-20 shrink-0 border-r border-cosmos-border py-1.5 px-1 flex items-center justify-center text-[9px] text-cosmos-muted font-extrabold tracking-tighter select-none">
-                    ALL DAY
-                  </div>
-                  <div className="flex-1 grid grid-cols-7">
-                    {weekDays.map((day) => {
-                      const allDayEvents = filteredEvents.filter(
-                        (e) => e.date === day.dateStr && (e.isAllDay || e.time?.toLowerCase() === "all day")
-                      );
-                      return (
-                        <div
-                          key={day.dateStr}
-                          className="p-1 border-r border-cosmos-border last:border-r-0 space-y-1 min-h-[32px] flex flex-col justify-center"
-                        >
-                          {allDayEvents.map((evt) => {
-                            const colors = getEventColors(evt, inhabitants, familyColor, activeTheme);
-                            const bgStyle = getEventBackgroundStyle(colors, "26");
+              {/* Optional All-Day & Multi-Day Spanning Events Section */}
+              {(() => {
+                const weekDateStrs = weekDays.map((d) => d.dateStr);
+                const weekAllDayLayout = layoutSpanningWeekEvents(
+                  filteredEvents.filter(isAllDayEvent),
+                  weekDateStrs
+                );
+                if (weekAllDayLayout.visibleSegments.length === 0) return null;
 
-                            return (
-                              <div
-                                key={evt.id}
-                                onClick={(e) => handleOpenEditEvent(evt, e)}
-                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-md truncate cursor-pointer transition hover:brightness-110 shadow-sm border flex items-center gap-1 text-cosmos-text"
-                                style={{
-                                  background: bgStyle.background,
-                                  borderColor: bgStyle.borderColor,
-                                  borderLeftWidth: "3px",
-                                  borderLeftColor: bgStyle.primaryColor,
-                                }}
-                                title={`${evt.title} (All Day)`}
-                              >
-                                {colors.length > 1 ? (
+                return (
+                  <div className="flex border-b border-cosmos-border bg-cosmos-surface/60 shrink-0">
+                    <div className="sticky left-0 z-20 bg-cosmos-surface w-14 sm:w-16 md:w-20 shrink-0 border-r border-cosmos-border py-1.5 px-1 flex items-center justify-center text-[9px] text-cosmos-muted font-extrabold tracking-tighter select-none">
+                      ALL DAY
+                    </div>
+                    <div className="flex-1 relative min-h-[34px]">
+                      {/* Faint background column dividers */}
+                      <div className="absolute inset-0 grid grid-cols-7 pointer-events-none">
+                        {weekDays.map((day) => (
+                          <div
+                            key={day.dateStr}
+                            className="border-r border-cosmos-border/50 last:border-r-0"
+                          />
+                        ))}
+                      </div>
+
+                      {/* Continuous Horizontal Spanning Ribbons */}
+                      <div
+                        data-testid="week-all-day-spanning-grid"
+                        className="relative z-10 grid grid-cols-7 gap-y-1 py-1.5"
+                      >
+                        {weekAllDayLayout.visibleSegments.map((seg) => {
+                          const evt = seg.event;
+                          const colors = getEventColors(
+                            evt,
+                            inhabitants,
+                            familyColor,
+                            activeTheme
+                          );
+                          const bgStyle = getEventBackgroundStyle(colors, "30");
+
+                          return (
+                            <div
+                              key={evt.id}
+                              onClick={(e) => handleOpenEditEvent(evt, e)}
+                              className={`h-[24px] text-[10px] sm:text-[11px] font-bold px-2 truncate cursor-pointer transition hover:brightness-110 shadow-sm border flex items-center gap-1.5 text-cosmos-text ${
+                                seg.continuesFromPrev
+                                  ? "rounded-l-none border-l-0 ml-0"
+                                  : "rounded-l-md ml-1"
+                              } ${
+                                seg.continuesToNext
+                                  ? "rounded-r-none border-r-0 mr-0"
+                                  : "rounded-r-md mr-1"
+                              }`}
+                              style={{
+                                gridColumn: `${seg.startCol + 1} / span ${seg.span}`,
+                                gridRow: seg.lane + 1,
+                                background: bgStyle.background,
+                                borderColor: bgStyle.borderColor,
+                                borderLeftWidth: seg.continuesFromPrev ? "0px" : "3px",
+                                borderLeftColor: bgStyle.primaryColor,
+                              }}
+                              title={
+                                seg.isMultiDay
+                                  ? `${evt.title} (${seg.totalDays} days: ${evt.date} → ${getEventEndDate(evt)})`
+                                  : `${evt.title} (All Day)`
+                              }
+                            >
+                              {seg.continuesFromPrev && (
+                                <span className="text-[11px] opacity-75 shrink-0">‹</span>
+                              )}
+                              {!seg.continuesFromPrev &&
+                                (colors.length > 1 ? (
                                   <div className="flex items-center gap-0.5 shrink-0">
                                     {colors.map((c, i) => (
                                       <span
@@ -1752,20 +2024,27 @@ export function CalendarView({
                                     className="w-1.5 h-1.5 rounded-[2px] shrink-0"
                                     style={{ backgroundColor: colors[0] }}
                                   />
-                                )}
-                                {evt.rrule && evt.rrule !== "none" && (
-                                  <Repeat className="w-2.5 h-2.5 shrink-0 opacity-80" />
-                                )}
-                                <span className="truncate">{evt.title}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })}
+                                ))}
+                              {evt.rrule && evt.rrule !== "none" && (
+                                <Repeat className="w-2.5 h-2.5 shrink-0 opacity-80" />
+                              )}
+                              <span className="truncate">{evt.title}</span>
+                              {seg.isMultiDay && (
+                                <span className="ml-auto text-[9px] font-mono opacity-80 shrink-0">
+                                  {seg.totalDays}d
+                                </span>
+                              )}
+                              {seg.continuesToNext && (
+                                <span className="text-[11px] opacity-75 shrink-0">›</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Scrollable 24-Hour Grid Container */}
               <div
@@ -1996,7 +2275,9 @@ export function CalendarView({
                       <span>{evt.title}</span>
                     </span>
                     <span className="text-xs text-cosmos-muted block">
-                      {evt.date} • {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
+                      {isMultiDayAllDayEvent(evt)
+                        ? `${evt.date} → ${getEventEndDate(evt)} • All Day (${getEventSpanDays(evt.date, getEventEndDate(evt))} days)`
+                        : `${evt.date} • ${evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}`}
                     </span>
                   </div>
                 </div>
@@ -2082,7 +2363,11 @@ export function CalendarView({
                         <div className="flex items-center gap-3 text-xs text-cosmos-muted mt-0.5">
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3 text-cosmos-muted" />
-                            {evt.isAllDay ? "All Day" : `${evt.time} (${evt.duration})`}
+                            {evt.isAllDay
+                              ? selectedDayModal && getMultiDayProgressLabel(evt, selectedDayModal)
+                                ? `All Day · ${getMultiDayProgressLabel(evt, selectedDayModal)}`
+                                : "All Day"
+                              : `${evt.time} (${evt.duration})`}
                           </span>
                           {evt.location && (
                             <span className="flex items-center gap-1">
