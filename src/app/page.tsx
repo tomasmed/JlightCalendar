@@ -24,10 +24,7 @@ import { ImportCalendarModal } from "@/components/import-calendar-modal";
 import { KioskDisplayModal } from "@/components/kiosk-display-modal";
 import { LandingPage } from "@/components/landing-page";
 import { CalendarEventData } from "@/components/event-modal";
-import {
-  useKioskDisplayController,
-  formatTimeLabel,
-} from "@/lib/kiosk-display";
+import { useKioskDisplayController } from "@/lib/kiosk-display";
 import { useSession, signIn } from "next-auth/react";
 import { Sparkles, ArrowRight, Download, Copy, Check, Globe2 } from "lucide-react";
 
@@ -69,26 +66,15 @@ export default function HomePage() {
     setActiveTab("photos");
   }, []);
 
-  const handleScheduledSleep = useCallback(() => {
-    fetch("/api/backup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label: "night-sleep" }),
-    }).catch(() => {});
-  }, []);
-
   const {
     settings: kioskDisplaySettings,
     updateSettings: updateKioskDisplaySettings,
-    notifyManualWake,
     wakeLockSupported,
     wakeLockActive,
   } = useKioskDisplayController({
     isSleeping,
-    setIsSleeping,
     activeTab,
     onEnterPhotoMode: handleEnterPhotoMode,
-    onEnterScheduledSleep: handleScheduledSleep,
     disabled: isLandingView,
   });
 
@@ -526,12 +512,7 @@ export default function HomePage() {
       {/* 24/7 Night Sleep Mode Overlay */}
       <NightSleepOverlay
         isSleeping={isSleeping}
-        onWake={notifyManualWake}
-        scheduledWakeLabel={
-          kioskDisplaySettings.scheduleEnabled
-            ? formatTimeLabel(kioskDisplaySettings.wakeTime)
-            : undefined
-        }
+        onWake={() => setIsSleeping(false)}
       />
 
       {/* Kiosk Display, Wake Lock & Idle Photo Mode Settings Modal */}

@@ -65,10 +65,8 @@ import {
 } from "./../src/lib/photos";
 import {
   DEFAULT_KIOSK_DISPLAY_SETTINGS,
+  IDLE_PHOTO_MINUTE_OPTIONS,
   KIOSK_DISPLAY_STORAGE_KEY,
-  parseTimeToMinutes,
-  formatTimeLabel,
-  isWithinSleepWindow,
   shouldHoldWakeLock,
   normalizeKioskDisplaySettings,
   loadKioskDisplaySettings,
@@ -1706,54 +1704,13 @@ assert(
     "apple-touch-icon.png exists for iPad/iOS standalone Home Screen"
   );
 
-  // 2. Time parsing & formatting
+  // 2. Idle Photo Mode timeout options (1m, 2m, 5m, 10m, 15m, 30m — no 60m)
   assert(
-    parseTimeToMinutes("00:00") === 0 &&
-      parseTimeToMinutes("07:00") === 420 &&
-      parseTimeToMinutes("22:30") === 1350 &&
-      parseTimeToMinutes("23:59") === 1439,
-    "parseTimeToMinutes parses valid HH:mm strings accurately"
-  );
-  assert(
-    parseTimeToMinutes("24:00") === null &&
-      parseTimeToMinutes("12:60") === null &&
-      parseTimeToMinutes("7:00") === null &&
-      parseTimeToMinutes("invalid") === null,
-    "parseTimeToMinutes rejects out-of-range and malformed time strings"
-  );
-  assert(
-    formatTimeLabel("00:05") === "12:05 AM" &&
-      formatTimeLabel("07:00") === "7:00 AM" &&
-      formatTimeLabel("12:00") === "12:00 PM" &&
-      formatTimeLabel("22:30") === "10:30 PM",
-    "formatTimeLabel formats 24h HH:mm strings to 12h AM/PM labels"
+    JSON.stringify(IDLE_PHOTO_MINUTE_OPTIONS) === JSON.stringify([1, 2, 5, 10, 15, 30]),
+    "IDLE_PHOTO_MINUTE_OPTIONS offers 1m, 2m, 5m, 10m, 15m, and 30m"
   );
 
-  // 3. Sleep window evaluation (overnight & same-day)
-  assert(
-    isWithinSleepWindow(22 * 60 + 30, "22:30", "07:00") === true &&
-      isWithinSleepWindow(23 * 60 + 59, "22:30", "07:00") === true &&
-      isWithinSleepWindow(0, "22:30", "07:00") === true &&
-      isWithinSleepWindow(6 * 60 + 59, "22:30", "07:00") === true &&
-      isWithinSleepWindow(7 * 60, "22:30", "07:00") === false &&
-      isWithinSleepWindow(14 * 60, "22:30", "07:00") === false &&
-      isWithinSleepWindow(22 * 60 + 29, "22:30", "07:00") === false,
-    "isWithinSleepWindow handles overnight wrap-around windows (22:30 -> 07:00)"
-  );
-  assert(
-    isWithinSleepWindow(13 * 60, "13:00", "15:00") === true &&
-      isWithinSleepWindow(14 * 60 + 30, "13:00", "15:00") === true &&
-      isWithinSleepWindow(15 * 60, "13:00", "15:00") === false &&
-      isWithinSleepWindow(12 * 60 + 59, "13:00", "15:00") === false,
-    "isWithinSleepWindow handles same-day windows (13:00 -> 15:00)"
-  );
-  assert(
-    isWithinSleepWindow(10 * 60, "07:00", "07:00") === false &&
-      isWithinSleepWindow(10 * 60, "bad", "07:00") === false,
-    "isWithinSleepWindow returns false for equal or invalid times"
-  );
-
-  // 4. Wake lock policy & support detection
+  // 3. Wake lock policy & support detection
   assert(
     shouldHoldWakeLock({ keepAwakeEnabled: true }, false) === true &&
       shouldHoldWakeLock({ keepAwakeEnabled: true }, true) === false &&
@@ -1774,7 +1731,7 @@ assert(
     "isWakeLockSupported accurately detects Screen Wake Lock API support"
   );
 
-  // 5. Settings normalization & storage persistence
+  // 4. Settings normalization & storage persistence
   const storeMap = new Map<string, string>();
   const mockStorage: StorageLike = {
     getItem: (k) => storeMap.get(k) ?? null,
@@ -1786,46 +1743,39 @@ assert(
   const defaultLoaded = loadKioskDisplaySettings(mockStorage);
   assert(
     defaultLoaded.keepAwakeEnabled === DEFAULT_KIOSK_DISPLAY_SETTINGS.keepAwakeEnabled &&
-      defaultLoaded.wakeTime === "07:00" &&
-      defaultLoaded.sleepTime === "22:30",
+      defaultLoaded.idlePhotoEnabled === false &&
+      defaultLoaded.idlePhotoMinutes === 15,
     "loadKioskDisplaySettings returns defaults when storage is empty"
   );
 
   saveKioskDisplaySettings(
     {
       keepAwakeEnabled: true,
-      scheduleEnabled: true,
-      wakeTime: "06:30",
-      sleepTime: "21:45",
       idlePhotoEnabled: true,
-      idlePhotoMinutes: 10,
+      idlePhotoMinutes: 2,
     },
     mockStorage
   );
   const reloaded = loadKioskDisplaySettings(mockStorage);
   assert(
-    reloaded.scheduleEnabled === true &&
-      reloaded.wakeTime === "06:30" &&
-      reloaded.sleepTime === "21:45" &&
+    reloaded.keepAwakeEnabled === true &&
       reloaded.idlePhotoEnabled === true &&
-      reloaded.idlePhotoMinutes === 10,
+      reloaded.idlePhotoMinutes === 2,
     "saveKioskDisplaySettings and loadKioskDisplaySettings round-trip cleanly"
   );
 
   storeMap.set(KIOSK_DISPLAY_STORAGE_KEY, "{not-valid-json");
   const fallbackLoaded = loadKioskDisplaySettings(mockStorage);
   assert(
-    fallbackLoaded.wakeTime === "07:00" && fallbackLoaded.idlePhotoMinutes === 15,
+    fallbackLoaded.keepAwakeEnabled === true && fallbackLoaded.idlePhotoMinutes === 15,
     "loadKioskDisplaySettings recovers safely from corrupt JSON"
   );
 
-  const clamped = normalizeKioskDisplaySettings({
-    wakeTime: "99:99",
-    idlePhotoMinutes: 999,
-  });
+  const clampedHigh = normalizeKioskDisplaySettings({ idlePhotoMinutes: 999 });
+  const clampedLow = normalizeKioskDisplaySettings({ idlePhotoMinutes: 0 });
   assert(
-    clamped.wakeTime === "07:00" && clamped.idlePhotoMinutes === 240,
-    "normalizeKioskDisplaySettings rejects invalid times and clamps idlePhotoMinutes"
+    clampedHigh.idlePhotoMinutes === 30 && clampedLow.idlePhotoMinutes === 1,
+    "normalizeKioskDisplaySettings clamps idlePhotoMinutes to [1, 30]"
   );
 
   console.log("\n✨ All unit and static guard tests passed successfully!");

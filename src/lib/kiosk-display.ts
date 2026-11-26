@@ -3,18 +3,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 export const KIOSK_DISPLAY_STORAGE_KEY = "jlight_kiosk_display_settings";
-export const IDLE_PHOTO_MINUTE_OPTIONS = [5, 10, 15, 30, 60] as const;
-export const MANUAL_WAKE_GRACE_MS = 60_000; // ADR 0003: 60s wake grace during sleep window
+export const IDLE_PHOTO_MINUTE_OPTIONS = [1, 2, 5, 10, 15, 30] as const;
 
 export interface KioskDisplaySettings {
   /** Keep tablet screen awake during daytime hours via Screen Wake Lock API */
   keepAwakeEnabled: boolean;
-  /** Automatically transition between Night Sleep and daytime display */
-  scheduleEnabled: boolean;
-  /** Local wall-clock time (HH:mm) to exit Night Sleep */
-  wakeTime: string;
-  /** Local wall-clock time (HH:mm) to enter Night Sleep */
-  sleepTime: string;
   /** Automatically switch to Photo Mode when idle during awake hours */
   idlePhotoEnabled: boolean;
   /** Minutes of inactivity before entering Photo Mode */
@@ -23,9 +16,6 @@ export interface KioskDisplaySettings {
 
 export const DEFAULT_KIOSK_DISPLAY_SETTINGS: KioskDisplaySettings = {
   keepAwakeEnabled: true,
-  scheduleEnabled: false,
-  wakeTime: "07:00",
-  sleepTime: "22:30",
   idlePhotoEnabled: false,
   idlePhotoMinutes: 15,
 };
@@ -46,67 +36,6 @@ export interface WakeLockNavigatorLike {
   wakeLock?: {
     request?: (type: "screen") => Promise<WakeLockSentinelLike>;
   };
-}
-
-/**
- * Parses an "HH:mm" 24-hour local time string into minutes since midnight (0..1439).
- * Returns null if the string is invalid.
- */
-export function parseTimeToMinutes(hhmm: string): number | null {
-  if (typeof hhmm !== "string") return null;
-  const match = /^(\d{2}):(\d{2})$/.exec(hhmm.trim());
-  if (!match) return null;
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  if (
-    !Number.isInteger(hours) ||
-    !Number.isInteger(minutes) ||
-    hours < 0 ||
-    hours > 23 ||
-    minutes < 0 ||
-    minutes > 59
-  ) {
-    return null;
-  }
-  return hours * 60 + minutes;
-}
-
-/**
- * Formats an "HH:mm" string into a friendly 12-hour display string (e.g. "7:00 AM").
- */
-export function formatTimeLabel(hhmm: string): string {
-  const mins = parseTimeToMinutes(hhmm);
-  if (mins === null) return hhmm;
-  const h24 = Math.floor(mins / 60);
-  const m = mins % 60;
-  const suffix = h24 >= 12 ? "PM" : "AM";
-  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-  return `${h12}:${String(m).padStart(2, "0")} ${suffix}`;
-}
-
-/**
- * Returns true if `nowMinutes` (0..1439) falls inside the [sleepTime, wakeTime) window.
- * Supports both overnight windows (e.g. 22:30 -> 07:00) and daytime windows (e.g. 13:00 -> 15:00).
- * Returns false if either time is invalid or if sleepTime === wakeTime.
- */
-export function isWithinSleepWindow(
-  nowMinutes: number,
-  sleepTime: string,
-  wakeTime: string
-): boolean {
-  const sleepMins = parseTimeToMinutes(sleepTime);
-  const wakeMins = parseTimeToMinutes(wakeTime);
-  if (sleepMins === null || wakeMins === null) return false;
-  if (sleepMins === wakeMins) return false;
-
-  const normalizedNow = ((Math.floor(nowMinutes) % 1440) + 1440) % 1440;
-
-  if (sleepMins > wakeMins) {
-    // Overnight window wrapping past midnight (e.g. 22:30 -> 07:00)
-    return normalizedNow >= sleepMins || normalizedNow < wakeMins;
-  }
-  // Same-day window (e.g. 13:00 -> 15:00)
-  return normalizedNow >= sleepMins && normalizedNow < wakeMins;
 }
 
 /**
@@ -132,15 +61,6 @@ export function normalizeKioskDisplaySettings(
   if (typeof raw.keepAwakeEnabled === "boolean") {
     base.keepAwakeEnabled = raw.keepAwakeEnabled;
   }
-  if (typeof raw.scheduleEnabled === "boolean") {
-    base.scheduleEnabled = raw.scheduleEnabled;
-  }
-  if (typeof raw.wakeTime === "string" && parseTimeToMinutes(raw.wakeTime) !== null) {
-    base.wakeTime = raw.wakeTime.trim();
-  }
-  if (typeof raw.sleepTime === "string" && parseTimeToMinutes(raw.sleepTime) !== null) {
-    base.sleepTime = raw.sleepTime.trim();
-  }
   if (typeof raw.idlePhotoEnabled === "boolean") {
     base.idlePhotoEnabled = raw.idlePhotoEnabled;
   }
@@ -148,7 +68,7 @@ export function normalizeKioskDisplaySettings(
     typeof raw.idlePhotoMinutes === "number" &&
     Number.isFinite(raw.idlePhotoMinutes)
   ) {
-    const clamped = Math.max(1, Math.min(240, Math.round(raw.idlePhotoMinutes)));
+    const clamped = Math.max(1, Math.min(30, Math.round(raw.idlePhotoMinutes)));
     base.idlePhotoMinutes = clamped;
   }
 
@@ -299,34 +219,25 @@ export function useWakeLock(enabled: boolean) {
 
 interface UseKioskDisplayControllerOptions {
   isSleeping: boolean;
-  setIsSleeping: (next: boolean) => void;
   activeTab: string;
   onEnterPhotoMode: () => void;
-  onEnterScheduledSleep?: () => void;
   disabled?: boolean;
 }
 
 /**
  * Coordinates Kiosk Display Settings (localStorage), Screen Wake Lock,
- * automated Wake/Sleep scheduling, and Idle-to-Photo-Mode transitions.
+ * and Idle-to-Photo-Mode transitions.
  */
 export function useKioskDisplayController({
   isSleeping,
-  setIsSleeping,
   activeTab,
   onEnterPhotoMode,
-  onEnterScheduledSleep,
   disabled = false,
 }: UseKioskDisplayControllerOptions) {
   const [settings, setSettings] = useState<KioskDisplaySettings>(
     DEFAULT_KIOSK_DISPLAY_SETTINGS
   );
   const [hydrated, setHydrated] = useState(false);
-
-  // Track manual wake timestamp so tapping during night sleep grants a 60s grace window
-  const manualWakeUntilRef = useRef<number>(0);
-  // Track previous schedule window state so we only auto-wake on exit or auto-sleep on entry
-  const wasInSleepWindowRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     setSettings(loadKioskDisplaySettings());
@@ -336,64 +247,14 @@ export function useKioskDisplayController({
   const updateSettings = useCallback((next: KioskDisplaySettings) => {
     const saved = saveKioskDisplaySettings(next);
     setSettings(saved);
-    // Reset schedule transition memory when user updates schedule
-    wasInSleepWindowRef.current = null;
   }, []);
 
-  const notifyManualWake = useCallback(() => {
-    manualWakeUntilRef.current = Date.now() + MANUAL_WAKE_GRACE_MS;
-    setIsSleeping(false);
-  }, [setIsSleeping]);
-
-  // 1. Screen Wake Lock (active during daytime hours, released during Night Sleep)
+  // 1. Screen Wake Lock (active while awake, released during Night Sleep)
   const wakeLockDesired =
     hydrated && !disabled && shouldHoldWakeLock(settings, isSleeping);
   const wakeLock = useWakeLock(wakeLockDesired);
 
-  // 2. Daily Wake & Sleep Schedule Evaluator
-  useEffect(() => {
-    if (!hydrated || disabled || !settings.scheduleEnabled) {
-      wasInSleepWindowRef.current = null;
-      return;
-    }
-
-    const evaluateSchedule = () => {
-      const now = new Date();
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
-      const inWindow = isWithinSleepWindow(
-        nowMinutes,
-        settings.sleepTime,
-        settings.wakeTime
-      );
-      const prevInWindow = wasInSleepWindowRef.current;
-      wasInSleepWindowRef.current = inWindow;
-
-      if (inWindow) {
-        if (!isSleeping && Date.now() >= manualWakeUntilRef.current) {
-          setIsSleeping(true);
-          onEnterScheduledSleep?.();
-        }
-      } else if (prevInWindow === true && isSleeping) {
-        // Scheduled wake-up time reached!
-        setIsSleeping(false);
-      }
-    };
-
-    evaluateSchedule();
-    const interval = setInterval(evaluateSchedule, 30_000);
-    return () => clearInterval(interval);
-  }, [
-    hydrated,
-    disabled,
-    settings.scheduleEnabled,
-    settings.sleepTime,
-    settings.wakeTime,
-    isSleeping,
-    setIsSleeping,
-    onEnterScheduledSleep,
-  ]);
-
-  // 3. Idle-to-Photo-Mode Timer (only while awake and not already in Photo Mode)
+  // 2. Idle-to-Photo-Mode Timer (only while awake and not already in Photo Mode)
   useEffect(() => {
     if (
       !hydrated ||
@@ -445,7 +306,6 @@ export function useKioskDisplayController({
   return {
     settings,
     updateSettings,
-    notifyManualWake,
     wakeLockSupported: wakeLock.isSupported,
     wakeLockActive: wakeLock.isActive,
   };

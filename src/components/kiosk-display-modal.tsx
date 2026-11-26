@@ -5,7 +5,6 @@ import {
   X,
   Monitor,
   Sun,
-  Moon,
   Image as ImageIcon,
   BatteryCharging,
   Check,
@@ -15,7 +14,6 @@ import {
 import {
   KioskDisplaySettings,
   IDLE_PHOTO_MINUTE_OPTIONS,
-  formatTimeLabel,
 } from "@/lib/kiosk-display";
 import { useFullscreen } from "@/lib/fullscreen";
 
@@ -92,7 +90,7 @@ export function KioskDisplayModal({
                 id="kiosk-display-modal-title"
                 className="text-base font-extrabold text-cosmos-text"
               >
-                Kiosk Display &amp; Wake Settings
+                Kiosk Display Settings
               </h2>
               <p className="text-[11px] text-cosmos-muted">
                 Saved locally on this device for wall tablets &amp; kiosks
@@ -111,7 +109,7 @@ export function KioskDisplayModal({
 
         {/* Body */}
         <div className="p-5 space-y-4 max-h-[72vh] overflow-y-auto">
-          {/* 0. Full Screen Mode (Consolidated Kiosk Display Action) */}
+          {/* 1. Full Screen Mode */}
           <div className="p-4 rounded-xl bg-cosmos-surface/60 border border-cosmos-border flex items-center justify-between gap-3">
             <div className="flex items-start gap-2.5">
               {isFullscreen ? (
@@ -163,7 +161,7 @@ export function KioskDisplayModal({
             )}
           </div>
 
-          {/* 1. Keep Screen Awake (Screen Wake Lock API) */}
+          {/* 2. Keep Screen Awake (Screen Wake Lock API) */}
           <div className="p-4 rounded-xl bg-cosmos-surface/60 border border-cosmos-border space-y-2.5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-start gap-2.5">
@@ -192,8 +190,8 @@ export function KioskDisplayModal({
                     )}
                   </div>
                   <p className="text-xs text-cosmos-muted mt-0.5">
-                    Prevents the tablet screen from turning off during daytime hours.
-                    Automatically pauses during Night Sleep to save power.
+                    Prevents the tablet screen from turning off while the calendar is
+                    open. Automatically pauses during Night Sleep to save power.
                   </p>
                 </div>
               </div>
@@ -223,99 +221,6 @@ export function KioskDisplayModal({
             </div>
           </div>
 
-          {/* 2. Daily Wake & Sleep Schedule */}
-          <div className="p-4 rounded-xl bg-cosmos-surface/60 border border-cosmos-border space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-start gap-2.5">
-                <Moon className="w-4 h-4 text-indigo-400 mt-0.5 shrink-0" />
-                <div>
-                  <div className="text-sm font-bold text-cosmos-text">
-                    Daily Wake &amp; Sleep Schedule
-                  </div>
-                  <p className="text-xs text-cosmos-muted mt-0.5">
-                    Automatically dims into OLED Night Sleep at bedtime and wakes the
-                    calendar every morning.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={draft.scheduleEnabled}
-                aria-label="Toggle Daily Wake and Sleep Schedule"
-                onClick={() =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    scheduleEnabled: !prev.scheduleEnabled,
-                  }))
-                }
-                className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border transition-colors min-h-[28px] ${
-                  draft.scheduleEnabled
-                    ? "bg-indigo-500 border-indigo-400"
-                    : "bg-cosmos-card border-cosmos-borderLight"
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                    draft.scheduleEnabled ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
-
-            {draft.scheduleEnabled && (
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <label className="block space-y-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-cosmos-muted flex items-center gap-1">
-                    <Sun className="w-3 h-3 text-amber-400" />
-                    Wake Up
-                  </span>
-                  <input
-                    type="time"
-                    value={draft.wakeTime}
-                    onChange={(e) =>
-                      setDraft((prev) => ({
-                        ...prev,
-                        wakeTime: e.target.value || prev.wakeTime,
-                      }))
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-cosmos-card border border-cosmos-borderLight text-sm font-mono font-bold text-cosmos-text min-h-[44px]"
-                  />
-                </label>
-
-                <label className="block space-y-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-cosmos-muted flex items-center gap-1">
-                    <Moon className="w-3 h-3 text-indigo-400" />
-                    Night Sleep
-                  </span>
-                  <input
-                    type="time"
-                    value={draft.sleepTime}
-                    onChange={(e) =>
-                      setDraft((prev) => ({
-                        ...prev,
-                        sleepTime: e.target.value || prev.sleepTime,
-                      }))
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-cosmos-card border border-cosmos-borderLight text-sm font-mono font-bold text-cosmos-text min-h-[44px]"
-                  />
-                </label>
-
-                <p className="col-span-2 text-[11px] text-cosmos-muted">
-                  Active display:{" "}
-                  <span className="font-bold text-cosmos-text">
-                    {formatTimeLabel(draft.wakeTime)}
-                  </span>{" "}
-                  to{" "}
-                  <span className="font-bold text-cosmos-text">
-                    {formatTimeLabel(draft.sleepTime)}
-                  </span>
-                  . Tap the screen anytime during sleep for a 60s peek.
-                </p>
-              </div>
-            )}
-          </div>
-
           {/* 3. Auto Photo Mode When Idle */}
           <div className="p-4 rounded-xl bg-cosmos-surface/60 border border-cosmos-border space-y-3">
             <div className="flex items-center justify-between gap-3">
@@ -326,8 +231,8 @@ export function KioskDisplayModal({
                     Auto Photo Mode When Idle
                   </div>
                   <p className="text-xs text-cosmos-muted mt-0.5">
-                    Transitions to your Photo Screensaver after inactivity during awake
-                    hours. Tap anywhere to return to the calendar.
+                    Transitions to your Photo Screensaver after inactivity. Tap anywhere
+                    to return to the calendar.
                   </p>
                 </div>
               </div>
