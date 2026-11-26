@@ -107,10 +107,30 @@ pnpm run test
 # Or run suites individually:
 pnpm run test:unit    # Fast unit tests & TypeScript AST hook-ordering guard
 pnpm run test:system  # End-to-end API & mocked SQLite DB system tests (users, galaxies, events, chores, lists, agents, photos)
+pnpm run test:e2e     # Real-browser Playwright E2E suite (Kiosk 1920x1080 & Mobile 390x844 + Show & Tell screenshots)
+
+# First-time Playwright Chromium setup:
+npx playwright install chromium
 
 # Run type check and production build
 pnpm run build
 ```
+
+### 🤖 Playwright MCP Integration (Local AI Verification)
+For interactive AI agent verification and Show & Tell screenshot capture before opening a PR, configure [`@playwright/mcp`](https://github.com/microsoft/playwright-mcp) in your agent/IDE MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    }
+  }
+}
+```
+
+Start the local server with `JLIGHT_TEST_MODE=true DATABASE_URL=file:./.tmp-e2e.db npm run dev`, then let the agent authenticate via `POST /api/test/session` (strictly disabled outside `JLIGHT_TEST_MODE=true`) and capture verification screenshots across desktop kiosk and mobile viewports.
 
 ---
 
@@ -137,6 +157,7 @@ Detailed documentation is organized in the `docs/` folder:
   - `0017-ephemeral-comets-and-ics-portability.md`
   - `0018-ics-import-and-interoperability.md`
   - `0019-hosted-service-first-agpl-and-pin-gate-removal.md`
+  - `0020-playwright-e2e-and-mcp-verification.md`
 - [docs/specs/](docs/specs/): Feature & Testing Specifications (`photo-screensaver.md`, `ephemeral-comets-and-ics-export.md`, `agent-integration-and-bot-wall.md`, `ci-and-testing.md`, `calendar-galaxies.md`, `recurring-events-and-mobile-touch-ux.md`, `weekly-hour-breakdown.md`, `general-improvements.md`)
 - [docs/workflow/pr-template.md](docs/workflow/pr-template.md): The "Show and Tell" PR standard.
 - [AGENTS.md](AGENTS.md): Operational instructions for autonomous AI agents working in git worktrees.

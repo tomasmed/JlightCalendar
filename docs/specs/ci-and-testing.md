@@ -55,8 +55,23 @@ Runs with `JLIGHT_TEST_MODE="true"` and an isolated SQLite database (`file:./.tm
 
 ---
 
-## 4. Requirement for New Core Features
+## 4. Playwright Real-Browser E2E & Show-and-Tell Artifacts (`tests/e2e/`)
+
+Runs in CI (`e2e-playwright` job on `ubuntu-latest`) and locally via `npm run test:e2e`:
+1. **Isolated Server & DB**:
+   - Playwright `webServer` boots `next start` (or `next dev` locally if unbuilt) on `127.0.0.1:3005` with `JLIGHT_TEST_MODE="true"` and `DATABASE_URL="file:./.tmp-e2e.db"`.
+2. **Test-Only Browser Session Bridge (`POST /api/test/session`)**:
+   - Strictly returns `404 Not Found` unless `JLIGHT_TEST_MODE === "true"` (verified in `tests/system.test.ts`).
+   - Provisions a test user & Galaxy and mints a real NextAuth v5 JWT cookie (`authjs.session-token`) so Playwright specs and local `@playwright/mcp` agents can test authenticated Household Galaxies without Google OAuth.
+3. **Viewport Coverage & Show-and-Tell Screenshots**:
+   - Executes across `kiosk-desktop` (`1920x1080`) and `mobile-touch` (`390x844`, `hasTouch: true`).
+   - Captures verification screenshots to `test-results/show-and-tell/*.png` and uploads both `playwright-report/` and `test-results/show-and-tell/` via `actions/upload-artifact@v4` (`if: always()`).
+
+---
+
+## 5. Requirement for New Core Features
 
 Whenever a developer or autonomous agent adds a new core feature or fixes a bug:
 1. Add unit test assertions in `tests/unit.test.ts` for any new helper functions, state logic, or UI data transformations.
 2. Add end-to-end API/database assertions in `tests/system.test.ts` for any new or modified API endpoints or schema columns.
+3. Add or update real-browser E2E coverage (and Show & Tell screenshots where appropriate) in `tests/e2e/`.
