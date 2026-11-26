@@ -6,11 +6,13 @@ import { Moon, Sparkles } from "lucide-react";
 interface NightSleepOverlayProps {
   isSleeping: boolean;
   onWake: () => void;
+  scheduledWakeLabel?: string;
 }
 
 export function NightSleepOverlay({
   isSleeping,
   onWake,
+  scheduledWakeLabel,
 }: NightSleepOverlayProps) {
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
@@ -71,7 +73,9 @@ export function NightSleepOverlay({
           {date}
         </span>
         <span className="text-xs text-slate-600 mt-4">
-          Tap screen anywhere to wake
+          {scheduledWakeLabel
+            ? `Scheduled wake at ${scheduledWakeLabel} • Tap anywhere to wake`
+            : "Tap screen anywhere to wake"}
         </span>
       </div>
     </div>

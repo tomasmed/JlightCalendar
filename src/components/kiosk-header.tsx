@@ -35,6 +35,7 @@ import {
   Upload,
   Maximize,
   Minimize,
+  Monitor,
   X,
 } from "lucide-react";
 import { signIn, signOut } from "next-auth/react";
@@ -90,6 +91,8 @@ interface KioskHeaderProps {
   onOpenAgentWallModal?: () => void;
   onOpenExportModal?: () => void;
   onOpenImportModal?: () => void;
+  onOpenKioskDisplayModal?: () => void;
+  isWakeLockActive?: boolean;
   user?: {
     name?: string | null;
     email?: string | null;
@@ -112,6 +115,8 @@ export function KioskHeader({
   onOpenAgentWallModal,
   onOpenExportModal,
   onOpenImportModal,
+  onOpenKioskDisplayModal,
+  isWakeLockActive = false,
   user,
 }: KioskHeaderProps) {
   const [time, setTime] = useState("");
@@ -842,6 +847,30 @@ export function KioskHeader({
           >
             <Info className="w-4 h-4" />
           </button>
+
+          {/* Kiosk Display & Wake Schedule Settings Button */}
+          {onOpenKioskDisplayModal && (
+            <button
+              type="button"
+              data-testid="kiosk-display-settings-button"
+              onClick={onOpenKioskDisplayModal}
+              title={
+                isWakeLockActive
+                  ? "Kiosk Display & Wake Settings (Keep Awake Active)"
+                  : "Kiosk Display & Wake Settings"
+              }
+              aria-label="Open Kiosk Display and Wake Settings"
+              className="relative md:order-4 p-2 rounded-lg text-cosmos-muted hover:text-cosmos-text hover:bg-cosmos-surface/60 transition min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center shrink-0"
+            >
+              <Monitor className="w-4 h-4" />
+              {isWakeLockActive && (
+                <span
+                  aria-hidden="true"
+                  className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-cosmos-void"
+                />
+              )}
+            </button>
+          )}
 
           {/* Fullscreen Mode Toggle Button (Kiosk / Wall Display utility) */}
           {isFullscreenSupported && (

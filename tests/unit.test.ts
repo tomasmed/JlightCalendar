@@ -58,6 +58,20 @@ import {
   resolveConnectorPhotos,
 } from "./../src/lib/photos";
 import {
+  DEFAULT_KIOSK_DISPLAY_SETTINGS,
+  KIOSK_DISPLAY_STORAGE_KEY,
+  parseTimeToMinutes,
+  formatTimeLabel,
+  isWithinSleepWindow,
+  shouldHoldWakeLock,
+  normalizeKioskDisplaySettings,
+  loadKioskDisplaySettings,
+  saveKioskDisplaySettings,
+  isWakeLockSupported,
+  StorageLike,
+  WakeLockNavigatorLike,
+} from "./../src/lib/kiosk-display";
+import {
   isFullscreenSupported,
   isFullscreenActive,
   enterFullscreen,
@@ -1449,6 +1463,159 @@ assert(
   assert(
     failedEnter === false && loggedError.includes("Permissions check failed"),
     "enterFullscreen catches requestFullscreen errors gracefully without throwing"
+  );
+
+  // =========================================================================
+  // KIOSK DISPLAY, PWA MANIFEST, WAKE LOCK & SLEEP SCHEDULE TESTS
+  // =========================================================================
+  console.log("\n=== Running PWA Manifest & Kiosk Display Tests ===");
+
+  // 1. PWA Manifest & Icons
+  const manifestPath = path.resolve(__dirname, "../public/manifest.json");
+  assert(fs.existsSync(manifestPath), "public/manifest.json exists for PWA installability");
+  const manifestJson = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+  assert(
+    manifestJson.display === "fullscreen" &&
+      Array.isArray(manifestJson.display_override) &&
+      manifestJson.display_override.includes("fullscreen") &&
+      manifestJson.start_url === "/",
+    "manifest.json configures fullscreen PWA display and root start_url"
+  );
+  assert(
+    Array.isArray(manifestJson.icons) &&
+      manifestJson.icons.some((i: { sizes: string }) => i.sizes === "192x192") &&
+      manifestJson.icons.some((i: { sizes: string }) => i.sizes === "512x512"),
+    "manifest.json declares required 192x192 and 512x512 PNG icons"
+  );
+  for (const icon of manifestJson.icons as Array<{ src: string }>) {
+    const iconFile = path.resolve(__dirname, "../public", icon.src.replace(/^\//, ""));
+    assert(fs.existsSync(iconFile), `PWA icon file exists: ${icon.src}`);
+  }
+  assert(
+    fs.existsSync(path.resolve(__dirname, "../public/icons/apple-touch-icon.png")),
+    "apple-touch-icon.png exists for iPad/iOS standalone Home Screen"
+  );
+
+  // 2. Time parsing & formatting
+  assert(
+    parseTimeToMinutes("00:00") === 0 &&
+      parseTimeToMinutes("07:00") === 420 &&
+      parseTimeToMinutes("22:30") === 1350 &&
+      parseTimeToMinutes("23:59") === 1439,
+    "parseTimeToMinutes parses valid HH:mm strings accurately"
+  );
+  assert(
+    parseTimeToMinutes("24:00") === null &&
+      parseTimeToMinutes("12:60") === null &&
+      parseTimeToMinutes("7:00") === null &&
+      parseTimeToMinutes("invalid") === null,
+    "parseTimeToMinutes rejects out-of-range and malformed time strings"
+  );
+  assert(
+    formatTimeLabel("00:05") === "12:05 AM" &&
+      formatTimeLabel("07:00") === "7:00 AM" &&
+      formatTimeLabel("12:00") === "12:00 PM" &&
+      formatTimeLabel("22:30") === "10:30 PM",
+    "formatTimeLabel formats 24h HH:mm strings to 12h AM/PM labels"
+  );
+
+  // 3. Sleep window evaluation (overnight & same-day)
+  assert(
+    isWithinSleepWindow(22 * 60 + 30, "22:30", "07:00") === true &&
+      isWithinSleepWindow(23 * 60 + 59, "22:30", "07:00") === true &&
+      isWithinSleepWindow(0, "22:30", "07:00") === true &&
+      isWithinSleepWindow(6 * 60 + 59, "22:30", "07:00") === true &&
+      isWithinSleepWindow(7 * 60, "22:30", "07:00") === false &&
+      isWithinSleepWindow(14 * 60, "22:30", "07:00") === false &&
+      isWithinSleepWindow(22 * 60 + 29, "22:30", "07:00") === false,
+    "isWithinSleepWindow handles overnight wrap-around windows (22:30 -> 07:00)"
+  );
+  assert(
+    isWithinSleepWindow(13 * 60, "13:00", "15:00") === true &&
+      isWithinSleepWindow(14 * 60 + 30, "13:00", "15:00") === true &&
+      isWithinSleepWindow(15 * 60, "13:00", "15:00") === false &&
+      isWithinSleepWindow(12 * 60 + 59, "13:00", "15:00") === false,
+    "isWithinSleepWindow handles same-day windows (13:00 -> 15:00)"
+  );
+  assert(
+    isWithinSleepWindow(10 * 60, "07:00", "07:00") === false &&
+      isWithinSleepWindow(10 * 60, "bad", "07:00") === false,
+    "isWithinSleepWindow returns false for equal or invalid times"
+  );
+
+  // 4. Wake lock policy & support detection
+  assert(
+    shouldHoldWakeLock({ keepAwakeEnabled: true }, false) === true &&
+      shouldHoldWakeLock({ keepAwakeEnabled: true }, true) === false &&
+      shouldHoldWakeLock({ keepAwakeEnabled: false }, false) === false &&
+      shouldHoldWakeLock({ keepAwakeEnabled: false }, true) === false,
+    "shouldHoldWakeLock holds wake lock only when enabled and not sleeping"
+  );
+
+  const supportedNav: WakeLockNavigatorLike = {
+    wakeLock: {
+      request: async () => ({ release: async () => {} }),
+    },
+  };
+  assert(
+    isWakeLockSupported(supportedNav) === true &&
+      isWakeLockSupported({}) === false &&
+      isWakeLockSupported(null) === false,
+    "isWakeLockSupported accurately detects Screen Wake Lock API support"
+  );
+
+  // 5. Settings normalization & storage persistence
+  const storeMap = new Map<string, string>();
+  const mockStorage: StorageLike = {
+    getItem: (k) => storeMap.get(k) ?? null,
+    setItem: (k, v) => {
+      storeMap.set(k, v);
+    },
+  };
+
+  const defaultLoaded = loadKioskDisplaySettings(mockStorage);
+  assert(
+    defaultLoaded.keepAwakeEnabled === DEFAULT_KIOSK_DISPLAY_SETTINGS.keepAwakeEnabled &&
+      defaultLoaded.wakeTime === "07:00" &&
+      defaultLoaded.sleepTime === "22:30",
+    "loadKioskDisplaySettings returns defaults when storage is empty"
+  );
+
+  saveKioskDisplaySettings(
+    {
+      keepAwakeEnabled: true,
+      scheduleEnabled: true,
+      wakeTime: "06:30",
+      sleepTime: "21:45",
+      idlePhotoEnabled: true,
+      idlePhotoMinutes: 10,
+    },
+    mockStorage
+  );
+  const reloaded = loadKioskDisplaySettings(mockStorage);
+  assert(
+    reloaded.scheduleEnabled === true &&
+      reloaded.wakeTime === "06:30" &&
+      reloaded.sleepTime === "21:45" &&
+      reloaded.idlePhotoEnabled === true &&
+      reloaded.idlePhotoMinutes === 10,
+    "saveKioskDisplaySettings and loadKioskDisplaySettings round-trip cleanly"
+  );
+
+  storeMap.set(KIOSK_DISPLAY_STORAGE_KEY, "{not-valid-json");
+  const fallbackLoaded = loadKioskDisplaySettings(mockStorage);
+  assert(
+    fallbackLoaded.wakeTime === "07:00" && fallbackLoaded.idlePhotoMinutes === 15,
+    "loadKioskDisplaySettings recovers safely from corrupt JSON"
+  );
+
+  const clamped = normalizeKioskDisplaySettings({
+    wakeTime: "99:99",
+    idlePhotoMinutes: 999,
+  });
+  assert(
+    clamped.wakeTime === "07:00" && clamped.idlePhotoMinutes === 240,
+    "normalizeKioskDisplaySettings rejects invalid times and clamps idlePhotoMinutes"
   );
 
   console.log("\n✨ All unit and static guard tests passed successfully!");

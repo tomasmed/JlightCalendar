@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   KioskHeader,
   ActiveTab,
@@ -21,8 +21,13 @@ import { JoinGalaxyModal } from "@/components/join-galaxy-modal";
 import { AgentWallModal } from "@/components/agent-wall-modal";
 import { ExportCalendarModal } from "@/components/export-calendar-modal";
 import { ImportCalendarModal } from "@/components/import-calendar-modal";
+import { KioskDisplayModal } from "@/components/kiosk-display-modal";
 import { LandingPage } from "@/components/landing-page";
 import { CalendarEventData } from "@/components/event-modal";
+import {
+  useKioskDisplayController,
+  formatTimeLabel,
+} from "@/lib/kiosk-display";
 import { useSession, signIn } from "next-auth/react";
 import { Sparkles, ArrowRight, Download, Copy, Check, Globe2 } from "lucide-react";
 
@@ -53,8 +58,39 @@ export default function HomePage() {
   const [activeCometParam, setActiveCometParam] = useState<string>("");
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isKioskDisplayModalOpen, setIsKioskDisplayModalOpen] = useState(false);
   const [copiedCometLink, setCopiedCometLink] = useState(false);
   const [isConvertingComet, setIsConvertingComet] = useState(false);
+
+  const isLandingView =
+    status !== "loading" && !session?.user && !isDemoMode && !activeCometParam;
+
+  const handleEnterPhotoMode = useCallback(() => {
+    setActiveTab("photos");
+  }, []);
+
+  const handleScheduledSleep = useCallback(() => {
+    fetch("/api/backup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "night-sleep" }),
+    }).catch(() => {});
+  }, []);
+
+  const {
+    settings: kioskDisplaySettings,
+    updateSettings: updateKioskDisplaySettings,
+    notifyManualWake,
+    wakeLockSupported,
+    wakeLockActive,
+  } = useKioskDisplayController({
+    isSleeping,
+    setIsSleeping,
+    activeTab,
+    onEnterPhotoMode: handleEnterPhotoMode,
+    onEnterScheduledSleep: handleScheduledSleep,
+    disabled: isLandingView,
+  });
 
   // Inspect URL parameters on mount (?join=..., ?comet=..., ?demo=true, or ?claimBot=BOT-XXXX)
   useEffect(() => {
@@ -490,7 +526,23 @@ export default function HomePage() {
       {/* 24/7 Night Sleep Mode Overlay */}
       <NightSleepOverlay
         isSleeping={isSleeping}
-        onWake={() => setIsSleeping(false)}
+        onWake={notifyManualWake}
+        scheduledWakeLabel={
+          kioskDisplaySettings.scheduleEnabled
+            ? formatTimeLabel(kioskDisplaySettings.wakeTime)
+            : undefined
+        }
+      />
+
+      {/* Kiosk Display, Wake Lock & Idle Photo Mode Settings Modal */}
+      <KioskDisplayModal
+        isOpen={isKioskDisplayModalOpen}
+        onClose={() => setIsKioskDisplayModalOpen(false)}
+        settings={kioskDisplaySettings}
+        onSave={updateKioskDisplaySettings}
+        wakeLockSupported={wakeLockSupported}
+        wakeLockActive={wakeLockActive}
+        isSleeping={isSleeping}
       />
 
       {/* Access Mode Switcher (PIN Protected) */}
@@ -736,6 +788,8 @@ export default function HomePage() {
             }}
             onOpenExportModal={() => setIsExportModalOpen(true)}
             onOpenImportModal={() => setIsImportModalOpen(true)}
+            onOpenKioskDisplayModal={() => setIsKioskDisplayModalOpen(true)}
+            isWakeLockActive={wakeLockActive}
             user={user}
           />
 
