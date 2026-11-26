@@ -1467,6 +1467,68 @@ async function runSystemTests() {
     "resolveAuthSecret() generates unique 32-byte CSPRNG hex secret when AUTH_SECRET is missing in production"
   );
 
+  console.log("\n====================================================");
+  console.log("🏖️  11. Multi-Day All-Day Events API & Overlapping .ics Export");
+  console.log("====================================================");
+
+  // 11a. Create a 5-day all-day vacation event via POST /api/events
+  const multiDayCreateRes = await eventsRoute.POST(
+    new Request("http://localhost:3000/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        galaxyId,
+        title: "Hawaii Family Vacation",
+        startTime: "2026-07-10T00:00:00",
+        endTime: "2026-07-14T23:59:59",
+        isAllDay: true,
+      }),
+    })
+  );
+  assert(
+    multiDayCreateRes.status === 200,
+    "POST /api/events created 5-day all-day vacation event"
+  );
+  const multiDayCreateData = await multiDayCreateRes.json();
+  const multiDayEventId = multiDayCreateData.event.id;
+  assert(
+    multiDayCreateData.event.startTime === "2026-07-10T00:00:00" &&
+      multiDayCreateData.event.endTime === "2026-07-14T23:59:59" &&
+      multiDayCreateData.event.isAllDay === true,
+    "Persisted multi-day event preserves inclusive startTime and endTime in local wall-clock time"
+  );
+
+  // 11b. Extend the vacation by 2 more days via PATCH /api/events
+  const multiDayPatchRes = await eventsRoute.PATCH(
+    new Request("http://localhost:3000/api/events", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: multiDayEventId,
+        endTime: "2026-07-16T23:59:59",
+      }),
+    })
+  );
+  assert(
+    multiDayPatchRes.status === 200,
+    "PATCH /api/events extended multi-day all-day vacation to Jul 16"
+  );
+
+  // 11c. Export an overlapping window (Jul 13 - Jul 20) that starts mid-vacation
+  const multiDayExportRes = await eventsExportRoute.GET(
+    new Request(
+      `http://localhost:3000/api/events/export?galaxyId=${galaxyId}&start=2026-07-13&end=2026-07-20`
+    )
+  );
+  const multiDayExportIcs = await multiDayExportRes.text();
+  assert(
+    multiDayExportRes.status === 200 &&
+      multiDayExportIcs.includes("SUMMARY:Hawaii Family Vacation") &&
+      multiDayExportIcs.includes("DTSTART;VALUE=DATE:20260710") &&
+      multiDayExportIcs.includes("DTEND;VALUE=DATE:20260717"),
+    "GET /api/events/export includes mid-span overlapping multi-day vacation with exclusive RFC 5545 DTEND (20260717)"
+  );
+
   // Close client & clean up temporary SQLite DB files
   client.close();
   cleanupDbFiles();
